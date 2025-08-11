@@ -102,7 +102,7 @@ const App = () => {
         worker: true,
         header: false,
         skipEmptyLines: true,
-        step: async (results: Papa.ParseResult<string[]>, parser: Papa.Parser) => {
+        step: async (results: Papa.ParseStepResult<string[]>, parser: Papa.Parser) => {
           if (fileHeaders.length === 0) {
             fileHeaders = results.data;
             setHeaders(fileHeaders);
