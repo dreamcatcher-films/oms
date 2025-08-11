@@ -1,4 +1,3 @@
-
 import { render } from "preact";
 import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import {
@@ -11,9 +10,10 @@ import {
   Product,
   GoodsReceipt,
   getProductsPaginatedAndFiltered,
-  getGoodsReceiptsPaginated,
+  getGoodsReceiptsPaginatedAndFiltered,
   getUniqueProductStatuses,
   getUniqueWarehouseIds,
+  getUniqueWarehouseIdsForGoodsReceipts,
   findProductsByPartialId
 } from "./db";
 import Papa from "papaparse";
@@ -91,8 +91,12 @@ const DataPreview = () => {
   const [productFilters, setProductFilters] = useState({ warehouseId: '', productId: '', status: '' });
   const [appliedProductFilters, setAppliedProductFilters] = useState({ warehouseId: '', productId: '', status: '' });
   
+  const [goodsReceiptsFilters, setGoodsReceiptsFilters] = useState({ warehouseId: '', productId: '' });
+  const [appliedGoodsReceiptsFilters, setAppliedGoodsReceiptsFilters] = useState({ warehouseId: '', productId: '' });
+
   const [productStatuses, setProductStatuses] = useState<string[]>([]);
-  const [warehouseIds, setWarehouseIds] = useState<string[]>([]);
+  const [productWarehouseIds, setProductWarehouseIds] = useState<string[]>([]);
+  const [goodsReceiptsWarehouseIds, setGoodsReceiptsWarehouseIds] = useState<string[]>([]);
   const [productIdSuggestions, setProductIdSuggestions] = useState<Product[]>([]);
   const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
   const debounceTimeoutRef = useRef<number | null>(null);
@@ -100,12 +104,14 @@ const DataPreview = () => {
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
 
   const fetchDropdownData = useCallback(async () => {
-    const [statuses, warehouses] = await Promise.all([
+    const [statuses, pWarehouses, grWarehouses] = await Promise.all([
       getUniqueProductStatuses(),
-      getUniqueWarehouseIds()
+      getUniqueWarehouseIds(),
+      getUniqueWarehouseIdsForGoodsReceipts()
     ]);
     setProductStatuses(statuses);
-    setWarehouseIds(warehouses);
+    setProductWarehouseIds(pWarehouses);
+    setGoodsReceiptsWarehouseIds(grWarehouses);
   }, []);
   
   const fetchProducts = useCallback(async () => {
@@ -118,11 +124,11 @@ const DataPreview = () => {
   
   const fetchGoodsReceipts = useCallback(async () => {
     setIsLoading(true);
-    const { data, total } = await getGoodsReceiptsPaginated(currentPage, PAGE_SIZE);
+    const { data, total } = await getGoodsReceiptsPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedGoodsReceiptsFilters);
     setGoodsReceipts(data);
     setTotalItems(total);
     setIsLoading(false);
-  }, [currentPage]);
+  }, [currentPage, appliedGoodsReceiptsFilters]);
 
   useEffect(() => {
     fetchDropdownData();
@@ -135,26 +141,36 @@ const DataPreview = () => {
     } else if (activeTab === 'goodsReceipts') {
       fetchGoodsReceipts();
     }
-  }, [activeTab, fetchProducts, fetchGoodsReceipts]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   useEffect(() => {
-    // Refetch data when page changes
+    // Refetch data when page or filters change
     if (activeTab === 'products') {
       fetchProducts();
     } else if (activeTab === 'goodsReceipts') {
       fetchGoodsReceipts();
     }
-  }, [currentPage]);
+  }, [currentPage, appliedProductFilters, appliedGoodsReceiptsFilters, activeTab, fetchProducts, fetchGoodsReceipts]);
 
 
-  const handleFilterChange = (e: Event) => {
+  const handleProductFilterChange = (e: Event) => {
     const { name, value } = e.target as HTMLInputElement | HTMLSelectElement;
     setProductFilters(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleProductIdChange = (e: Event) => {
+  const handleGoodsReceiptFilterChange = (e: Event) => {
+    const { name, value } = e.target as HTMLInputElement | HTMLSelectElement;
+    setGoodsReceiptsFilters(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleProductIdChange = (e: Event, type: 'products' | 'goodsReceipts') => {
       const value = (e.target as HTMLInputElement).value;
-      setProductFilters(prev => ({ ...prev, productId: value }));
+      if (type === 'products') {
+        setProductFilters(prev => ({ ...prev, productId: value }));
+      } else {
+        setGoodsReceiptsFilters(prev => ({ ...prev, productId: value }));
+      }
 
       if (debounceTimeoutRef.current) {
           clearTimeout(debounceTimeoutRef.current);
@@ -174,21 +190,34 @@ const DataPreview = () => {
   };
 
   const handleSuggestionClick = (product: Product) => {
+    if (activeTab === 'products') {
       setProductFilters(prev => ({ ...prev, productId: product.productId }));
-      setIsSuggestionsVisible(false);
+    } else {
+      setGoodsReceiptsFilters(prev => ({ ...prev, productId: product.productId }));
+    }
+    setIsSuggestionsVisible(false);
   };
 
 
   const applyFilters = () => {
     setCurrentPage(1);
-    setAppliedProductFilters(productFilters);
+    if(activeTab === 'products') {
+        setAppliedProductFilters(productFilters);
+    } else {
+        setAppliedGoodsReceiptsFilters(goodsReceiptsFilters);
+    }
     setIsSuggestionsVisible(false);
   };
   
   const clearFilters = () => {
     setCurrentPage(1);
-    setProductFilters({ warehouseId: '', productId: '', status: '' });
-    setAppliedProductFilters({ warehouseId: '', productId: '', status: '' });
+    if(activeTab === 'products') {
+        setProductFilters({ warehouseId: '', productId: '', status: '' });
+        setAppliedProductFilters({ warehouseId: '', productId: '', status: '' });
+    } else {
+        setGoodsReceiptsFilters({ warehouseId: '', productId: '' });
+        setAppliedGoodsReceiptsFilters({ warehouseId: '', productId: '' });
+    }
     setIsSuggestionsVisible(false);
   };
   
@@ -222,15 +251,15 @@ const DataPreview = () => {
         <>
         <div class="filter-bar">
           <div class="filter-group">
-            <label for="warehouseId">Magazyn</label>
-            <select id="warehouseId" name="warehouseId" value={productFilters.warehouseId} onChange={handleFilterChange} onKeyDown={handleKeyDown}>
+            <label for="p-warehouseId">Magazyn</label>
+            <select id="p-warehouseId" name="warehouseId" value={productFilters.warehouseId} onChange={handleProductFilterChange} onKeyDown={handleKeyDown}>
               <option value="">Wszystkie</option>
-              {warehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
+              {productWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
           </div>
           <div class="filter-group">
-            <label for="productId">Nr artykułu</label>
-            <input type="text" id="productId" name="productId" value={productFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
+            <label for="p-productId">Nr artykułu</label>
+            <input type="text" id="p-productId" name="productId" value={productFilters.productId} onInput={(e) => handleProductIdChange(e, 'products')} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
             {isSuggestionsVisible && productIdSuggestions.length > 0 && (
               <ul class="suggestions-list">
                 {productIdSuggestions.map(p => (
@@ -242,8 +271,8 @@ const DataPreview = () => {
             )}
           </div>
           <div class="filter-group">
-            <label for="status">Status</label>
-            <select id="status" name="status" value={productFilters.status} onChange={handleFilterChange} onKeyDown={handleKeyDown}>
+            <label for="p-status">Status</label>
+            <select id="p-status" name="status" value={productFilters.status} onChange={handleProductFilterChange} onKeyDown={handleKeyDown}>
               <option value="">Wszystkie</option>
               {productStatuses.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -293,6 +322,32 @@ const DataPreview = () => {
 
       {activeTab === 'goodsReceipts' && (
          <>
+         <div class="filter-bar">
+          <div class="filter-group">
+            <label for="gr-warehouseId">Magazyn</label>
+            <select id="gr-warehouseId" name="warehouseId" value={goodsReceiptsFilters.warehouseId} onChange={handleGoodsReceiptFilterChange} onKeyDown={handleKeyDown}>
+              <option value="">Wszystkie</option>
+              {goodsReceiptsWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="gr-productId">Nr artykułu</label>
+            <input type="text" id="gr-productId" name="productId" value={goodsReceiptsFilters.productId} onInput={(e) => handleProductIdChange(e, 'goodsReceipts')} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
+            {isSuggestionsVisible && productIdSuggestions.length > 0 && (
+              <ul class="suggestions-list">
+                {productIdSuggestions.map(p => (
+                  <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
+                    <strong>{p.productId}</strong> - {p.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div class="filter-actions">
+            <button onClick={applyFilters} class="button-primary">Filtruj</button>
+            <button onClick={clearFilters} class="button-secondary">Wyczyść</button>
+          </div>
+        </div>
          <div class="table-container">
            {isLoading ? ( <div class="spinner-overlay"><div class="spinner"></div></div> ) : (
              <table>
@@ -359,6 +414,21 @@ const App = () => {
     performInitialCheck();
   }, []);
   
+  const parseDateToSortableFormat = (dateStr: string | undefined): string => {
+    if (!dateStr) return '00000000';
+    const parts = dateStr.match(/(\d+)/g);
+    if (!parts || parts.length < 3) return '00000000';
+    let [day, month, year] = parts;
+    if (day.length === 4) { // Handle YYYY/DD/MM
+        [year, day, month] = parts;
+    } else if (month.length === 4) { // Handle MM/YYYY/DD
+        [month, year, day] = parts;
+    } // Assume DD/MM/YYYY otherwise
+    
+    const fullYear = year.length === 2 ? `20${year}` : year;
+    return `${fullYear.padStart(4, '0')}${month.padStart(2, '0')}${day.padStart(2, '0')}`;
+  };
+
   const productRowMapper = (row: { [key: string]: string }): Product => {
       const parseNum = (val: string | undefined) => {
           if (val === undefined) return 0;
@@ -431,6 +501,9 @@ const App = () => {
             productId = productIdWithoutLast4;
         }
     }
+    
+    const deliveryDate = row['DELIVERY DATE']?.trim() ?? '';
+    const bestBeforeDate = row['BEST BEFORE DATE']?.trim() ?? '';
 
     return {
         warehouseId: row['WH NR']?.trim() ?? '',
@@ -443,8 +516,8 @@ const App = () => {
         caseSize: parseNum(row['CASE SIZE']),
         deliveryQtyPcs: parseNum(row['DELIVERY QTY (in PIECES)']),
         poNr: row['PO NR']?.trim() ?? '',
-        deliveryDate: row['DELIVERY DATE']?.trim() ?? '',
-        bestBeforeDate: row['BEST BEFORE DATE']?.trim() ?? '',
+        deliveryDate,
+        bestBeforeDate,
         bolNr: row['BOL NR']?.trim() ?? '',
         supplierId: row['SUPPLIER NR']?.trim() ?? '',
         supplierName: row['SUPPLIER DESC']?.trim() ?? '',
@@ -452,6 +525,8 @@ const App = () => {
         intItemNr: row['INT ITEM NR']?.trim() ?? '',
         caseGtin: row['CASE GTIN']?.trim() ?? '',
         liaReference: row['LIA REFERENCE']?.trim() ?? '',
+        deliveryDateSortable: parseDateToSortableFormat(deliveryDate),
+        bestBeforeDateSortable: parseDateToSortableFormat(bestBeforeDate),
     };
 };
 
