@@ -7,6 +7,7 @@ const App = () => {
   const [rows, setRows] = useState<string[][]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState('Sprawdzanie lokalnej bazy danych...');
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -35,35 +36,59 @@ const App = () => {
 
     if (file) {
       setIsLoading(true);
-      setStatusMessage('Przetwarzanie pliku...');
+      setUploadProgress(0);
+      setStatusMessage('Wczytywanie pliku: 0%');
+      
       const reader = new FileReader();
-      reader.onload = async (e) => {
-        const text = e.target?.result as string;
-        if (text) {
-          const lines = text.split('\n').filter(line => line.trim() !== '');
-          if (lines.length > 0) {
-            const fileHeaders = lines[0].split(',').map(header => header.trim());
-            const fileRows = lines.slice(1).map(line => line.split(',').map(cell => cell.trim()));
-            
-            setStatusMessage('Zapisywanie danych w lokalnej bazie...');
-            try {
-              await saveData(fileHeaders, fileRows);
-              setHeaders(fileHeaders);
-              setRows(fileRows);
-              setStatusMessage('Dane zostały pomyślnie zapisane.');
-            } catch(error) {
-              console.error("Failed to save data to DB", error);
-              setStatusMessage('Błąd podczas zapisywania danych.');
-            } finally {
-              setIsLoading(false);
-            }
-          } else {
-            setHeaders([]);
-            setRows([]);
-            setIsLoading(false);
-            setStatusMessage('Plik jest pusty.');
-          }
+
+      reader.onprogress = (e: ProgressEvent) => {
+        if (e.lengthComputable) {
+          const progress = Math.round((e.loaded / e.total) * 100);
+          setUploadProgress(progress);
+          setStatusMessage(`Wczytywanie pliku: ${progress}%`);
         }
+      };
+
+      reader.onerror = () => {
+        setIsLoading(false);
+        setUploadProgress(null);
+        setStatusMessage('Błąd podczas wczytywania pliku.');
+      };
+
+      reader.onload = async (e) => {
+        setUploadProgress(100);
+        setStatusMessage('Plik wczytany. Przetwarzanie i zapisywanie danych...');
+        
+        // Use a timeout to allow the UI to update before a potentially blocking operation
+        setTimeout(async () => {
+            const text = e.target?.result as string;
+            if (text) {
+              const lines = text.split('\n').filter(line => line.trim() !== '');
+              if (lines.length > 0) {
+                const fileHeaders = lines[0].split(',').map(header => header.trim());
+                const fileRows = lines.slice(1).map(line => line.split(',').map(cell => cell.trim()));
+                
+                try {
+                  await saveData(fileHeaders, fileRows);
+                  setHeaders(fileHeaders);
+                  setRows(fileRows);
+                  setStatusMessage('Dane zostały pomyślnie zapisane.');
+                } catch(error) {
+                  console.error("Failed to save data to DB", error);
+                  setStatusMessage('Błąd podczas zapisywania danych.');
+                } finally {
+                  setIsLoading(false);
+                  setUploadProgress(null);
+                }
+              } else {
+                setHeaders([]);
+                setRows([]);
+                setIsLoading(false);
+                setUploadProgress(null);
+                setStatusMessage('Plik jest pusty.');
+              }
+            }
+        }, 50);
       };
       reader.readAsText(file);
       target.value = ''; // Reset file input
@@ -112,8 +137,15 @@ const App = () => {
 
       {(isLoading || statusMessage) && (
         <div class="status-container" role="status">
-          {isLoading && <div class="spinner"></div>}
-          <p>{statusMessage}</p>
+          {isLoading && uploadProgress === null && <div class="spinner"></div>}
+          <div class="status-content">
+            <p class="status-text">{statusMessage}</p>
+            {uploadProgress !== null && (
+               <div class="progress-bar-container">
+                 <div class="progress-bar" style={{ width: `${uploadProgress}%` }}></div>
+               </div>
+            )}
+          </div>
         </div>
       )}
 
