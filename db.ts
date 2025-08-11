@@ -74,7 +74,7 @@ export const saveData = async (headers: string[], rows: string[][]): Promise<voi
     };
 
     transaction.onerror = () => {
-      reject('Transaction error: ' + transaction.error);
+      reject(transaction.error);
     };
   });
 };
@@ -114,7 +114,7 @@ export const getData = async (): Promise<{ headers: string[], rows: string[][] }
         };
 
         transaction.onerror = () => {
-            reject('Transaction error: ' + transaction.error);
+            reject(transaction.error);
         };
     });
 };
@@ -128,6 +128,6 @@ export const clearData = async (): Promise<void> => {
       transaction.objectStore(HEADERS_STORE_NAME).clear();
       
       transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject('Clear data transaction error: ' + transaction.error);
+      transaction.onerror = () => reject(transaction.error);
   });
 }
