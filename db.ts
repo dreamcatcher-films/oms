@@ -41,8 +41,8 @@ export type Product = {
   price: number;         // Kolumna P: RETAIL PRICE
   
   // --- Supplier Info ---
-  supplierId: string;   // Kolumna U: SUPPLIE NR
-  supplierName: string; // Kolumna V: SUPPLIE NAME
+  supplierId: string;   // Kolumna U: SUPPLIER NR
+  supplierName: string; // Kolumna V: SUPPLIER NAME
   
   // --- Stock Info ---
   unprocessedDeliveryQty: number; // Kolumna W: UNPROC DEL QTY (dostawa nieprzetworzona)
@@ -234,6 +234,55 @@ export const getUniqueProductStatuses = async (): Promise<string[]> => {
                 cursor.continue();
             } else {
                 resolve(Array.from(statuses).sort());
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const getUniqueWarehouseIds = async (): Promise<string[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(PRODUCTS_STORE_NAME);
+    const request = store.openCursor();
+    const warehouses = new Set<string>();
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const product: Product = cursor.value;
+                if(product.warehouseId) {
+                    warehouses.add(product.warehouseId);
+                }
+                cursor.continue();
+            } else {
+                resolve(Array.from(warehouses).sort());
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const findProductsByPartialId = async (partialId: string, limit: number = 5): Promise<Product[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(PRODUCTS_STORE_NAME);
+    const request = store.openCursor();
+    const products: Product[] = [];
+    const lowerCasePartialId = partialId.toLowerCase();
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor && products.length < limit) {
+                const product: Product = cursor.value;
+                if (product.productId.toLowerCase().startsWith(lowerCasePartialId)) {
+                    products.push(product);
+                }
+                cursor.continue();
+            } else {
+                resolve(products);
             }
         };
         request.onerror = () => reject(request.error);
