@@ -1,5 +1,4 @@
 
-
 import { render } from "preact";
 import { useState, useEffect, useCallback } from "preact/hooks";
 import {
@@ -18,6 +17,36 @@ import Papa from "papaparse";
 
 const BATCH_SIZE = 5000;
 const PAGE_SIZE = 20;
+
+const PRODUCT_COLUMNS: { key: keyof Product; label: string }[] = [
+    { key: 'warehouseId', label: 'Magazyn' },
+    { key: 'dispoGroup', label: 'Grupa Dispo' },
+    { key: 'itemGroup', label: 'Grupa Tow.' },
+    { key: 'orderArea', label: 'Obszar Zam.' },
+    { key: 'productId', label: 'Nr art. krótki' },
+    { key: 'fullProductId', label: 'Nr art. pełny' },
+    { key: 'name', label: 'Nazwa' },
+    { key: 'caseSize', label: 'Szt. w kart.' },
+    { key: 'cartonsPerLayer', label: 'Kart. na war.' },
+    { key: 'duessFactor', label: 'DD' },
+    { key: 'cartonsPerPallet', label: 'Kart. na pal.' },
+    { key: 'shelfLifeAtReceiving', label: 'W-DATE dni' },
+    { key: 'shelfLifeAtStore', label: 'S-DATE dni' },
+    { key: 'customerShelfLife', label: 'C-DATE dni' },
+    { key: 'price', label: 'Cena' },
+    { key: 'status', label: 'Status' },
+    { key: 'itemLocked', label: 'Zablokowany' },
+    { key: 'slotNr', label: 'Slot' },
+    { key: 'unprocessedDeliveryQty', label: 'Nieroz. dost.' },
+    { key: 'supplierId', label: 'ID Dostawcy' },
+    { key: 'supplierName', label: 'Nazwa Dostawcy' },
+    { key: 'stockOnHand', label: 'Stan mag.' },
+    { key: 'storeAllocationToday', label: 'Alok. dzisiaj' },
+    { key: 'storeAllocationTotal', label: 'Alok. łączna' },
+    { key: 'promoDate', label: 'Data promo' },
+    { key: 'estimatedReceivings', label: 'Szac. dostawy' },
+];
+
 
 type Status = {
   text: string;
@@ -133,14 +162,22 @@ const DataPreview = () => {
             <table>
               <thead>
                 <tr>
-                  {products.length > 0 && Object.keys(products[0]).map(key => <th key={key}>{key}</th>)}
+                  {PRODUCT_COLUMNS.map(col => <th key={col.key}>{col.label}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {products.map(product => (
                   <tr key={`${product.warehouseId}-${product.fullProductId}`}>
-                    {Object.values(product).map((value, i) => (
-                      <td key={i}>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</td>
+                    {PRODUCT_COLUMNS.map(col => (
+                       <td key={col.key}>
+                         {(() => {
+                           const value = product[col.key];
+                           if (Array.isArray(value)) {
+                               return value.length > 0 ? `${value.length} dostaw` : 'Brak';
+                           }
+                           return String(value ?? '');
+                         })()}
+                       </td>
                     ))}
                   </tr>
                 ))}
@@ -230,6 +267,15 @@ const App = () => {
           storeAllocationToday: parseNum(row['STORE ALLOC C']),
           storeAllocationTotal: parseNum(row['STORE ALLOC C <']),
           estimatedReceivings: estimatedReceivings,
+          dispoGroup: row['DISPO GROUP']?.trim() ?? '',
+          itemGroup: row['ITEM GROUP']?.trim() ?? '',
+          orderArea: row['ORDER AREA']?.trim() ?? '',
+          cartonsPerLayer: parseNum(row['LAYER FACTOR']),
+          duessFactor: parseNum(row['DUESS FACTOR']),
+          cartonsPerPallet: parseNum(row['EURO FACTOR']),
+          itemLocked: row['ITEM LOCKED']?.trim() ?? '',
+          slotNr: row['SLOT NR']?.trim() ?? '',
+          unprocessedDeliveryQty: parseNum(row['UNPROC DEL QTY']),
       };
   };
 
