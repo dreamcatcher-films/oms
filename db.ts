@@ -1,11 +1,7 @@
 const DB_NAME = 'CSVDatabase';
 const DATA_STORE_NAME = 'csvData';
-const HEADERS_STORE_NAME = 'csvHeaders';
+const META_STORE_NAME = 'csvMeta';
 const DB_VERSION = 1;
-
-interface CsvRow {
-  [key: string]: string;
-}
 
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
@@ -16,147 +12,97 @@ const openDB = (): Promise<IDBDatabase> => {
       if (!db.objectStoreNames.contains(DATA_STORE_NAME)) {
         db.createObjectStore(DATA_STORE_NAME, { autoIncrement: true });
       }
-      if (!db.objectStoreNames.contains(HEADERS_STORE_NAME)) {
-        db.createObjectStore(HEADERS_STORE_NAME);
+      if (!db.objectStoreNames.contains(META_STORE_NAME)) {
+        db.createObjectStore(META_STORE_NAME);
       }
     };
 
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-
-    request.onerror = () => {
-      reject(new DOMException('Error opening database', 'OpenDBError'));
-    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(new DOMException('Error opening database', 'OpenDBError'));
   });
 };
 
-export const saveData = async (headers: string[], rows: string[][]): Promise<void> => {
+export const saveHeaders = async (headers: string[]): Promise<void> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([DATA_STORE_NAME, HEADERS_STORE_NAME], 'readwrite');
-    const dataStore = transaction.objectStore(DATA_STORE_NAME);
-    const headersStore = transaction.objectStore(HEADERS_STORE_NAME);
-
-    dataStore.clear();
-    headersStore.clear();
-
-    headersStore.put(headers, 'currentHeaders');
-
-    const dataToStore = rows.map(row => {
-      const rowObject: CsvRow = {};
-      headers.forEach((header, index) => {
-        rowObject[header] = row[index];
-      });
-      return rowObject;
-    });
-
-    dataToStore.forEach(item => dataStore.add(item));
-
-    transaction.oncomplete = () => {
-      resolve();
-    };
-
-    transaction.onerror = () => {
-      reject(transaction.error);
-    };
+    const transaction = db.transaction(META_STORE_NAME, 'readwrite');
+    transaction.objectStore(META_STORE_NAME).put(headers, 'headers');
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
   });
 };
 
-export const checkDBStatus = async (): Promise<{ hasData: boolean; headers: string[] }> => {
+export const appendRows = async (rows: string[][]): Promise<void> => {
+  if (rows.length === 0) return;
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(DATA_STORE_NAME, 'readwrite');
+    const dataStore = transaction.objectStore(DATA_STORE_NAME);
+    rows.forEach(row => dataStore.add(row));
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+};
+
+export const checkDBStatus = async (): Promise<{ hasData: boolean; headers: string[], rowCount: number }> => {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction([DATA_STORE_NAME, HEADERS_STORE_NAME], 'readonly');
+        const transaction = db.transaction([DATA_STORE_NAME, META_STORE_NAME], 'readonly');
         const dataStore = transaction.objectStore(DATA_STORE_NAME);
-        const headersStore = transaction.objectStore(HEADERS_STORE_NAME);
+        const metaStore = transaction.objectStore(META_STORE_NAME);
 
         const countRequest = dataStore.count();
-        const getHeadersRequest = headersStore.get('currentHeaders');
+        const getHeadersRequest = metaStore.get('headers');
 
         let dataCount = 0;
         let headersResult: string[] = [];
 
-        countRequest.onsuccess = () => {
-            dataCount = countRequest.result;
-        };
-
-        getHeadersRequest.onsuccess = () => {
-            headersResult = getHeadersRequest.result || [];
-        };
+        countRequest.onsuccess = () => { dataCount = countRequest.result; };
+        getHeadersRequest.onsuccess = () => { headersResult = getHeadersRequest.result || []; };
         
-        transaction.oncomplete = () => {
-            resolve({ hasData: dataCount > 0, headers: headersResult });
-        };
-        
-        transaction.onerror = () => {
-            reject(transaction.error);
-        };
+        transaction.oncomplete = () => resolve({ hasData: dataCount > 0, headers: headersResult, rowCount: dataCount });
+        transaction.onerror = () => reject(transaction.error);
     });
 };
 
-export const getData = async ({ signal }: { signal?: AbortSignal } = {}): Promise<{ headers: string[], rows: string[][] }> => {
+export const getPaginatedData = async ({ page, pageSize }: { page: number, pageSize: number }): Promise<{ rows: string[][] }> => {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-        if (signal?.aborted) {
-            return reject(new DOMException('Aborted', 'AbortError'));
-        }
-
-        const transaction = db.transaction([DATA_STORE_NAME, HEADERS_STORE_NAME], 'readonly');
-        
-        const handleAbort = () => {
-            try {
-                transaction.abort();
-            } catch (e) {
-                // Ignore if transaction is already finished.
-            }
-            reject(new DOMException('Aborted', 'AbortError'));
-        };
-        
-        signal?.addEventListener('abort', handleAbort);
-
+        const transaction = db.transaction([DATA_STORE_NAME, META_STORE_NAME], 'readonly');
         const dataStore = transaction.objectStore(DATA_STORE_NAME);
-        const headersStore = transaction.objectStore(HEADERS_STORE_NAME);
         
-        const getHeadersRequest = headersStore.get('currentHeaders');
-        const getDataRequest = dataStore.getAll();
+        const rows: string[][] = [];
+        let advanced = false;
+        const cursorRequest = dataStore.openCursor();
+        let i = 0;
 
-        let headersResult: string[] | undefined;
-        let dataObjectsResult: CsvRow[] | undefined;
-
-        getHeadersRequest.onsuccess = () => {
-            headersResult = getHeadersRequest.result;
-        };
-
-        getDataRequest.onsuccess = () => {
-            dataObjectsResult = getDataRequest.result;
-        };
-
-        transaction.oncomplete = () => {
-            signal?.removeEventListener('abort', handleAbort);
-            const headers = headersResult || [];
-            const dataObjects = dataObjectsResult || [];
-            let rows: string[][] = [];
-
-            if (headers.length > 0 && dataObjects.length > 0) {
-                 rows = dataObjects.map(obj => headers.map(header => obj[header] || ''));
+        cursorRequest.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                if (!advanced && page > 1) {
+                    advanced = true;
+                    cursor.advance((page - 1) * pageSize);
+                    return;
+                }
+                if (i < pageSize) {
+                    rows.push(cursor.value);
+                    i++;
+                    cursor.continue();
+                }
             }
-            
-            resolve({ headers, rows });
         };
 
-        transaction.onerror = () => {
-            signal?.removeEventListener('abort', handleAbort);
-            reject(transaction.error);
-        };
+        transaction.oncomplete = () => resolve({ rows });
+        transaction.onerror = () => reject(transaction.error);
     });
 };
 
 export const clearData = async (): Promise<void> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-      const transaction = db.transaction([DATA_STORE_NAME, HEADERS_STORE_NAME], 'readwrite');
+      const transaction = db.transaction([DATA_STORE_NAME, META_STORE_NAME], 'readwrite');
       transaction.objectStore(DATA_STORE_NAME).clear();
-      transaction.objectStore(HEADERS_STORE_NAME).clear();
+      transaction.objectStore(META_STORE_NAME).clear();
       
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
