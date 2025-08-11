@@ -56,7 +56,8 @@ const App = () => {
     setDataCount: (count: number) => void,
     saveFunction: (data: T[]) => Promise<void>,
     rowMapper: (row: { [key: string]: string }) => T,
-    dataType: 'produktów' | 'palet'
+    dataType: 'produktów' | 'palet',
+    extraConfig: Partial<Papa.ParseConfig<{ [key: string]: string }>> = {}
   ) => {
     setIsLoading(true);
     setStatusMessage({ text: `Rozpoczynanie importu pliku ${dataType}...`, type: 'info' });
@@ -77,6 +78,7 @@ const App = () => {
       worker: true,
       header: true,
       skipEmptyLines: true,
+      ...extraConfig,
       step: (results, parser) => {
         parser.pause();
         (async () => {
@@ -159,7 +161,15 @@ const App = () => {
                 estimatedReceivings: estimatedReceivings,
             };
         };
-        handleFileParse<Product>(file, setProductsCount, saveProducts, productRowMapper, 'produktów');
+
+        const config = {
+          beforeFirstChunk: (chunk: string) => {
+              const firstNewline = chunk.indexOf('\n');
+              return firstNewline !== -1 ? chunk.substring(firstNewline + 1) : chunk;
+          }
+      };
+
+      handleFileParse<Product>(file, setProductsCount, saveProducts, productRowMapper, 'produktów', config);
        (event.target as HTMLInputElement).value = '';
     }
   };
@@ -167,15 +177,16 @@ const App = () => {
   const handlePalletFile = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
-      // Placeholder mapper until the pallet file structure is defined.
+      // UWAGA: Mapper tymczasowy do czasu podania schematu pliku palet.
       const palletRowMapper = (row: { [key: string]: string }): Pallet => ({
-        palletId: row['ID Palety'] ?? 'Brak ID',
-        productId: row['ID Produktu'] ?? 'Brak ID',
-        warehouseId: row['ID Magazynu'] ?? 'Brak ID',
-        arrivalDate: new Date(row['Data Przyjęcia'] ?? ''),
-        expiryDate: new Date(row['Data Ważności'] ?? '')
+        palletId: row['Pallet ID']?.trim() ?? '',
+        productId: row['Product ID']?.trim() ?? '',
+        warehouseId: row['Warehouse ID']?.trim() ?? '',
+        arrivalDate: new Date(row['Arrival Date']?.trim() ?? ''),
+        expiryDate: new Date(row['Expiry Date']?.trim() ?? '')
       });
 
+      // Domyślna konfiguracja - zakłada jeden wiersz nagłówka
       handleFileParse<Pallet>(file, setPalletsCount, savePallets, palletRowMapper, 'palet');
        (event.target as HTMLInputElement).value = '';
     }
@@ -204,7 +215,7 @@ const App = () => {
           <div class="import-container">
             <div class="import-section">
               <h2>1. Dane Podstawowe Artykułów</h2>
-              <p>Plik z informacjami o produktach (stany, ceny, daty). Wymaga nagłówków w pierwszym wierszu.</p>
+              <p>Plik z informacjami o produktach. Wymaga dwóch wierszy nagłówka, dane od trzeciego wiersza.</p>
               <label htmlFor="product-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
                 Wybierz plik produktów
               </label>
@@ -216,7 +227,7 @@ const App = () => {
 
             <div class="import-section">
               <h2>2. Dane o Paletach</h2>
-              <p>Plik z informacjami o paletach (ID, daty, przynależność). Proszę o zdefiniowanie struktury.</p>
+              <p>Plik z informacjami o poszczególnych paletach. Wymaga nagłówków w pierwszym wierszu.</p>
               <label htmlFor="pallet-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
                 Wybierz plik palet
               </label>
