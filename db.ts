@@ -62,8 +62,8 @@ const openDB = (): Promise<IDBDatabase> => {
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(PRODUCTS_STORE_NAME)) {
-        // Composite key for product based on its ID and warehouse ID
-        db.createObjectStore(PRODUCTS_STORE_NAME, { keyPath: ['warehouseId', 'productId'] });
+        const store = db.createObjectStore(PRODUCTS_STORE_NAME, { keyPath: ['warehouseId', 'productId'] });
+        store.createIndex('statusIndex', 'status');
       }
       if (!db.objectStoreNames.contains(PALLETS_STORE_NAME)) {
         db.createObjectStore(PALLETS_STORE_NAME, { keyPath: 'palletId' });
@@ -81,7 +81,6 @@ const addDataInBatches = async <T>(storeName: string, data: T[]) => {
     const transaction = db.transaction(storeName, 'readwrite');
     const store = transaction.objectStore(storeName);
 
-    // Using a promise to await all put requests in the transaction
     const promises = data.map(item => {
         return new Promise<void>((resolve, reject) => {
             const request = store.put(item);
@@ -146,7 +145,6 @@ export const checkDBStatus = async (): Promise<DBStatus> => {
             };
         });
     } catch (e) {
-        // This can happen if the DB doesn't exist yet
         return { productsCount: 0, palletsCount: 0 };
     }
 };
@@ -154,4 +152,70 @@ export const checkDBStatus = async (): Promise<DBStatus> => {
 export const clearAllData = async (): Promise<void> => {
     await clearProducts();
     await clearPallets();
+};
+
+export const getProductsPaginatedAndFiltered = async (
+    page: number,
+    pageSize: number,
+    filters: { warehouseId?: string; productId?: string; status?: string; }
+): Promise<{ data: Product[]; total: number }> => {
+    const db = await openDB();
+    const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(PRODUCTS_STORE_NAME);
+    const request = store.openCursor();
+
+    const data: Product[] = [];
+    let total = 0;
+    const offset = (page - 1) * pageSize;
+
+    const lowerCaseWarehouseFilter = filters.warehouseId?.toLowerCase();
+    const lowerCaseProductFilter = filters.productId?.toLowerCase();
+
+    return new Promise((resolve, reject) => {
+        let advanced = false;
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const product: Product = cursor.value;
+                const matchesWarehouse = !lowerCaseWarehouseFilter || product.warehouseId.toLowerCase().includes(lowerCaseWarehouseFilter);
+                const matchesProduct = !lowerCaseProductFilter || product.productId.toLowerCase().includes(lowerCaseProductFilter);
+                const matchesStatus = !filters.status || product.status === filters.status;
+
+                if (matchesWarehouse && matchesProduct && matchesStatus) {
+                    if (total >= offset && data.length < pageSize) {
+                        data.push(product);
+                    }
+                    total++;
+                }
+                cursor.continue();
+            } else {
+                resolve({ data, total });
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const getUniqueProductStatuses = async (): Promise<string[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(PRODUCTS_STORE_NAME);
+    const request = store.openCursor();
+    const statuses = new Set<string>();
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const product: Product = cursor.value;
+                if(product.status) {
+                    statuses.add(product.status);
+                }
+                cursor.continue();
+            } else {
+                resolve(Array.from(statuses).sort());
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
 };
