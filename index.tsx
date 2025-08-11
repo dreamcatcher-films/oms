@@ -329,9 +329,16 @@ const App = () => {
                         header1 = row;
                     } else if (rowIndex === 1) {
                         header2 = row;
-                        combinedHeader = header1.map((h1, j) =>
-                            `${(h1 || '').trim()} ${(header2[j] || '').trim()}`.trim()
-                        );
+                        // Smart header combination logic to handle merged cells
+                        let lastH1 = '';
+                        combinedHeader = header1.map((h1, j) => {
+                            const currentH1 = (h1 || '').trim();
+                            if (currentH1 !== '') {
+                                lastH1 = currentH1;
+                            }
+                            const currentH2 = (header2[j] || '').trim();
+                            return `${lastH1} ${currentH2}`.trim();
+                        });
                     } else {
                         const rowObject: { [key: string]: string } = {};
                         combinedHeader.forEach((header, k) => {
