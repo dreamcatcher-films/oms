@@ -1,5 +1,5 @@
 import { render } from "preact";
-import { useState, useEffect } from "preact/hooks";
+import { useState, useEffect, useRef } from "preact/hooks";
 import { saveData, getData, clearData } from "./db";
 
 const App = () => {
@@ -8,26 +8,41 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState('Sprawdzanie lokalnej bazy danych...');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [dbMightHaveData, setDbMightHaveData] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const loadInitialData = async () => {
+      abortControllerRef.current = new AbortController();
       try {
-        const { headers, rows } = await getData();
+        const { headers, rows } = await getData({ signal: abortControllerRef.current.signal });
         if (rows.length > 0) {
           setHeaders(headers);
           setRows(rows);
           setStatusMessage('Dane załadowane z lokalnej bazy danych.');
+          setDbMightHaveData(true);
         } else {
           setStatusMessage('Wybierz plik CSV, aby rozpocząć.');
+          setDbMightHaveData(false);
         }
       } catch (error) {
-        console.error("Failed to load data from DB", error);
-        setStatusMessage('Nie udało się załadować danych. Spróbuj wyczyścić dane i załadować plik ponownie.');
+        setDbMightHaveData(true); // Assume data might be corrupted
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          setStatusMessage('Sprawdzanie przerwane. Wybierz plik, aby rozpocząć.');
+        } else {
+          console.error("Failed to load data from DB", error);
+          setStatusMessage('Nie udało się załadować danych. Spróbuj wyczyścić dane i załadować plik ponownie.');
+        }
       } finally {
         setIsLoading(false);
+        abortControllerRef.current = null;
       }
     };
     loadInitialData();
+
+    return () => {
+      abortControllerRef.current?.abort();
+    }
   }, []);
 
   const handleFileChange = (event: Event) => {
@@ -53,13 +68,13 @@ const App = () => {
         setIsLoading(false);
         setUploadProgress(null);
         setStatusMessage('Błąd podczas wczytywania pliku.');
+        setDbMightHaveData(true);
       };
 
       reader.onload = async (e) => {
         setUploadProgress(100);
         setStatusMessage('Plik wczytany. Przetwarzanie i zapisywanie danych...');
         
-        // Use a timeout to allow the UI to update before a potentially blocking operation
         setTimeout(async () => {
             const text = e.target?.result as string;
             if (text) {
@@ -73,9 +88,11 @@ const App = () => {
                   setHeaders(fileHeaders);
                   setRows(fileRows);
                   setStatusMessage('Dane zostały pomyślnie zapisane.');
+                  setDbMightHaveData(true);
                 } catch(error) {
                   console.error("Failed to save data to DB", error);
                   setStatusMessage('Błąd podczas zapisywania danych.');
+                  setDbMightHaveData(true);
                 } finally {
                   setIsLoading(false);
                   setUploadProgress(null);
@@ -86,12 +103,13 @@ const App = () => {
                 setIsLoading(false);
                 setUploadProgress(null);
                 setStatusMessage('Plik jest pusty.');
+                setDbMightHaveData(false);
               }
             }
         }, 50);
       };
       reader.readAsText(file);
-      target.value = ''; // Reset file input
+      target.value = ''; 
     }
   };
   
@@ -103,11 +121,19 @@ const App = () => {
         setHeaders([]);
         setRows([]);
         setStatusMessage('Dane zostały usunięte. Możesz teraz załadować nowy plik.');
+        setDbMightHaveData(false);
     } catch(error) {
         console.error("Failed to clear DB", error);
         setStatusMessage('Błąd podczas usuwania danych.');
+        setDbMightHaveData(true);
     } finally {
         setIsLoading(false);
+    }
+  }
+
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
     }
   }
 
@@ -118,10 +144,10 @@ const App = () => {
       <div class="file-uploader">
         <p>Wybierz plik CSV, aby zapisać go w lokalnej bazie danych przeglądarki (IndexedDB).</p>
         <div class="actions-container">
-           <label htmlFor="csv-file-input" class="file-label">
+           <label htmlFor="csv-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
              Wybierz plik
            </label>
-           {rows.length > 0 && !isLoading && (
+           {dbMightHaveData && !isLoading && (
              <button onClick={handleClearData} class="button-secondary">Wyczyść dane</button>
            )}
         </div>
@@ -137,15 +163,20 @@ const App = () => {
 
       {(isLoading || statusMessage) && (
         <div class="status-container" role="status">
-          {isLoading && uploadProgress === null && <div class="spinner"></div>}
-          <div class="status-content">
-            <p class="status-text">{statusMessage}</p>
-            {uploadProgress !== null && (
-               <div class="progress-bar-container">
-                 <div class="progress-bar" style={{ width: `${uploadProgress}%` }}></div>
-               </div>
-            )}
+          <div class="status-info">
+             {isLoading && uploadProgress === null && <div class="spinner"></div>}
+             <div class="status-content">
+                <p class="status-text">{statusMessage}</p>
+                {uploadProgress !== null && (
+                   <div class="progress-bar-container">
+                     <div class="progress-bar" style={{ width: `${uploadProgress}%` }}></div>
+                   </div>
+                )}
+             </div>
           </div>
+          {isLoading && uploadProgress === null && (
+            <button onClick={handleCancel} class="button-cancel">Anuluj</button>
+          )}
         </div>
       )}
 
