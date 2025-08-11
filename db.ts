@@ -1,7 +1,7 @@
 const DB_NAME = 'CSVDatabase';
 const DATA_STORE_NAME = 'csvData';
 const META_STORE_NAME = 'csvMeta';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export type DBStatus = {
   hasData: boolean;
