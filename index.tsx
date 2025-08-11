@@ -1,5 +1,5 @@
 import { render } from "preact";
-import { useState, useEffect } from "preact/hooks";
+import { useState, useEffect, useRef } from "preact/hooks";
 import {
   clearData,
   checkDBStatus,
@@ -22,6 +22,8 @@ const App = () => {
   const [totalRows, setTotalRows] = useState(0);
 
   const [dbHasData, setDbHasData] = useState(false);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const totalPages = Math.ceil(totalRows / PAGE_SIZE);
 
@@ -100,52 +102,30 @@ const App = () => {
         worker: true,
         header: false,
         skipEmptyLines: true,
-        step: (results: Papa.ParseStepResult<string[]>, parser: Papa.Parser) => {
-          parser.pause();
-          (async () => {
-            let wasAborted = false;
-            try {
-              if (fileHeaders.length === 0) {
-                fileHeaders = results.data;
-                setHeaders(fileHeaders);
-                await clearData();
-                await saveHeaders(fileHeaders);
-              } else {
-                batch.push(results.data);
-                if (batch.length >= BATCH_SIZE) {
-                  await processBatch();
-                }
-              }
-            } catch (err) {
-              wasAborted = true;
-              console.error("Error processing CSV step:", err);
-              setStatusMessage(`Błąd podczas przetwarzania pliku: ${err instanceof Error ? err.message : String(err)}`);
-              setIsLoading(false);
-              parser.abort();
-            } finally {
-              if (!wasAborted) {
-                parser.resume();
-              }
+        step: async (results, parser) => {
+          if (fileHeaders.length === 0) {
+            fileHeaders = results.data as string[];
+            setHeaders(fileHeaders);
+            await clearData();
+            await saveHeaders(fileHeaders);
+          } else {
+            batch.push(results.data as string[]);
+            if (batch.length >= BATCH_SIZE) {
+              parser.pause();
+              await processBatch();
+              parser.resume();
             }
-          })();
+          }
         },
-        complete: () => {
-          (async () => {
-            try {
-              await processBatch(); // process any remaining rows
-              setTotalRows(parsedRowCount);
-              setDbHasData(true);
-              setStatusMessage(`Import zakończony. Zapisano ${parsedRowCount.toLocaleString('pl-PL')} wierszy.`);
-              setIsLoading(false);
-              await loadPage(1);
-            } catch (err) {
-              console.error("Error during CSV completion:", err);
-              setStatusMessage(`Błąd podczas finalizowania importu: ${err instanceof Error ? err.message : String(err)}`);
-              setIsLoading(false);
-            }
-          })();
+        complete: async () => {
+          await processBatch(); // process any remaining rows
+          setTotalRows(parsedRowCount);
+          setDbHasData(true);
+          setStatusMessage(`Import zakończony. Zapisano ${parsedRowCount.toLocaleString('pl-PL')} wierszy.`);
+          setIsLoading(false);
+          await loadPage(1);
         },
-        error: (error: Papa.ParseError) => {
+        error: (error) => {
           console.error("PapaParse error:", error);
           setStatusMessage(`Błąd podczas przetwarzania pliku: ${error.message}`);
           setIsLoading(false);
