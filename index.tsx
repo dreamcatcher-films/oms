@@ -163,10 +163,35 @@ const App = () => {
         };
 
         const config = {
-          worker: false, // Fix: Disable worker to prevent DataCloneError with beforeFirstChunk
+          worker: false, // Worker is disabled as we use Papa object in the callback.
           beforeFirstChunk: (chunk: string) => {
-              const firstNewline = chunk.indexOf('\n');
-              return firstNewline !== -1 ? chunk.substring(firstNewline + 1) : chunk;
+              const lines = chunk.split('\n');
+              if (lines.length < 2) {
+                  // Not enough lines for a two-row header
+                  return chunk;
+              }
+
+              // Use PapaParse to robustly split the two header rows
+              // This handles delimiters and quotes correctly
+              const parsedHeaderData = Papa.parse(lines[0] + '\n' + lines[1], { preview: 2 }).data;
+              const headers1 = parsedHeaderData[0] as string[];
+              const headers2 = parsedHeaderData[1] as string[];
+
+              // Combine the two header rows into a single header row
+              const combinedHeaders = headers1.map((h1, i) => {
+                  const h2 = (headers2 && headers2[i]) ? headers2[i] : '';
+                  // Join non-empty parts with a space
+                  return `${(h1 || '').trim()} ${(h2 || '').trim()}`.trim();
+              });
+
+              // Use PapaParse to re-serialize the new header. This handles quoting.
+              const newHeaderLine = Papa.unparse([combinedHeaders], { header: false }).trim();
+
+              // Get the rest of the data (from the 3rd line onwards)
+              const dataChunk = lines.slice(2).join('\n');
+              
+              // Return the new chunk with the single combined header
+              return newHeaderLine + '\n' + dataChunk;
           }
       };
 
