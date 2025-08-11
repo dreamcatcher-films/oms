@@ -1,4 +1,5 @@
 
+
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
 const PALLETS_STORE_NAME = 'pallets';
@@ -41,11 +42,12 @@ export type Product = {
 
 
 export type Pallet = {
-  palletId: string;
-  productId: string;
-  warehouseId: string;
-  arrivalDate: Date;
-  expiryDate: Date;
+  // UWAGA: To jest struktura tymczasowa. Zostanie zaktualizowana po otrzymaniu schematu pliku palet.
+  palletId: string;    // np. z kolumny 'Pallet ID'
+  productId: string;   // np. z kolumny 'Product ID' (do łączenia)
+  warehouseId: string; // np. z kolumny 'Warehouse ID' (do łączenia)
+  arrivalDate: Date;   // np. z kolumny 'Arrival Date'
+  expiryDate: Date;    // np. z kolumny 'Expiry Date'
 };
 
 export type DBStatus = {
