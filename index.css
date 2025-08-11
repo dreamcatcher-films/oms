@@ -7,6 +7,8 @@
   --hover-color: #e9e9e9;
   --danger-color: #dc3545;
   --danger-hover-color: #c82333;
+  --cancel-color: #6c757d;
+  --cancel-hover-color: #5a6268;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -62,7 +64,7 @@ h1 {
   justify-content: center;
 }
 
-.file-label, .button-secondary {
+.file-label, .button-secondary, .button-cancel {
   cursor: pointer;
   padding: 10px 20px;
   border: none;
@@ -70,6 +72,7 @@ h1 {
   font-weight: bold;
   transition: background-color 0.3s, opacity 0.3s;
   color: white;
+  text-align: center;
 }
 
 .file-label {
@@ -80,9 +83,10 @@ h1 {
   background-color: #357abd;
 }
 
-.file-label[disabled] {
+.file-label.disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  background-color: #a0c7e4;
 }
 
 .button-secondary {
@@ -92,6 +96,16 @@ h1 {
 .button-secondary:hover {
   background-color: var(--danger-hover-color);
 }
+
+.button-cancel {
+  background-color: var(--cancel-color);
+  padding: 8px 16px;
+}
+
+.button-cancel:hover {
+  background-color: var(--cancel-hover-color);
+}
+
 
 #csv-file-input {
   display: none;
@@ -106,6 +120,7 @@ p {
 .status-container {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
   width: 100%;
   max-width: 600px;
@@ -118,16 +133,28 @@ p {
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-grow: 1;
+  min-width: 0;
+}
+
 .status-content {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .status-text {
   color: #0c5460;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .spinner {
