@@ -11,27 +11,41 @@ export type Product = {
   warehouseId: string; // Kolumna A: WH NR
   fullProductId: string; // Kolumna F: ITEM NR FULL (dłuższy, precyzyjny numer)
 
+  // --- Grouping ---
+  dispoGroup: string;    // Kolumna B: DISPO GROUP
+  itemGroup: string;     // Kolumna C: ITEM GROUP
+  orderArea: string;     // Kolumna D: ORDER AREA
+
   // --- Identifiers ---
-  productId: string;   // Kolumna E: ITEM NR SHOP (krótki numer, nie jest już częścią klucza)
+  productId: string;   // Kolumna E: ITEM NR SHOP (krótki numer)
   name: string;          // Kolumna G: ITEM DESC
 
-  // --- Product Attributes ---
+  // --- Logistics & Packaging ---
   caseSize: number;      // Kolumna H: CASE SIZE (ilość w kartonie)
-  price: number;         // Kolumna P: RETAIL PRICE
-  status: string;        // Kolumna Q: ITEM STATUS (status towaru, np. 7-9)
-  promoDate: string;     // Kolumna L: ADV DATE (data promocji)
+  cartonsPerLayer: number; // Kolumna I: LAYER FACTOR
+  duessFactor: number;   // Kolumna J: DUESS FACTOR (ilość na palecie DD)
+  cartonsPerPallet: number; // Kolumna K: EURO FACTOR (ilość kartonów na palecie)
 
-  // --- Shelf Life & Time Metrics ---
+  // --- Time Metrics ---
   shelfLifeAtReceiving: number; // Kolumna M: W-DATE DAYS (wymagana data przydatności przy dostawie)
   shelfLifeAtStore: number;     // Kolumna N: S-DATE DAYS (wymagana data przydatności w sklepie)
   customerShelfLife: number;    // Kolumna O: C-DATE DAYS (minimalna data dla klienta)
-  // Max time in warehouse can be calculated as (shelfLifeAtReceiving - shelfLifeAtStore)
+  promoDate: string;     // Kolumna L: ADV DATE (data promocji)
 
+  // --- Status & Location ---
+  status: string;        // Kolumna Q: ITEM STATUS (status towaru, np. 7-9)
+  itemLocked: string;    // Kolumna R: ITEM LOCKED
+  slotNr: string;        // Kolumna S: SLOT NR
+
+  // --- Pricing ---
+  price: number;         // Kolumna P: RETAIL PRICE
+  
   // --- Supplier Info ---
   supplierId: string;   // Kolumna U: SUPPLIE NR
   supplierName: string; // Kolumna V: SUPPLIE NAME
   
   // --- Stock Info ---
+  unprocessedDeliveryQty: number; // Kolumna W: UNPROC DEL QTY (dostawa nieprzetworzona)
   stockOnHand: number;            // Kolumna Z: STOCK ON HAND
   storeAllocationToday: number;   // Kolumna Y: STORE ALLOC C (wysyłane do sklepów dzisiaj)
   storeAllocationTotal: number;   // Kolumna AA: STORE ALLOC C < (wysyłane do sklepów w kolejne dni)
