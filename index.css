@@ -109,7 +109,7 @@ p {
   gap: 1rem;
   width: 100%;
   max-width: 600px;
-  text-align: center;
+  text-align: left;
   padding: 1rem;
   background-color: #e7f3fe;
   border-left: 5px solid var(--primary-color);
@@ -118,8 +118,16 @@ p {
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-.status-container p {
+.status-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.status-text {
   color: #0c5460;
+  margin: 0;
 }
 
 .spinner {
@@ -129,6 +137,7 @@ p {
   border-radius: 50%;
   border-left-color: var(--primary-color);
   animation: spin 1s ease infinite;
+  flex-shrink: 0;
 }
 
 @keyframes spin {
@@ -139,6 +148,23 @@ p {
     transform: rotate(360deg);
   }
 }
+
+.progress-bar-container {
+  height: 8px;
+  width: 100%;
+  background-color: #cde5fd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background-color: var(--primary-color);
+  border-radius: 4px;
+  transition: width 0.1s linear;
+}
+
 
 .table-container {
   width: 100%;
