@@ -145,7 +145,7 @@ const App = () => {
             }
           })();
         },
-        error: (error: Papa.ParseError) => {
+        error: (error: Error) => {
           console.error("PapaParse error:", error);
           setStatusMessage(`Błąd podczas przetwarzania pliku: ${error.message}`);
           setIsLoading(false);
