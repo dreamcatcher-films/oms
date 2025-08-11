@@ -1,4 +1,4 @@
 {
-  "name": "CSV Viewer with IndexedDB",
+  "name": "oms",
   "description": "A production-ready application to upload and view CSV data, using IndexedDB for persistent local storage. Built with Vite and Preact."
 }
