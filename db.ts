@@ -1,15 +1,44 @@
+
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
 const PALLETS_STORE_NAME = 'pallets';
 const DB_VERSION = 1;
 
 export type Product = {
-  productId: string;
-  warehouseId: string;
-  name: string;
-  price: number;
-  resellTime: number;
+  // --- Composite Key ---
+  warehouseId: string; // Kolumna A: WH NR
+  productId: string;   // Kolumna E: ITEM NR SHOP
+
+  // --- Identifiers ---
+  fullProductId: string; // Kolumna F: ITEM NR FULL (dłuższy, precyzyjny numer)
+  name: string;          // Kolumna G: ITEM DESC
+
+  // --- Product Attributes ---
+  caseSize: number;      // Kolumna H: CASE SIZE (ilość w kartonie)
+  price: number;         // Kolumna P: RETAIL PRICE
+  status: string;        // Kolumna Q: ITEM STATUS (status towaru, np. 7-9)
+  promoDate: string;     // Kolumna L: ADV DATE (data promocji)
+
+  // --- Shelf Life & Time Metrics ---
+  shelfLifeAtReceiving: number; // Kolumna M: W-DATE DAYS (wymagana data przydatności przy dostawie)
+  shelfLifeAtStore: number;     // Kolumna N: S-DATE DAYS (wymagana data przydatności w sklepie)
+  customerShelfLife: number;    // Kolumna O: C-DATE DAYS (minimalna data dla klienta)
+  // Max time in warehouse can be calculated as (shelfLifeAtReceiving - shelfLifeAtStore)
+
+  // --- Supplier Info ---
+  supplierId: string;   // Kolumna U: SUPPLIE NR
+  supplierName: string; // Kolumna V: SUPPLIE NAME
+  
+  // --- Stock Info ---
+  stockOnHand: number;            // Kolumna Z: STOCK ON HAND
+  storeAllocationToday: number;   // Kolumna Y: STORE ALLOC C (wysyłane do sklepów dzisiaj)
+  storeAllocationTotal: number;   // Kolumna AA: STORE ALLOC C < (wysyłane do sklepów w kolejne dni)
+  estimatedReceivings: {          // Kolumny AB-AJ: Spodziewane dostawy
+    date: string;
+    quantity: number;
+  }[];
 };
+
 
 export type Pallet = {
   palletId: string;
@@ -32,7 +61,7 @@ const openDB = (): Promise<IDBDatabase> => {
       const db = (event.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(PRODUCTS_STORE_NAME)) {
         // Composite key for product based on its ID and warehouse ID
-        db.createObjectStore(PRODUCTS_STORE_NAME, { keyPath: ['productId', 'warehouseId'] });
+        db.createObjectStore(PRODUCTS_STORE_NAME, { keyPath: ['warehouseId', 'productId'] });
       }
       if (!db.objectStoreNames.contains(PALLETS_STORE_NAME)) {
         db.createObjectStore(PALLETS_STORE_NAME, { keyPath: 'palletId' });
@@ -44,39 +73,13 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
-const saveData = async <T>(storeName: string, data: T[]): Promise<void> => {
-  if (data.length === 0) return;
-  
-  const db = await openDB();
-  const transaction = db.transaction(storeName, 'readwrite');
-  const store = transaction.objectStore(storeName);
-
-  // Clear existing data before adding new data, only for the first batch
-  let isFirstBatch = true; 
-  transaction.objectStore(storeName).clear();
-
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-
-    let i = 0;
-    function addNext() {
-      if (i < data.length) {
-        store.put(data[i]).onsuccess = addNext;
-        i++;
-      }
-    }
-    addNext();
-  });
-};
-
-const saveDataInBatches = async <T>(storeName: string, data: T[]): Promise<void> => {
+const saveDataInBatches = async <T>(storeName: string, data: T[]) => {
     if (data.length === 0) return;
     const db = await openDB();
     const transaction = db.transaction(storeName, 'readwrite');
     const store = transaction.objectStore(storeName);
 
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
         data.forEach(item => store.put(item));
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
