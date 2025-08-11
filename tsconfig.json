@@ -18,5 +18,6 @@
     "jsxImportSource": "preact"
   },
   "include": ["."],
+  "exclude": ["vite.config.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
