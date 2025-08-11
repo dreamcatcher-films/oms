@@ -1,3 +1,4 @@
+
 import { render } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import {
@@ -103,7 +104,6 @@ const App = () => {
         (async () => {
           try {
             await processBatch();
-            // PapaParse has a bug where it might count an empty last line, so we trust our batch count.
             const finalCount = parsedRowCount + batch.length;
             setDataCount(finalCount);
             setStatusMessage({ text: `Import zakończony. Zapisano ${finalCount.toLocaleString('pl-PL')} ${dataType}.`, type: 'success' });
@@ -227,8 +227,10 @@ const App = () => {
   const canAnalyze = productsCount > 0 && palletsCount > 0;
 
   return (
-    <div class="page-container">
-      <h1>OMS - Optymalizacja Stanów Magazynowych</h1>
+    <>
+      <header class="top-header">
+        <h1>OMS</h1>
+      </header>
       <div class="app-layout">
         <nav class="sidebar">
           <ul>
@@ -249,7 +251,9 @@ const App = () => {
                 </div>
               </div>
           )}
-          {renderContent()}
+          <div class="content-wrapper">
+            {renderContent()}
+          </div>
           <div class="actions-container">
             <button class="button-primary" disabled={!canAnalyze || isLoading}>
               Uruchom Analizę
@@ -260,7 +264,7 @@ const App = () => {
           </div>
         </main>
       </div>
-    </div>
+    </>
   );
 };
 
