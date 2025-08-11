@@ -1,5 +1,5 @@
 import { render } from "preact";
-import { useState, useEffect, useRef } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import {
   clearData,
   checkDBStatus,
@@ -7,7 +7,7 @@ import {
   saveHeaders,
   getPaginatedData,
 } from "./db";
-import * as Papa from "papaparse";
+import Papa, { ParseError, Parser, ParseStepResult } from "papaparse";
 
 const PAGE_SIZE = 100;
 const BATCH_SIZE = 5000;
@@ -22,8 +22,6 @@ const App = () => {
   const [totalRows, setTotalRows] = useState(0);
 
   const [dbHasData, setDbHasData] = useState(false);
-
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   const totalPages = Math.ceil(totalRows / PAGE_SIZE);
 
@@ -98,11 +96,11 @@ const App = () => {
         }
       };
 
-      Papa.parse(file, {
+      Papa(file, {
         worker: true,
         header: false,
         skipEmptyLines: true,
-        step: async (results: Papa.ParseStepResult<string[]>, parser: Papa.Parser) => {
+        step: async (results: ParseStepResult<string[]>, parser: Parser) => {
           if (fileHeaders.length === 0) {
             fileHeaders = results.data;
             setHeaders(fileHeaders);
@@ -125,7 +123,7 @@ const App = () => {
           setIsLoading(false);
           await loadPage(1);
         },
-        error: (error: Papa.ParseError) => {
+        error: (error: ParseError) => {
           console.error("PapaParse error:", error);
           setStatusMessage(`Błąd podczas przetwarzania pliku: ${error.message}`);
           setIsLoading(false);
