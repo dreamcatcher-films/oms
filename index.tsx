@@ -1,5 +1,5 @@
 import { render } from "preact";
-import { useState, useEffect, useRef } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import {
   clearData,
   checkDBStatus,
@@ -22,8 +22,6 @@ const App = () => {
   const [totalRows, setTotalRows] = useState(0);
 
   const [dbHasData, setDbHasData] = useState(false);
-
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   const totalPages = Math.ceil(totalRows / PAGE_SIZE);
 
@@ -99,21 +97,19 @@ const App = () => {
       };
 
       Papa.parse(file, {
-        worker: true,
+        worker: false, // KLUCZOWA ZMIANA: Wyłączenie workera przy async step
         header: false,
         skipEmptyLines: true,
-        step: async (results, parser) => {
+        step: async (results: Papa.ParseStepResult<string[]>) => {
           if (fileHeaders.length === 0) {
-            fileHeaders = results.data as string[];
+            fileHeaders = results.data;
             setHeaders(fileHeaders);
             await clearData();
             await saveHeaders(fileHeaders);
           } else {
-            batch.push(results.data as string[]);
+            batch.push(results.data);
             if (batch.length >= BATCH_SIZE) {
-              parser.pause();
               await processBatch();
-              parser.resume();
             }
           }
         },
@@ -125,7 +121,7 @@ const App = () => {
           setIsLoading(false);
           await loadPage(1);
         },
-        error: (error) => {
+        error: (error: Papa.ParseError) => {
           console.error("PapaParse error:", error);
           setStatusMessage(`Błąd podczas przetwarzania pliku: ${error.message}`);
           setIsLoading(false);
