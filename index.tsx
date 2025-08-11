@@ -55,7 +55,7 @@ const App = () => {
     file: File,
     setDataCount: (count: number) => void,
     saveFunction: (data: T[]) => Promise<void>,
-    rowMapper: (row: string[]) => T,
+    rowMapper: (row: { [key: string]: string }) => T,
     dataType: 'produktów' | 'palet'
   ) => {
     setIsLoading(true);
@@ -73,16 +73,11 @@ const App = () => {
       }
     };
 
-    Papa.parse<string[]>(file, {
+    Papa.parse<{ [key: string]: string }>(file, {
       worker: true,
-      header: false,
+      header: true,
       skipEmptyLines: true,
       step: (results, parser) => {
-        if (parsedRowCount === 0) { // Skip header row
-            parsedRowCount = -1; // so it becomes 0 after first data row
-            return;
-        }
-        
         parser.pause();
         (async () => {
           try {
@@ -94,7 +89,7 @@ const App = () => {
             parser.resume();
           } catch (err) {
             console.error("Error processing CSV step:", err);
-            setStatusMessage({ text: `Błąd w strukturze pliku ${dataType}.`, type: 'error' });
+            setStatusMessage({ text: `Błąd w strukturze pliku ${dataType}. Sprawdź nazwy kolumn.`, type: 'error' });
             setIsLoading(false);
             parser.abort();
           }
@@ -126,13 +121,45 @@ const App = () => {
   const handleProductFile = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
-      handleFileParse<Product>(file, setProductsCount, saveProducts, (row) => ({
-        productId: row[0],
-        warehouseId: row[1],
-        name: row[2],
-        price: parseFloat(row[3]),
-        resellTime: parseInt(row[4], 10)
-      }), 'produktów');
+        const productRowMapper = (row: { [key: string]: string }): Product => {
+            const parseNum = (val: string | undefined) => {
+                if (val === undefined) return 0;
+                const num = parseFloat(val);
+                return isNaN(num) ? 0 : num;
+            };
+
+            const estimatedReceivings: { date: string, quantity: number }[] = [];
+            const dateRegex = /^\d{1,2}\.\d{1,2}\.\d{2,4}$/;
+            for (const key in row) {
+                if (dateRegex.test(key.trim())) {
+                    const quantity = parseNum(row[key]);
+                    if (quantity > 0) {
+                        estimatedReceivings.push({ date: key.trim(), quantity });
+                    }
+                }
+            }
+
+            return {
+                warehouseId: row['WH NR']?.trim() ?? '',
+                productId: row['ITEM NR SHOP']?.trim() ?? '',
+                fullProductId: row['ITEM NR FULL']?.trim() ?? '',
+                name: row['ITEM DESC']?.trim() ?? '',
+                caseSize: parseNum(row['CASE SIZE']),
+                shelfLifeAtReceiving: parseNum(row['W-DATE DAYS']),
+                shelfLifeAtStore: parseNum(row['S-DATE DAYS']),
+                customerShelfLife: parseNum(row['C-DATE DAYS']),
+                price: parseNum(row['RETAIL PRICE']),
+                status: row['ITEM STATUS']?.trim() ?? '',
+                promoDate: row['ADV DATE']?.trim() ?? '',
+                supplierId: row['SUPPLIE NR']?.trim() ?? '',
+                supplierName: row['SUPPLIE NAME']?.trim() ?? '',
+                stockOnHand: parseNum(row['STOCK ON HAND']),
+                storeAllocationToday: parseNum(row['STORE ALLOC C']),
+                storeAllocationTotal: parseNum(row['STORE ALLOC C <']),
+                estimatedReceivings: estimatedReceivings,
+            };
+        };
+        handleFileParse<Product>(file, setProductsCount, saveProducts, productRowMapper, 'produktów');
        (event.target as HTMLInputElement).value = '';
     }
   };
@@ -140,13 +167,16 @@ const App = () => {
   const handlePalletFile = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
-      handleFileParse<Pallet>(file, setPalletsCount, savePallets, (row) => ({
-        palletId: row[0],
-        productId: row[1],
-        warehouseId: row[2],
-        arrivalDate: new Date(row[3]),
-        expiryDate: new Date(row[4])
-      }), 'palet');
+      // Placeholder mapper until the pallet file structure is defined.
+      const palletRowMapper = (row: { [key: string]: string }): Pallet => ({
+        palletId: row['ID Palety'] ?? 'Brak ID',
+        productId: row['ID Produktu'] ?? 'Brak ID',
+        warehouseId: row['ID Magazynu'] ?? 'Brak ID',
+        arrivalDate: new Date(row['Data Przyjęcia'] ?? ''),
+        expiryDate: new Date(row['Data Ważności'] ?? '')
+      });
+
+      handleFileParse<Pallet>(file, setPalletsCount, savePallets, palletRowMapper, 'palet');
        (event.target as HTMLInputElement).value = '';
     }
   };
@@ -174,7 +204,7 @@ const App = () => {
           <div class="import-container">
             <div class="import-section">
               <h2>1. Dane Podstawowe Artykułów</h2>
-              <p>Plik z informacjami o produktach (ID, nazwa, cena, itp.).</p>
+              <p>Plik z informacjami o produktach (stany, ceny, daty). Wymaga nagłówków w pierwszym wierszu.</p>
               <label htmlFor="product-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
                 Wybierz plik produktów
               </label>
@@ -186,7 +216,7 @@ const App = () => {
 
             <div class="import-section">
               <h2>2. Dane o Paletach</h2>
-              <p>Plik z informacjami o paletach (ID, daty, przynależność).</p>
+              <p>Plik z informacjami o paletach (ID, daty, przynależność). Proszę o zdefiniowanie struktury.</p>
               <label htmlFor="pallet-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
                 Wybierz plik palet
               </label>
