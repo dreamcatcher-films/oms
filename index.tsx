@@ -1,4 +1,5 @@
 
+
 import { render } from "preact";
 import { useState, useEffect, useCallback } from "preact/hooks";
 import {
@@ -136,8 +137,8 @@ const DataPreview = () => {
                 </tr>
               </thead>
               <tbody>
-                {products.map((product, index) => (
-                  <tr key={`${product.warehouseId}-${product.productId}-${index}`}>
+                {products.map(product => (
+                  <tr key={`${product.warehouseId}-${product.fullProductId}`}>
                     {Object.values(product).map((value, i) => (
                       <td key={i}>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</td>
                     ))}
