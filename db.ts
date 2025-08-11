@@ -27,7 +27,7 @@ const openDB = (): Promise<IDBDatabase> => {
     };
 
     request.onerror = () => {
-      reject('Error opening database: ' + request.error);
+      reject(new DOMException('Error opening database', 'OpenDBError'));
     };
   });
 };
@@ -41,33 +41,23 @@ export const saveData = async (headers: string[], rows: string[][]): Promise<voi
     const headersStore = transaction.objectStore(HEADERS_STORE_NAME);
 
     // Clear existing data first
-    const clearDataRequest = dataStore.clear();
-    const clearHeadersRequest = headersStore.clear();
-    
-    // Use a counter to track completion of clear requests
-    let clearCount = 0;
-    const onClearSuccess = () => {
-      clearCount++;
-      if (clearCount === 2) {
-        // Store headers
-        headersStore.put(headers, 'currentHeaders');
+    dataStore.clear();
+    headersStore.clear();
 
-        // Store rows as objects
-        const dataToStore = rows.map(row => {
-          const rowObject: CsvRow = {};
-          headers.forEach((header, index) => {
-            rowObject[header] = row[index];
-          });
-          return rowObject;
-        });
+    // Store headers
+    headersStore.put(headers, 'currentHeaders');
 
-        // Add each row object to the data store
-        dataToStore.forEach(item => dataStore.add(item));
-      }
-    };
-    
-    clearDataRequest.onsuccess = onClearSuccess;
-    clearHeadersRequest.onsuccess = onClearSuccess;
+    // Store rows as objects
+    const dataToStore = rows.map(row => {
+      const rowObject: CsvRow = {};
+      headers.forEach((header, index) => {
+        rowObject[header] = row[index];
+      });
+      return rowObject;
+    });
+
+    // Add each row object to the data store
+    dataToStore.forEach(item => dataStore.add(item));
 
     transaction.oncomplete = () => {
       resolve();
@@ -80,10 +70,26 @@ export const saveData = async (headers: string[], rows: string[][]): Promise<voi
 };
 
 // Function to get all data from the database
-export const getData = async (): Promise<{ headers: string[], rows: string[][] }> => {
+export const getData = async ({ signal }: { signal?: AbortSignal } = {}): Promise<{ headers: string[], rows: string[][] }> => {
     const db = await openDB();
     return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            return reject(new DOMException('Aborted', 'AbortError'));
+        }
+
         const transaction = db.transaction([DATA_STORE_NAME, HEADERS_STORE_NAME], 'readonly');
+        
+        const handleAbort = () => {
+            try {
+                transaction.abort();
+            } catch (e) {
+                // Ignore if transaction is already finished.
+            }
+            reject(new DOMException('Aborted', 'AbortError'));
+        };
+        
+        signal?.addEventListener('abort', handleAbort);
+
         const dataStore = transaction.objectStore(DATA_STORE_NAME);
         const headersStore = transaction.objectStore(HEADERS_STORE_NAME);
         
@@ -102,6 +108,7 @@ export const getData = async (): Promise<{ headers: string[], rows: string[][] }
         };
 
         transaction.oncomplete = () => {
+            signal?.removeEventListener('abort', handleAbort);
             const headers = headersResult || [];
             const dataObjects = dataObjectsResult || [];
             let rows: string[][] = [];
@@ -114,6 +121,7 @@ export const getData = async (): Promise<{ headers: string[], rows: string[][] }
         };
 
         transaction.onerror = () => {
+            signal?.removeEventListener('abort', handleAbort);
             reject(transaction.error);
         };
     });
