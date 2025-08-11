@@ -40,9 +40,9 @@ h1 {
 
 h2 {
   color: var(--text-color);
-  border-bottom: 2px solid var(--primary-color);
   padding-bottom: 0.5rem;
   margin-top: 0;
+  margin-bottom: 0;
   font-size: 1.25rem;
 }
 
@@ -119,37 +119,73 @@ h2 {
   min-height: 0;
 }
 
-.import-container {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+.import-list-container {
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
   width: 100%;
 }
 
 .import-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  grid-template-areas: 
+    "header actions"
+    "desc actions";
+  gap: 0.5rem 1.5rem;
   padding: 1.5rem;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  background-color: #fafafa;
-  text-align: center;
+  background-color: #fff;
 }
 
-.import-status {
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  background-color: #f0f0f0;
-  border-radius: 4px;
-  width: 100%;
+.import-section-header {
+  grid-area: header;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.import-status p {
-  margin: 0;
-  font-size: 0.9rem;
+.import-status-details {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
+
+.status-icon {
+    font-size: 1.5rem;
+    font-weight: bold;
+    line-height: 1;
+}
+.status-icon.success {
+    color: var(--success-color);
+}
+.status-icon.error {
+    color: var(--danger-color);
+}
+
+.status-main-text {
+    font-weight: 500;
+}
+
+.status-sub-text {
+    font-size: 0.85rem;
+    color: var(--text-light-color);
+}
+
+.import-section-description {
+  grid-area: desc;
+}
+
+.import-section-actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
 
 .actions-container {
   display: flex;
@@ -162,31 +198,29 @@ h2 {
   flex-shrink: 0;
 }
 
-.button-primary, .button-secondary, .file-label {
+.button-primary, .button-secondary, .file-label, .button-clear {
   cursor: pointer;
   padding: 10px 20px;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 6px;
   font-weight: bold;
-  transition: background-color 0.3s, opacity 0.3s, transform 0.1s;
+  transition: all 0.2s;
   color: white;
   text-align: center;
   font-size: 0.9rem;
 }
-.button-primary:active, .button-secondary:active, .file-label:active {
+.button-primary:active, .button-secondary:active, .file-label:active, .button-clear:active {
   transform: translateY(1px);
 }
 
 .file-label {
-  background-color: var(--info-color);
+  background-color: var(--primary-color);
   padding: 12px 24px;
 }
-
 .file-label:hover {
-  background-color: #2980b9;
+  background-color: var(--primary-hover-color);
 }
-
-.file-label.disabled, .button-primary:disabled {
+.file-label.disabled, .button-primary:disabled, .button-clear:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -204,6 +238,16 @@ h2 {
 
 .button-secondary:hover {
   background-color: var(--danger-hover-color);
+}
+
+.button-clear {
+    background-color: transparent;
+    color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+.button-clear:hover:not(:disabled) {
+    background-color: var(--danger-color);
+    color: white;
 }
 
 input[type="file"] {
@@ -517,11 +561,6 @@ tr:hover {
   }
 }
 
-@media (max-width: 1024px) {
-  .import-container {
-    grid-template-columns: 1fr;
-  }
-}
 
 @media (max-width: 768px) {
   .actions-container {
@@ -535,5 +574,17 @@ tr:hover {
   .top-header, .main-content {
       padding-left: 1rem;
       padding-right: 1rem;
+  }
+  .import-section {
+    grid-template-columns: 1fr;
+    grid-template-areas: 
+      "header"
+      "desc"
+      "actions";
+    text-align: center;
+  }
+  .import-section-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
