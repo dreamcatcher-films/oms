@@ -1,9 +1,7 @@
-
-
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
 const GOODS_RECEIPTS_STORE_NAME = 'goodsReceipts';
-const DB_VERSION = 3; 
+const DB_VERSION = 4; 
 
 export type Product = {
   // --- Composite Key ---
@@ -88,6 +86,10 @@ export type GoodsReceipt = {
   intItemNr: string;      // Kolumna P: INT ITEM NR
   caseGtin: string;       // Kolumna Q: CASE GTIN
   liaReference: string;   // Kolumna R: LIA REFERENCE
+
+  // --- Sortable fields ---
+  deliveryDateSortable: string; // YYYYMMDD format for sorting
+  bestBeforeDateSortable: string; // YYYYMMDD format for sorting
 };
 
 export type DBStatus = {
@@ -101,24 +103,29 @@ const openDB = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const transaction = (event.target as IDBOpenDBRequest).transaction!;
       const oldVersion = event.oldVersion;
 
       if (oldVersion < 2) {
-        // This logic handles the creation/update for the 'products' store for v1 users
-        if (db.objectStoreNames.contains(PRODUCTS_STORE_NAME)) {
-          db.deleteObjectStore(PRODUCTS_STORE_NAME);
+        if (!db.objectStoreNames.contains(PRODUCTS_STORE_NAME)) {
+            const productsStore = db.createObjectStore(PRODUCTS_STORE_NAME, { keyPath: ['warehouseId', 'fullProductId'] });
+            productsStore.createIndex('statusIndex', 'status');
         }
-        const productsStore = db.createObjectStore(PRODUCTS_STORE_NAME, { keyPath: ['warehouseId', 'fullProductId'] });
-        productsStore.createIndex('statusIndex', 'status');
       }
 
       if (oldVersion < 3) {
-        // This logic handles the renaming of 'pallets' to 'goodsReceipts' and updating its schema for v2 users
-        if (db.objectStoreNames.contains('pallets')) { // Use literal old name
-          db.deleteObjectStore('pallets');
+        if (db.objectStoreNames.contains('pallets')) {
+            db.deleteObjectStore('pallets');
         }
         if (!db.objectStoreNames.contains(GOODS_RECEIPTS_STORE_NAME)) {
-          db.createObjectStore(GOODS_RECEIPTS_STORE_NAME, { keyPath: ['warehouseId', 'fullProductId', 'deliveryNote'] });
+            db.createObjectStore(GOODS_RECEIPTS_STORE_NAME, { keyPath: ['warehouseId', 'fullProductId', 'deliveryNote'] });
+        }
+      }
+      
+      if (oldVersion < 4) {
+        const goodsReceiptsStore = transaction.objectStore(GOODS_RECEIPTS_STORE_NAME);
+        if (!goodsReceiptsStore.indexNames.contains('deliverySortIndex')) {
+            goodsReceiptsStore.createIndex('deliverySortIndex', ['deliveryDateSortable', 'bestBeforeDateSortable']);
         }
       }
     };
@@ -227,7 +234,6 @@ export const getProductsPaginatedAndFiltered = async (
             if (cursor) {
                 const product: Product = cursor.value;
 
-                // Use exact matching for more precise filtering
                 const matchesWarehouse = !filters.warehouseId || product.warehouseId === filters.warehouseId;
                 const matchesProduct = !filters.productId || product.productId === filters.productId;
                 const matchesStatus = !filters.status || product.status === filters.status;
@@ -247,56 +253,45 @@ export const getProductsPaginatedAndFiltered = async (
     });
 };
 
-export const getGoodsReceiptsPaginated = async (
+export const getGoodsReceiptsPaginatedAndFiltered = async (
     page: number,
-    pageSize: number
+    pageSize: number,
+    filters: { warehouseId?: string; productId?: string }
 ): Promise<{ data: GoodsReceipt[]; total: number }> => {
     const db = await openDB();
     const transaction = db.transaction(GOODS_RECEIPTS_STORE_NAME, 'readonly');
     const store = transaction.objectStore(GOODS_RECEIPTS_STORE_NAME);
-    const request = store.openCursor();
+    const index = store.index('deliverySortIndex');
 
     const data: GoodsReceipt[] = [];
     let total = 0;
     const offset = (page - 1) * pageSize;
 
     return new Promise((resolve, reject) => {
-        // First, get the total count
-        const countRequest = store.count();
-        countRequest.onsuccess = () => {
-          total = countRequest.result;
+        const request = index.openCursor(null, 'prev'); // 'prev' for descending order (newest first)
 
-          if (total === 0) {
-            resolve({ data: [], total: 0 });
-            return;
-          }
-
-          let advanced = false;
-          const cursorRequest = store.openCursor();
-          cursorRequest.onsuccess = (event) => {
+        request.onsuccess = (event) => {
             const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-            if (!cursor) {
-                resolve({ data, total });
-                return;
-            }
-            if (!advanced && offset > 0) {
-                cursor.advance(offset);
-                advanced = true;
-                return;
-            }
-            if (data.length < pageSize) {
-                data.push(cursor.value);
+            if (cursor) {
+                const receipt: GoodsReceipt = cursor.value;
+
+                const matchesWarehouse = !filters.warehouseId || receipt.warehouseId === filters.warehouseId;
+                const matchesProduct = !filters.productId || receipt.productId === filters.productId;
+
+                if (matchesWarehouse && matchesProduct) {
+                    if (total >= offset && data.length < pageSize) {
+                        data.push(receipt);
+                    }
+                    total++;
+                }
                 cursor.continue();
             } else {
                 resolve({ data, total });
             }
-          };
-          cursorRequest.onerror = () => reject(cursorRequest.error);
         };
-        countRequest.onerror = () => reject(countRequest.error);
+        request.onerror = () => reject(request.error);
     });
 };
-
 
 export const getUniqueProductStatuses = async (): Promise<string[]> => {
     const db = await openDB();
@@ -345,6 +340,31 @@ export const getUniqueWarehouseIds = async (): Promise<string[]> => {
         request.onerror = () => reject(request.error);
     });
 };
+
+export const getUniqueWarehouseIdsForGoodsReceipts = async (): Promise<string[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(GOODS_RECEIPTS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(GOODS_RECEIPTS_STORE_NAME);
+    const request = store.openCursor();
+    const warehouses = new Set<string>();
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const receipt: GoodsReceipt = cursor.value;
+                if(receipt.warehouseId) {
+                    warehouses.add(receipt.warehouseId);
+                }
+                cursor.continue();
+            } else {
+                resolve(Array.from(warehouses).sort());
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
 
 export const findProductsByPartialId = async (partialId: string, limit: number = 5): Promise<Product[]> => {
     const db = await openDB();
