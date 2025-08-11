@@ -19,7 +19,10 @@ import {
   getUniqueWarehouseIds,
   getUniqueWarehouseIdsForGoodsReceipts,
   getUniqueWarehouseIdsForOpenOrders,
-  findProductsByPartialId
+  findProductsByPartialId,
+  getImportMetadata,
+  updateImportMetadata,
+  ImportMetadata,
 } from "./db";
 import Papa from "papaparse";
 
@@ -102,6 +105,101 @@ type Status = {
 };
 
 type View = 'import' | 'report' | 'dashboard' | 'simulations' | 'data-preview';
+type DataType = 'products' | 'goodsReceipts' | 'openOrders';
+
+
+const isDateToday = (someDate: Date) => {
+    const today = new Date();
+    return someDate.getDate() === today.getDate() &&
+        someDate.getMonth() === today.getMonth() &&
+        someDate.getFullYear() === today.getFullYear();
+};
+
+const formatStatusDate = (date: Date): string => {
+    if (isDateToday(date)) {
+        return `dzisiaj o ${date.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    return date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+
+const ImportView = ({
+    isLoading,
+    importMetadata,
+    counts,
+    onFileSelect,
+    onClear,
+}: {
+    isLoading: boolean;
+    importMetadata: ImportMetadata;
+    counts: { products: number; goodsReceipts: number; openOrders: number };
+    onFileSelect: (type: DataType, event: Event) => void;
+    onClear: (type: DataType) => void;
+}) => {
+    const dataTypes: {
+        key: DataType;
+        title: string;
+        description: string;
+    }[] = [
+        {
+            key: 'products',
+            title: '1. Dane Podstawowe Artykułów',
+            description: 'Plik z informacjami o produktach. Wymaga dwóch wierszy nagłówka.',
+        },
+        {
+            key: 'goodsReceipts',
+            title: '2. Przyjęcie Towaru (eGIN)',
+            description: 'Plik z informacjami o przyjęciach towaru. Wymaga dwóch wierszy nagłówka.',
+        },
+        {
+            key: 'openOrders',
+            title: '3. Otwarte Zamówienia',
+            description: 'Plik z otwartymi zamówieniami, które nie dotarły jeszcze do magazynu.',
+        },
+    ];
+
+    return (
+        <div class="import-list-container">
+            {dataTypes.map(({ key, title, description }) => {
+                const meta = importMetadata[key];
+                const count = counts[key];
+                const isUpdatedToday = meta && meta.lastImported ? isDateToday(meta.lastImported) : false;
+                const statusIcon = count > 0 && isUpdatedToday ? '✓' : '✗';
+                const statusClass = count > 0 && isUpdatedToday ? 'success' : 'error';
+                let statusText = 'Brak danych';
+                if (meta && meta.lastImported) {
+                    statusText = `Zaktualizowano ${formatStatusDate(meta.lastImported)}`;
+                }
+
+                return (
+                    <div class="import-section" key={key}>
+                        <div class="import-section-header">
+                            <h2>{title}</h2>
+                            <div class={`import-status-details`}>
+                                <span class={`status-icon ${statusClass}`}>{statusIcon}</span>
+                                <div>
+                                    <p class="status-main-text">{statusText}</p>
+                                    <p class="status-sub-text">{count.toLocaleString('pl-PL')} rekordów</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="import-section-description">
+                            <p>{description}</p>
+                        </div>
+                        <div class="import-section-actions">
+                            <label htmlFor={`${key}-file-input`} class={`file-label ${isLoading ? 'disabled' : ''}`}>
+                                Wybierz plik
+                            </label>
+                            <input id={`${key}-file-input`} type="file" accept=".csv" onChange={(e) => onFileSelect(key, e)} disabled={isLoading} />
+                            {count > 0 && <button onClick={() => onClear(key)} class="button-clear" disabled={isLoading}>Wyczyść</button>}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
 
 const DataPreview = () => {
   const [activeTab, setActiveTab] = useState<'products' | 'goodsReceipts' | 'openOrders'>('products');
@@ -507,34 +605,38 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<Status>({ text: 'Inicjalizacja aplikacji...', type: 'info' });
   
-  const [productsCount, setProductsCount] = useState(0);
-  const [goodsReceiptsCount, setGoodsReceiptsCount] = useState(0);
-  const [openOrdersCount, setOpenOrdersCount] = useState(0);
+  const [counts, setCounts] = useState({ products: 0, goodsReceipts: 0, openOrders: 0 });
+  const [importMetadata, setImportMetadata] = useState<ImportMetadata>({ products: null, goodsReceipts: null, openOrders: null });
+  
   const [currentView, setCurrentView] = useState<View>('import');
 
-  useEffect(() => {
-    const performInitialCheck = async () => {
-      setIsLoading(true);
-      setStatusMessage({ text: 'Sprawdzanie lokalnej bazy danych...', type: 'info' });
-      try {
-        const { productsCount, goodsReceiptsCount, openOrdersCount } = await checkDBStatus();
-        setProductsCount(productsCount);
-        setGoodsReceiptsCount(goodsReceiptsCount);
-        setOpenOrdersCount(openOrdersCount);
-        if (productsCount > 0 || goodsReceiptsCount > 0 || openOrdersCount > 0) {
-          setStatusMessage({ text: 'Znaleziono dane. Możesz uruchomić analizę lub wgrać nowe pliki.', type: 'success' });
-        } else {
-          setStatusMessage({ text: 'Wybierz pliki z danymi, aby rozpocząć.', type: 'info' });
-        }
-      } catch (error) {
-        console.error("Failed to check DB status", error);
-        setStatusMessage({ text: 'Błąd podczas sprawdzania bazy danych.', type: 'error' });
-      } finally {
-        setIsLoading(false);
+  const performInitialCheck = useCallback(async () => {
+    setIsLoading(true);
+    setStatusMessage({ text: 'Sprawdzanie lokalnej bazy danych...', type: 'info' });
+    try {
+      const [{ productsCount, goodsReceiptsCount, openOrdersCount }, metadata] = await Promise.all([
+          checkDBStatus(),
+          getImportMetadata()
+      ]);
+      setCounts({ products: productsCount, goodsReceipts: goodsReceiptsCount, openOrders: openOrdersCount });
+      setImportMetadata(metadata);
+
+      if (productsCount > 0 || goodsReceiptsCount > 0 || openOrdersCount > 0) {
+        setStatusMessage({ text: 'Znaleziono dane. Możesz uruchomić analizę lub wgrać nowe pliki.', type: 'success' });
+      } else {
+        setStatusMessage({ text: 'Wybierz pliki z danymi, aby rozpocząć.', type: 'info' });
       }
-    };
-    performInitialCheck();
+    } catch (error) {
+      console.error("Failed to check DB status", error);
+      setStatusMessage({ text: 'Błąd podczas sprawdzania bazy danych.', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    performInitialCheck();
+  }, [performInitialCheck]);
   
   const parseDateToObj = (dateStr: string | undefined): Date | null => {
       if (!dateStr) return null;
@@ -580,7 +682,6 @@ const App = () => {
       
       const rawProductId = row['ITEM NR SHORT']?.trim() ?? '';
       let processedProductId = rawProductId;
-      // Only strip leading zeros if the string consists purely of digits.
       if (/^\d+$/.test(rawProductId)) {
           processedProductId = String(parseInt(rawProductId, 10));
       }
@@ -712,10 +813,10 @@ const App = () => {
 
   const handleFileParse = (
     file: File,
+    dataType: DataType,
     dataTypeName: string,
     clearDbFn: () => Promise<void>,
     addDbFn: (batch: any[]) => Promise<void>,
-    setCountFn: (value: number | ((prevState: number) => number)) => void,
     rowMapperFn: (row: { [key: string]: string }) => any
   ) => {
       setIsLoading(true);
@@ -724,7 +825,8 @@ const App = () => {
       (async () => {
         try {
           await clearDbFn();
-          setCountFn(0);
+          setCounts(prev => ({ ...prev, [dataType]: 0 }));
+          setImportMetadata(prev => ({ ...prev, [dataType]: null }));
         } catch (error) {
           console.error(`Błąd podczas czyszczenia bazy danych (${dataTypeName}).`, error);
           setStatusMessage({ text: 'Błąd podczas czyszczenia bazy danych.', type: 'error' });
@@ -745,7 +847,7 @@ const App = () => {
           if (batch.length > 0) {
             await addDbFn(batch);
             processedCount += batch.length;
-            setCountFn(prev => prev + batch.length);
+            setCounts(prev => ({ ...prev, [dataType]: prev[dataType] + batch.length }));
             batch = [];
           }
         };
@@ -794,7 +896,8 @@ const App = () => {
           },
           complete: async () => {
             await processBatch();
-            setCountFn(processedCount);
+            await updateImportMetadata(dataType);
+            setImportMetadata(prev => ({...prev, [dataType]: { dataType, lastImported: new Date() }}));
             setStatusMessage({ text: `Import zakończony. Zapisano ${processedCount.toLocaleString('pl-PL')} rekordów (${dataTypeName}).`, type: 'success' });
             setIsLoading(false);
           },
@@ -807,35 +910,65 @@ const App = () => {
       })();
   };
   
-  const handleProductFile = (event: Event) => {
+  const handleFileSelect = (dataType: DataType, event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
     (event.target as HTMLInputElement).value = ''; 
-    handleFileParse(file, "Dane podstawowe", clearProducts, addProducts, setProductsCount, productRowMapper);
+    
+    switch (dataType) {
+        case 'products':
+            handleFileParse(file, 'products', "Dane podstawowe", clearProducts, addProducts, productRowMapper);
+            break;
+        case 'goodsReceipts':
+            handleFileParse(file, 'goodsReceipts', "Przyjęcia towaru", clearGoodsReceipts, addGoodsReceipts, goodsReceiptRowMapper);
+            break;
+        case 'openOrders':
+            handleFileParse(file, 'openOrders', "Otwarte zamówienia", clearOpenOrders, addOpenOrders, openOrderRowMapper);
+            break;
+    }
   };
   
-  const handleGoodsReceiptFile = (event: Event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    (event.target as HTMLInputElement).value = ''; 
-    handleFileParse(file, "Przyjęcia towaru", clearGoodsReceipts, addGoodsReceipts, setGoodsReceiptsCount, goodsReceiptRowMapper);
+  const handleClearIndividualData = async (dataType: DataType) => {
+    setIsLoading(true);
+    let clearFn: () => Promise<void>;
+    let dataTypeName: string;
+    
+    switch (dataType) {
+        case 'products':
+            clearFn = clearProducts;
+            dataTypeName = 'Dane podstawowe';
+            break;
+        case 'goodsReceipts':
+            clearFn = clearGoodsReceipts;
+            dataTypeName = 'Przyjęcia towaru';
+            break;
+        case 'openOrders':
+            clearFn = clearOpenOrders;
+            dataTypeName = 'Otwarte zamówienia';
+            break;
+    }
+
+    setStatusMessage({ text: `Usuwanie danych: ${dataTypeName}...`, type: 'info' });
+    try {
+        await clearFn();
+        setCounts(prev => ({...prev, [dataType]: 0}));
+        setImportMetadata(prev => ({...prev, [dataType]: null}));
+        setStatusMessage({ text: `Dane "${dataTypeName}" zostały usunięte.`, type: 'success' });
+    } catch(error) {
+        console.error(`Błąd podczas usuwania danych (${dataTypeName}).`, error);
+        setStatusMessage({ text: `Błąd podczas usuwania danych: ${dataTypeName}.`, type: 'error' });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
-  const handleOpenOrderFile = (event: Event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    (event.target as HTMLInputElement).value = ''; 
-    handleFileParse(file, "Otwarte zamówienia", clearOpenOrders, addOpenOrders, setOpenOrdersCount, openOrderRowMapper);
-  };
-
-  const handleClearData = async () => {
+  const handleClearAllData = async () => {
     setIsLoading(true);
     setStatusMessage({ text: 'Usuwanie wszystkich danych...', type: 'info' });
     try {
       await clearAllData();
-      setProductsCount(0);
-      setGoodsReceiptsCount(0);
-      setOpenOrdersCount(0);
+      setCounts({ products: 0, goodsReceipts: 0, openOrders: 0 });
+      setImportMetadata({ products: null, goodsReceipts: null, openOrders: null });
       setStatusMessage({ text: 'Wszystkie dane zostały usunięte. Możesz załadować nowe pliki.', type: 'success' });
     } catch (error) {
       console.error("Failed to clear DB", error);
@@ -849,43 +982,13 @@ const App = () => {
     switch (currentView) {
       case 'import':
         return (
-          <div class="import-container">
-            <div class="import-section">
-              <h2>1. Dane Podstawowe Artykułów</h2>
-              <p>Plik z informacjami o produktach. Wymaga dwóch wierszy nagłówka, dane od trzeciego wiersza.</p>
-              <label htmlFor="product-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
-                Wybierz plik produktów
-              </label>
-              <input id="product-file-input" type="file" accept=".csv" onChange={handleProductFile} disabled={isLoading} />
-              <div class="import-status">
-                <p>Zaimportowano: <strong>{productsCount.toLocaleString('pl-PL')}</strong> rekordów</p>
-              </div>
-            </div>
-
-            <div class="import-section">
-              <h2>2. Przyjęcie Towaru (eGIN)</h2>
-              <p>Plik z informacjami o przyjęciach towaru. Wymaga dwóch wierszy nagłówka.</p>
-              <label htmlFor="goods-receipt-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
-                Wybierz plik eGIN
-              </label>
-              <input id="goods-receipt-file-input" type="file" accept=".csv" onChange={handleGoodsReceiptFile} disabled={isLoading} />
-              <div class="import-status">
-                <p>Zaimportowano: <strong>{goodsReceiptsCount.toLocaleString('pl-PL')}</strong> rekordów</p>
-              </div>
-            </div>
-
-            <div class="import-section">
-              <h2>3. Otwarte Zamówienia</h2>
-              <p>Plik z otwartymi zamówieniami, które nie dotarły jeszcze do magazynu.</p>
-              <label htmlFor="open-order-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
-                Wybierz plik zamówień
-              </label>
-              <input id="open-order-file-input" type="file" accept=".csv" onChange={handleOpenOrderFile} disabled={isLoading} />
-              <div class="import-status">
-                <p>Zaimportowano: <strong>{openOrdersCount.toLocaleString('pl-PL')}</strong> rekordów</p>
-              </div>
-            </div>
-          </div>
+          <ImportView 
+            isLoading={isLoading}
+            importMetadata={importMetadata}
+            counts={counts}
+            onFileSelect={handleFileSelect}
+            onClear={handleClearIndividualData}
+          />
         );
       case 'data-preview':
         return <DataPreview />;
@@ -915,8 +1018,8 @@ const App = () => {
     }
   };
 
-  const hasAnyData = productsCount > 0 || goodsReceiptsCount > 0 || openOrdersCount > 0;
-  const canAnalyze = productsCount > 0 && goodsReceiptsCount > 0;
+  const hasAnyData = counts.products > 0 || counts.goodsReceipts > 0 || counts.openOrders > 0;
+  const canAnalyze = counts.products > 0 && counts.goodsReceipts > 0;
 
   return (
     <>
@@ -957,7 +1060,7 @@ const App = () => {
               Uruchom Analizę
             </button>
             {hasAnyData && !isLoading && (
-              <button onClick={handleClearData} class="button-secondary">Wyczyść Wszystkie Dane</button>
+              <button onClick={handleClearAllData} class="button-secondary">Wyczyść Wszystkie Dane</button>
             )}
           </div>
         </main>
