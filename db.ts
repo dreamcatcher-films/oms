@@ -188,17 +188,15 @@ export const getProductsPaginatedAndFiltered = async (
     let total = 0;
     const offset = (page - 1) * pageSize;
 
-    const lowerCaseWarehouseFilter = filters.warehouseId?.toLowerCase();
-    const lowerCaseProductFilter = filters.productId?.toLowerCase();
-
     return new Promise((resolve, reject) => {
-        let advanced = false;
         request.onsuccess = (event) => {
             const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
             if (cursor) {
                 const product: Product = cursor.value;
-                const matchesWarehouse = !lowerCaseWarehouseFilter || product.warehouseId.toLowerCase().includes(lowerCaseWarehouseFilter);
-                const matchesProduct = !lowerCaseProductFilter || product.productId.toLowerCase().includes(lowerCaseProductFilter);
+
+                // Use exact matching for more precise filtering
+                const matchesWarehouse = !filters.warehouseId || product.warehouseId === filters.warehouseId;
+                const matchesProduct = !filters.productId || product.productId === filters.productId;
                 const matchesStatus = !filters.status || product.status === filters.status;
 
                 if (matchesWarehouse && matchesProduct && matchesStatus) {
