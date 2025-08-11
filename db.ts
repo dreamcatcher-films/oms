@@ -1,7 +1,8 @@
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
 const GOODS_RECEIPTS_STORE_NAME = 'goodsReceipts';
-const DB_VERSION = 4; 
+const OPEN_ORDERS_STORE_NAME = 'openOrders';
+const DB_VERSION = 5; 
 
 export type Product = {
   // --- Composite Key ---
@@ -92,9 +93,39 @@ export type GoodsReceipt = {
   bestBeforeDateSortable: string; // YYYYMMDD format for sorting
 };
 
+export type OpenOrder = {
+    // Composite Key
+    warehouseId: string;    // Kolumna A: WH NR
+    fullProductId: string;  // Kolumna B: ITEM NR
+    poNr: string;           // Kolumna H: PO NR
+
+    // Calculated
+    productId: string;
+    deliveryLeadTime: number; // in days
+
+    // Item Info
+    name: string;           // Kolumna C: ITEM DESC
+    orderUnit: string;      // Kolumna D: ORDER UNIT OF MEASURE (CASES)
+    orderQtyUom: number;    // Kolumna E: ORDER QTY (in UOM)
+    caseSize: number;       // Kolumna F: CASE SIZE
+    orderQtyPcs: number;    // Kolumna G: ORDER QTY (in PIECES)
+
+    // Supplier Info
+    supplierId: string;     // Kolumna I: SUPPLIER NR
+    supplierName: string;   // Kolumna J: SUPPLIER DESC
+
+    // Dates
+    deliveryDate: string;   // Kolumna K: DELIVERY DATE
+    creationDate: string;   // Kolumna L: CREATION DATE
+
+    // Sortable fields
+    deliveryDateSortable: string; // YYYYMMDD format for sorting
+};
+
 export type DBStatus = {
   productsCount: number;
   goodsReceiptsCount: number;
+  openOrdersCount: number;
 };
 
 const openDB = (): Promise<IDBDatabase> => {
@@ -128,6 +159,13 @@ const openDB = (): Promise<IDBDatabase> => {
             goodsReceiptsStore.createIndex('deliverySortIndex', ['deliveryDateSortable', 'bestBeforeDateSortable']);
         }
       }
+      
+      if (oldVersion < 5) {
+        if (!db.objectStoreNames.contains(OPEN_ORDERS_STORE_NAME)) {
+            const store = db.createObjectStore(OPEN_ORDERS_STORE_NAME, { keyPath: ['warehouseId', 'fullProductId', 'poNr'] });
+            store.createIndex('deliveryDateSortIndex', 'deliveryDateSortable');
+        }
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -159,6 +197,7 @@ const addDataInBatches = async <T>(storeName: string, data: T[]) => {
 
 export const addProducts = (products: Product[]) => addDataInBatches(PRODUCTS_STORE_NAME, products);
 export const addGoodsReceipts = (receipts: GoodsReceipt[]) => addDataInBatches(GOODS_RECEIPTS_STORE_NAME, receipts);
+export const addOpenOrders = (orders: OpenOrder[]) => addDataInBatches(OPEN_ORDERS_STORE_NAME, orders);
 
 const clearStore = async (storeName: string) => {
     const db = await openDB();
@@ -173,45 +212,44 @@ const clearStore = async (storeName: string) => {
 
 export const clearProducts = () => clearStore(PRODUCTS_STORE_NAME);
 export const clearGoodsReceipts = () => clearStore(GOODS_RECEIPTS_STORE_NAME);
+export const clearOpenOrders = () => clearStore(OPEN_ORDERS_STORE_NAME);
 
 export const checkDBStatus = async (): Promise<DBStatus> => {
     try {
         const db = await openDB();
-        const transaction = db.transaction([PRODUCTS_STORE_NAME, GOODS_RECEIPTS_STORE_NAME], 'readonly');
+        const transaction = db.transaction([PRODUCTS_STORE_NAME, GOODS_RECEIPTS_STORE_NAME, OPEN_ORDERS_STORE_NAME], 'readonly');
         const productsStore = transaction.objectStore(PRODUCTS_STORE_NAME);
         const goodsReceiptsStore = transaction.objectStore(GOODS_RECEIPTS_STORE_NAME);
+        const openOrdersStore = transaction.objectStore(OPEN_ORDERS_STORE_NAME);
 
         const productsCountRequest = productsStore.count();
         const goodsReceiptsCountRequest = goodsReceiptsStore.count();
+        const openOrdersCountRequest = openOrdersStore.count();
 
         return new Promise((resolve, reject) => {
             let productsCount = 0;
             let goodsReceiptsCount = 0;
+            let openOrdersCount = 0;
 
-            productsCountRequest.onsuccess = () => {
-                productsCount = productsCountRequest.result;
-            };
-
-            goodsReceiptsCountRequest.onsuccess = () => {
-                goodsReceiptsCount = goodsReceiptsCountRequest.result;
-            };
+            productsCountRequest.onsuccess = () => { productsCount = productsCountRequest.result; };
+            goodsReceiptsCountRequest.onsuccess = () => { goodsReceiptsCount = goodsReceiptsCountRequest.result; };
+            openOrdersCountRequest.onsuccess = () => { openOrdersCount = openOrdersCountRequest.result; };
             
             transaction.oncomplete = () => {
-                resolve({ productsCount, goodsReceiptsCount });
+                resolve({ productsCount, goodsReceiptsCount, openOrdersCount });
             };
             
-            transaction.onerror = () => {
-                reject(transaction.error);
-            };
+            transaction.onerror = () => { reject(transaction.error); };
         });
     } catch (e) {
-        return { productsCount: 0, goodsReceiptsCount: 0 };
+        return { productsCount: 0, goodsReceiptsCount: 0, openOrdersCount: 0 };
     }
 };
 
 export const clearAllData = async (): Promise<void> => {
     await clearProducts();
     await clearGoodsReceipts();
+    await clearOpenOrders();
 };
 
 export const getProductsPaginatedAndFiltered = async (
@@ -293,6 +331,47 @@ export const getGoodsReceiptsPaginatedAndFiltered = async (
     });
 };
 
+export const getOpenOrdersPaginatedAndFiltered = async (
+    page: number,
+    pageSize: number,
+    filters: { warehouseId?: string; productId?: string }
+): Promise<{ data: OpenOrder[]; total: number }> => {
+    const db = await openDB();
+    const transaction = db.transaction(OPEN_ORDERS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(OPEN_ORDERS_STORE_NAME);
+    const index = store.index('deliveryDateSortIndex');
+
+    const data: OpenOrder[] = [];
+    let total = 0;
+    const offset = (page - 1) * pageSize;
+
+    return new Promise((resolve, reject) => {
+        const request = index.openCursor(null, 'prev'); // 'prev' for descending order (newest first)
+
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const order: OpenOrder = cursor.value;
+
+                const matchesWarehouse = !filters.warehouseId || order.warehouseId === filters.warehouseId;
+                const matchesProduct = !filters.productId || order.productId === filters.productId;
+
+                if (matchesWarehouse && matchesProduct) {
+                    if (total >= offset && data.length < pageSize) {
+                        data.push(order);
+                    }
+                    total++;
+                }
+                cursor.continue();
+            } else {
+                resolve({ data, total });
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+
 export const getUniqueProductStatuses = async (): Promise<string[]> => {
     const db = await openDB();
     const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
@@ -355,6 +434,30 @@ export const getUniqueWarehouseIdsForGoodsReceipts = async (): Promise<string[]>
                 const receipt: GoodsReceipt = cursor.value;
                 if(receipt.warehouseId) {
                     warehouses.add(receipt.warehouseId);
+                }
+                cursor.continue();
+            } else {
+                resolve(Array.from(warehouses).sort());
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const getUniqueWarehouseIdsForOpenOrders = async (): Promise<string[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(OPEN_ORDERS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(OPEN_ORDERS_STORE_NAME);
+    const request = store.openCursor();
+    const warehouses = new Set<string>();
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const order: OpenOrder = cursor.value;
+                if(order.warehouseId) {
+                    warehouses.add(order.warehouseId);
                 }
                 cursor.continue();
             } else {
