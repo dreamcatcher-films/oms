@@ -2,8 +2,8 @@
 
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
-const PALLETS_STORE_NAME = 'pallets';
-const DB_VERSION = 2; // Bumped version to trigger upgrade
+const GOODS_RECEIPTS_STORE_NAME = 'goodsReceipts';
+const DB_VERSION = 3; 
 
 export type Product = {
   // --- Composite Key ---
@@ -55,19 +55,44 @@ export type Product = {
   }[];
 };
 
+export type GoodsReceipt = {
+  // --- Composite Key ---
+  warehouseId: string;    // Kolumna A: WH NR
+  fullProductId: string;  // Kolumna B: ITEM NR
+  deliveryNote: string;   // Kolumna N: DELIVERY NOTE
 
-export type Pallet = {
-  // UWAGA: To jest struktura tymczasowa. Zostanie zaktualizowana po otrzymaniu schematu pliku palet.
-  palletId: string;    // np. z kolumny 'Pallet ID'
-  productId: string;   // np. z kolumny 'Product ID' (do łączenia)
-  warehouseId: string; // np. z kolumny 'Warehouse ID' (do łączenia)
-  arrivalDate: Date;   // np. z kolumny 'Arrival Date'
-  expiryDate: Date;    // np. z kolumny 'Expiry Date'
+  // --- Calculated ---
+  productId: string;      // Calculated from fullProductId
+
+  // --- Item Info ---
+  name: string;             // Kolumna C: ITEM DESC
+
+  // --- Logistics ---
+  deliveryUnit: string;   // Kolumna D: DELIVERY UNIT OF MEASURE (CASES)
+  deliveryQtyUom: number; // Kolumna E: DELIVERY QTY (in UOM)
+  caseSize: number;       // Kolumna F: CASE SIZE
+  deliveryQtyPcs: number; // Kolumna G: DELIVERY QTY (in PIECES)
+
+  // --- Order Info ---
+  poNr: string;             // Kolumna H: PO NR
+  deliveryDate: string;     // Kolumna I: DELIVERY DATE
+  bestBeforeDate: string;   // Kolumna J: BEST BEFORE DATE
+  bolNr: string;            // Kolumna M: BOL NR
+  
+  // --- Supplier Info ---
+  supplierId: string;       // Kolumna K: SUPPLIER NR
+  supplierName: string;     // Kolumna L: SUPPLIER DESC
+  
+  // --- International Identifiers ---
+  intSupplierNr: string;  // Kolumna O: INT SUPPLIER NR
+  intItemNr: string;      // Kolumna P: INT ITEM NR
+  caseGtin: string;       // Kolumna Q: CASE GTIN
+  liaReference: string;   // Kolumna R: LIA REFERENCE
 };
 
 export type DBStatus = {
   productsCount: number;
-  palletsCount: number;
+  goodsReceiptsCount: number;
 };
 
 const openDB = (): Promise<IDBDatabase> => {
@@ -76,17 +101,25 @@ const openDB = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      
-      // For version 2, we ensure the 'products' store has the correct primary key.
-      // Easiest way to guarantee this on upgrade is to delete and re-create.
-      if (db.objectStoreNames.contains(PRODUCTS_STORE_NAME)) {
-          db.deleteObjectStore(PRODUCTS_STORE_NAME);
-      }
-      const productsStore = db.createObjectStore(PRODUCTS_STORE_NAME, { keyPath: ['warehouseId', 'fullProductId'] });
-      productsStore.createIndex('statusIndex', 'status');
+      const oldVersion = event.oldVersion;
 
-      if (!db.objectStoreNames.contains(PALLETS_STORE_NAME)) {
-          db.createObjectStore(PALLETS_STORE_NAME, { keyPath: 'palletId' });
+      if (oldVersion < 2) {
+        // This logic handles the creation/update for the 'products' store for v1 users
+        if (db.objectStoreNames.contains(PRODUCTS_STORE_NAME)) {
+          db.deleteObjectStore(PRODUCTS_STORE_NAME);
+        }
+        const productsStore = db.createObjectStore(PRODUCTS_STORE_NAME, { keyPath: ['warehouseId', 'fullProductId'] });
+        productsStore.createIndex('statusIndex', 'status');
+      }
+
+      if (oldVersion < 3) {
+        // This logic handles the renaming of 'pallets' to 'goodsReceipts' and updating its schema for v2 users
+        if (db.objectStoreNames.contains('pallets')) { // Use literal old name
+          db.deleteObjectStore('pallets');
+        }
+        if (!db.objectStoreNames.contains(GOODS_RECEIPTS_STORE_NAME)) {
+          db.createObjectStore(GOODS_RECEIPTS_STORE_NAME, { keyPath: ['warehouseId', 'fullProductId', 'deliveryNote'] });
+        }
       }
     };
 
@@ -118,7 +151,7 @@ const addDataInBatches = async <T>(storeName: string, data: T[]) => {
 }
 
 export const addProducts = (products: Product[]) => addDataInBatches(PRODUCTS_STORE_NAME, products);
-export const addPallets = (pallets: Pallet[]) => addDataInBatches(PALLETS_STORE_NAME, pallets);
+export const addGoodsReceipts = (receipts: GoodsReceipt[]) => addDataInBatches(GOODS_RECEIPTS_STORE_NAME, receipts);
 
 const clearStore = async (storeName: string) => {
     const db = await openDB();
@@ -132,32 +165,32 @@ const clearStore = async (storeName: string) => {
 };
 
 export const clearProducts = () => clearStore(PRODUCTS_STORE_NAME);
-export const clearPallets = () => clearStore(PALLETS_STORE_NAME);
+export const clearGoodsReceipts = () => clearStore(GOODS_RECEIPTS_STORE_NAME);
 
 export const checkDBStatus = async (): Promise<DBStatus> => {
     try {
         const db = await openDB();
-        const transaction = db.transaction([PRODUCTS_STORE_NAME, PALLETS_STORE_NAME], 'readonly');
+        const transaction = db.transaction([PRODUCTS_STORE_NAME, GOODS_RECEIPTS_STORE_NAME], 'readonly');
         const productsStore = transaction.objectStore(PRODUCTS_STORE_NAME);
-        const palletsStore = transaction.objectStore(PALLETS_STORE_NAME);
+        const goodsReceiptsStore = transaction.objectStore(GOODS_RECEIPTS_STORE_NAME);
 
         const productsCountRequest = productsStore.count();
-        const palletsCountRequest = palletsStore.count();
+        const goodsReceiptsCountRequest = goodsReceiptsStore.count();
 
         return new Promise((resolve, reject) => {
             let productsCount = 0;
-            let palletsCount = 0;
+            let goodsReceiptsCount = 0;
 
             productsCountRequest.onsuccess = () => {
                 productsCount = productsCountRequest.result;
             };
 
-            palletsCountRequest.onsuccess = () => {
-                palletsCount = palletsCountRequest.result;
+            goodsReceiptsCountRequest.onsuccess = () => {
+                goodsReceiptsCount = goodsReceiptsCountRequest.result;
             };
             
             transaction.oncomplete = () => {
-                resolve({ productsCount, palletsCount });
+                resolve({ productsCount, goodsReceiptsCount });
             };
             
             transaction.onerror = () => {
@@ -165,13 +198,13 @@ export const checkDBStatus = async (): Promise<DBStatus> => {
             };
         });
     } catch (e) {
-        return { productsCount: 0, palletsCount: 0 };
+        return { productsCount: 0, goodsReceiptsCount: 0 };
     }
 };
 
 export const clearAllData = async (): Promise<void> => {
     await clearProducts();
-    await clearPallets();
+    await clearGoodsReceipts();
 };
 
 export const getProductsPaginatedAndFiltered = async (
@@ -213,6 +246,57 @@ export const getProductsPaginatedAndFiltered = async (
         request.onerror = () => reject(request.error);
     });
 };
+
+export const getGoodsReceiptsPaginated = async (
+    page: number,
+    pageSize: number
+): Promise<{ data: GoodsReceipt[]; total: number }> => {
+    const db = await openDB();
+    const transaction = db.transaction(GOODS_RECEIPTS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(GOODS_RECEIPTS_STORE_NAME);
+    const request = store.openCursor();
+
+    const data: GoodsReceipt[] = [];
+    let total = 0;
+    const offset = (page - 1) * pageSize;
+
+    return new Promise((resolve, reject) => {
+        // First, get the total count
+        const countRequest = store.count();
+        countRequest.onsuccess = () => {
+          total = countRequest.result;
+
+          if (total === 0) {
+            resolve({ data: [], total: 0 });
+            return;
+          }
+
+          let advanced = false;
+          const cursorRequest = store.openCursor();
+          cursorRequest.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (!cursor) {
+                resolve({ data, total });
+                return;
+            }
+            if (!advanced && offset > 0) {
+                cursor.advance(offset);
+                advanced = true;
+                return;
+            }
+            if (data.length < pageSize) {
+                data.push(cursor.value);
+                cursor.continue();
+            } else {
+                resolve({ data, total });
+            }
+          };
+          cursorRequest.onerror = () => reject(cursorRequest.error);
+        };
+        countRequest.onerror = () => reject(countRequest.error);
+    });
+};
+
 
 export const getUniqueProductStatuses = async (): Promise<string[]> => {
     const db = await openDB();
