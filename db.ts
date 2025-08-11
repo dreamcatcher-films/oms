@@ -1,12 +1,27 @@
-const DB_NAME = 'CSVDatabase';
-const DATA_STORE_NAME = 'csvData';
-const META_STORE_NAME = 'csvMeta';
-const DB_VERSION = 2;
+const DB_NAME = 'OMSDatabase';
+const PRODUCTS_STORE_NAME = 'products';
+const PALLETS_STORE_NAME = 'pallets';
+const DB_VERSION = 1;
+
+export type Product = {
+  productId: string;
+  warehouseId: string;
+  name: string;
+  price: number;
+  resellTime: number;
+};
+
+export type Pallet = {
+  palletId: string;
+  productId: string;
+  warehouseId: string;
+  arrivalDate: Date;
+  expiryDate: Date;
+};
 
 export type DBStatus = {
-  hasData: boolean;
-  headers: string[];
-  rowCount: number;
+  productsCount: number;
+  palletsCount: number;
 };
 
 const openDB = (): Promise<IDBDatabase> => {
@@ -15,11 +30,12 @@ const openDB = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(DATA_STORE_NAME)) {
-        db.createObjectStore(DATA_STORE_NAME, { autoIncrement: true });
+      if (!db.objectStoreNames.contains(PRODUCTS_STORE_NAME)) {
+        // Composite key for product based on its ID and warehouse ID
+        db.createObjectStore(PRODUCTS_STORE_NAME, { keyPath: ['productId', 'warehouseId'] });
       }
-      if (!db.objectStoreNames.contains(META_STORE_NAME)) {
-        db.createObjectStore(META_STORE_NAME);
+      if (!db.objectStoreNames.contains(PALLETS_STORE_NAME)) {
+        db.createObjectStore(PALLETS_STORE_NAME, { keyPath: 'palletId' });
       }
     };
 
@@ -28,113 +44,108 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
-export const saveHeaders = async (headers: string[]): Promise<void> => {
+const saveData = async <T>(storeName: string, data: T[]): Promise<void> => {
+  if (data.length === 0) return;
+  
   const db = await openDB();
-  const transaction = db.transaction(META_STORE_NAME, 'readwrite');
-  const store = transaction.objectStore(META_STORE_NAME);
-  store.put(headers, 'headers');
+  const transaction = db.transaction(storeName, 'readwrite');
+  const store = transaction.objectStore(storeName);
+
+  // Clear existing data before adding new data, only for the first batch
+  let isFirstBatch = true; 
+  transaction.objectStore(storeName).clear();
 
   return new Promise((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
+
+    let i = 0;
+    function addNext() {
+      if (i < data.length) {
+        store.put(data[i]).onsuccess = addNext;
+        i++;
+      }
+    }
+    addNext();
   });
 };
 
-export const appendRows = async (rows: string[][]): Promise<void> => {
-  if (rows.length === 0) {
-    return Promise.resolve();
-  }
-  const db = await openDB();
-  const transaction = db.transaction(DATA_STORE_NAME, 'readwrite');
-  const store = transaction.objectStore(DATA_STORE_NAME);
-
-  rows.forEach(row => {
-    store.add(row);
-  });
-
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
-};
-
-export const checkDBStatus = async (): Promise<DBStatus> => {
+const saveDataInBatches = async <T>(storeName: string, data: T[]): Promise<void> => {
+    if (data.length === 0) return;
     const db = await openDB();
-    const transaction = db.transaction([DATA_STORE_NAME, META_STORE_NAME], 'readonly');
-    const dataStore = transaction.objectStore(DATA_STORE_NAME);
-    const metaStore = transaction.objectStore(META_STORE_NAME);
-
-    const countRequest = dataStore.count();
-    const getHeadersRequest = metaStore.get('headers');
+    const transaction = db.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
 
     return new Promise((resolve, reject) => {
-        let dataCount = 0;
-        let headersResult: string[] = [];
-
-        countRequest.onsuccess = () => {
-            dataCount = countRequest.result;
-        };
-
-        getHeadersRequest.onsuccess = () => {
-            headersResult = getHeadersRequest.result || [];
-        };
-        
-        transaction.oncomplete = () => {
-            resolve({ hasData: dataCount > 0, headers: headersResult, rowCount: dataCount });
-        };
-        
-        transaction.onerror = () => {
-            reject(transaction.error);
-        };
-    });
-};
-
-export const getPaginatedData = async ({ page, pageSize }: { page: number; pageSize: number }): Promise<{ rows: string[][] }> => {
-    const db = await openDB();
-    const transaction = db.transaction(DATA_STORE_NAME, 'readonly');
-    const dataStore = transaction.objectStore(DATA_STORE_NAME);
-    
-    return new Promise((resolve, reject) => {
-        const rows: string[][] = [];
-        const lowerBound = (page - 1) * pageSize;
-        let advanced = false;
-        
-        const cursorRequest = dataStore.openCursor();
-
-        cursorRequest.onsuccess = (event) => {
-            const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result;
-
-            if (!cursor) {
-                // Reached end of cursor
-                resolve({ rows });
-                return;
-            }
-
-            if (!advanced && lowerBound > 0) {
-                advanced = true;
-                cursor.advance(lowerBound);
-                return; // Wait for next onsuccess
-            }
-
-            if (rows.length < pageSize) {
-                rows.push(cursor.value);
-                cursor.continue();
-            } else {
-                // Page is full, resolve immediately
-                resolve({ rows });
-            }
-        };
-
-        cursorRequest.onerror = () => reject(cursorRequest.error);
+        data.forEach(item => store.put(item));
+        transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
     });
+}
+
+
+export const saveProducts = async (products: Product[]): Promise<void> => {
+  // Clear must be in a separate transaction before saving
+  const db = await openDB();
+  const clearTx = db.transaction(PRODUCTS_STORE_NAME, 'readwrite');
+  clearTx.objectStore(PRODUCTS_STORE_NAME).clear();
+  await new Promise(r => clearTx.oncomplete = r);
+
+  return saveDataInBatches(PRODUCTS_STORE_NAME, products);
 };
 
-export const clearData = async (): Promise<void> => {
+export const savePallets = async (pallets: Pallet[]): Promise<void> => {
+  // Clear must be in a separate transaction before saving
   const db = await openDB();
-  const transaction = db.transaction([DATA_STORE_NAME, META_STORE_NAME], 'readwrite');
-  transaction.objectStore(DATA_STORE_NAME).clear();
-  transaction.objectStore(META_STORE_NAME).clear();
+  const clearTx = db.transaction(PALLETS_STORE_NAME, 'readwrite');
+  clearTx.objectStore(PALLETS_STORE_NAME).clear();
+  await new Promise(r => clearTx.oncomplete = r);
+  
+  return saveDataInBatches(PALLETS_STORE_NAME, pallets);
+};
+
+
+export const checkDBStatus = async (): Promise<DBStatus> => {
+    try {
+        const db = await openDB();
+        const transaction = db.transaction([PRODUCTS_STORE_NAME, PALLETS_STORE_NAME], 'readonly');
+        const productsStore = transaction.objectStore(PRODUCTS_STORE_NAME);
+        const palletsStore = transaction.objectStore(PALLETS_STORE_NAME);
+
+        const productsCountRequest = productsStore.count();
+        const palletsCountRequest = palletsStore.count();
+
+        return new Promise((resolve, reject) => {
+            let productsCount = 0;
+            let palletsCount = 0;
+
+            productsCountRequest.onsuccess = () => {
+                productsCount = productsCountRequest.result;
+            };
+
+            palletsCountRequest.onsuccess = () => {
+                palletsCount = palletsCountRequest.result;
+            };
+            
+            transaction.oncomplete = () => {
+                resolve({ productsCount, palletsCount });
+            };
+            
+            transaction.onerror = () => {
+                reject(transaction.error);
+            };
+        });
+    } catch (e) {
+        // This can happen if the DB doesn't exist yet
+        return { productsCount: 0, palletsCount: 0 };
+    }
+};
+
+export const clearAllData = async (): Promise<void> => {
+  const db = await openDB();
+  const transaction = db.transaction([PRODUCTS_STORE_NAME, PALLETS_STORE_NAME], 'readwrite');
+  transaction.objectStore(PRODUCTS_STORE_NAME).clear();
+  transaction.objectStore(PALLETS_STORE_NAME).clear();
   
   return new Promise((resolve, reject) => {
     transaction.oncomplete = () => resolve();
