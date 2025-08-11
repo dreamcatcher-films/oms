@@ -1,48 +1,48 @@
 import { render } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import {
-  clearData,
+  clearAllData,
   checkDBStatus,
-  appendRows,
-  saveHeaders,
-  getPaginatedData,
+  saveProducts,
+  savePallets,
+  Product,
+  Pallet
 } from "./db";
 import Papa from "papaparse";
 
-const PAGE_SIZE = 100;
 const BATCH_SIZE = 5000;
 
+type Status = {
+  text: string;
+  type: 'info' | 'error' | 'success';
+};
+
+type View = 'import' | 'report' | 'dashboard' | 'simulations';
+
 const App = () => {
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [rows, setRows] = useState<string[][]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [statusMessage, setStatusMessage] = useState('Sprawdzanie lokalnej bazy danych...');
+  const [statusMessage, setStatusMessage] = useState<Status>({ text: 'Inicjalizacja aplikacji...', type: 'info' });
   
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalRows, setTotalRows] = useState(0);
-
-  const [dbHasData, setDbHasData] = useState(false);
-
-  const totalPages = Math.ceil(totalRows / PAGE_SIZE);
+  const [productsCount, setProductsCount] = useState(0);
+  const [palletsCount, setPalletsCount] = useState(0);
+  const [currentView, setCurrentView] = useState<View>('import');
 
   useEffect(() => {
     const performInitialCheck = async () => {
       setIsLoading(true);
-      setStatusMessage('Sprawdzanie lokalnej bazy danych...');
+      setStatusMessage({ text: 'Sprawdzanie lokalnej bazy danych...', type: 'info' });
       try {
-        const { hasData, headers, rowCount } = await checkDBStatus();
-        setDbHasData(hasData);
-        if (hasData) {
-          setHeaders(headers);
-          setTotalRows(rowCount);
-          setStatusMessage(`Znaleziono ${rowCount.toLocaleString('pl-PL')} wierszy w lokalnej bazie. Gotowe do załadowania.`);
+        const { productsCount, palletsCount } = await checkDBStatus();
+        setProductsCount(productsCount);
+        setPalletsCount(palletsCount);
+        if (productsCount > 0 || palletsCount > 0) {
+          setStatusMessage({ text: 'Znaleziono dane. Możesz uruchomić analizę lub wgrać nowe pliki.', type: 'success' });
         } else {
-          setStatusMessage('Wybierz plik CSV, aby rozpocząć.');
+          setStatusMessage({ text: 'Wybierz pliki z danymi, aby rozpocząć.', type: 'info' });
         }
       } catch (error) {
         console.error("Failed to check DB status", error);
-        setStatusMessage('Błąd podczas sprawdzania bazy danych.');
-        setDbHasData(false);
+        setStatusMessage({ text: 'Błąd podczas sprawdzania bazy danych.', type: 'error' });
       } finally {
         setIsLoading(false);
       }
@@ -50,201 +50,217 @@ const App = () => {
     performInitialCheck();
   }, []);
 
-  const loadPage = async (page: number) => {
-    if (page < 1 || page > totalPages || !dbHasData) return;
-    
+  const handleFileParse = <T,>(
+    file: File,
+    setDataCount: (count: number) => void,
+    saveFunction: (data: T[]) => Promise<void>,
+    rowMapper: (row: string[]) => T,
+    dataType: 'produktów' | 'palet'
+  ) => {
     setIsLoading(true);
-    setStatusMessage(`Ładowanie strony ${page} z ${totalPages}...`);
+    setStatusMessage({ text: `Rozpoczynanie importu pliku ${dataType}...`, type: 'info' });
+
+    let parsedRowCount = 0;
+    let batch: T[] = [];
+
+    const processBatch = async () => {
+      if (batch.length > 0) {
+        await saveFunction(batch);
+        parsedRowCount += batch.length;
+        setStatusMessage({ text: `Przetwarzanie pliku... Zapisano ${parsedRowCount.toLocaleString('pl-PL')} ${dataType}.`, type: 'info' });
+        batch = [];
+      }
+    };
+
+    Papa.parse<string[]>(file, {
+      worker: true,
+      header: false,
+      skipEmptyLines: true,
+      step: (results, parser) => {
+        if (parsedRowCount === 0) { // Skip header row
+            parsedRowCount = -1; // so it becomes 0 after first data row
+            return;
+        }
+        
+        parser.pause();
+        (async () => {
+          try {
+            const mappedRow = rowMapper(results.data);
+            batch.push(mappedRow);
+            if (batch.length >= BATCH_SIZE) {
+              await processBatch();
+            }
+            parser.resume();
+          } catch (err) {
+            console.error("Error processing CSV step:", err);
+            setStatusMessage({ text: `Błąd w strukturze pliku ${dataType}.`, type: 'error' });
+            setIsLoading(false);
+            parser.abort();
+          }
+        })();
+      },
+      complete: () => {
+        (async () => {
+          try {
+            await processBatch();
+            // PapaParse has a bug where it might count an empty last line, so we trust our batch count.
+            const finalCount = parsedRowCount + batch.length;
+            setDataCount(finalCount);
+            setStatusMessage({ text: `Import zakończony. Zapisano ${finalCount.toLocaleString('pl-PL')} ${dataType}.`, type: 'success' });
+            setIsLoading(false);
+          } catch (err) {
+            console.error("Error during CSV completion:", err);
+            setStatusMessage({ text: `Błąd podczas finalizowania importu ${dataType}.`, type: 'error' });
+            setIsLoading(false);
+          }
+        })();
+      },
+      error: (error) => {
+        console.error("PapaParse error:", error);
+        setStatusMessage({ text: `Błąd krytyczny podczas parsowania pliku ${dataType}.`, type: 'error' });
+        setIsLoading(false);
+      }
+    });
+  };
+
+  const handleProductFile = (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) {
+      handleFileParse<Product>(file, setProductsCount, saveProducts, (row) => ({
+        productId: row[0],
+        warehouseId: row[1],
+        name: row[2],
+        price: parseFloat(row[3]),
+        resellTime: parseInt(row[4], 10)
+      }), 'produktów');
+       (event.target as HTMLInputElement).value = '';
+    }
+  };
+
+  const handlePalletFile = (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) {
+      handleFileParse<Pallet>(file, setPalletsCount, savePallets, (row) => ({
+        palletId: row[0],
+        productId: row[1],
+        warehouseId: row[2],
+        arrivalDate: new Date(row[3]),
+        expiryDate: new Date(row[4])
+      }), 'palet');
+       (event.target as HTMLInputElement).value = '';
+    }
+  };
+
+  const handleClearData = async () => {
+    setIsLoading(true);
+    setStatusMessage({ text: 'Usuwanie wszystkich danych...', type: 'info' });
     try {
-      const { rows: loadedRows } = await getPaginatedData({ page, pageSize: PAGE_SIZE });
-      setRows(loadedRows);
-      setCurrentPage(page);
-      setStatusMessage(`Wyświetlanie strony ${page} z ${totalPages} (${totalRows.toLocaleString('pl-PL')} wierszy).`);
+      await clearAllData();
+      setProductsCount(0);
+      setPalletsCount(0);
+      setStatusMessage({ text: 'Wszystkie dane zostały usunięte. Możesz załadować nowe pliki.', type: 'success' });
     } catch (error) {
-      console.error(`Failed to load page ${page}`, error);
-      setStatusMessage(`Błąd podczas ładowania strony ${page}.`);
+      console.error("Failed to clear DB", error);
+      setStatusMessage({ text: 'Błąd podczas usuwania danych.', type: 'error' });
     } finally {
       setIsLoading(false);
     }
-  }
-
-  const handleLoadData = async () => {
-    await loadPage(1);
   };
 
-  const handleFileChange = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
+  const renderContent = () => {
+    switch (currentView) {
+      case 'import':
+        return (
+          <div class="import-container">
+            <div class="import-section">
+              <h2>1. Dane Podstawowe Artykułów</h2>
+              <p>Plik z informacjami o produktach (ID, nazwa, cena, itp.).</p>
+              <label htmlFor="product-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
+                Wybierz plik produktów
+              </label>
+              <input id="product-file-input" type="file" accept=".csv" onChange={handleProductFile} disabled={isLoading} />
+              <div class="import-status">
+                <p>Zaimportowano: <strong>{productsCount.toLocaleString('pl-PL')}</strong> rekordów</p>
+              </div>
+            </div>
 
-    if (file) {
-      setRows([]);
-      setHeaders([]);
-      setTotalRows(0);
-      setCurrentPage(1);
-      setIsLoading(true);
-
-      let parsedRowCount = 0;
-      let batch: string[][] = [];
-      let fileHeaders: string[] = [];
-
-      const processBatch = async () => {
-        if (batch.length > 0) {
-          await appendRows(batch);
-          parsedRowCount += batch.length;
-          setStatusMessage(`Przetwarzanie pliku... Zapisano ${parsedRowCount.toLocaleString('pl-PL')} wierszy.`);
-          batch = [];
-        }
-      };
-
-      Papa.parse<string[]>(file, {
-        worker: false,
-        header: false,
-        skipEmptyLines: true,
-        step: (results: Papa.ParseStepResult<string[]>, parser: Papa.Parser) => {
-          parser.pause();
-          (async () => {
-            let wasAborted = false;
-            try {
-              if (fileHeaders.length === 0) {
-                fileHeaders = results.data;
-                setHeaders(fileHeaders);
-                await clearData();
-                await saveHeaders(fileHeaders);
-              } else {
-                batch.push(results.data);
-                if (batch.length >= BATCH_SIZE) {
-                  await processBatch();
-                }
-              }
-            } catch (err) {
-              wasAborted = true;
-              console.error("Error processing CSV step:", err);
-              setStatusMessage(`Błąd podczas przetwarzania pliku: ${err instanceof Error ? err.message : String(err)}`);
-              setIsLoading(false);
-              parser.abort();
-            } finally {
-              if (!wasAborted) {
-                parser.resume();
-              }
-            }
-          })();
-        },
-        complete: () => {
-          (async () => {
-            try {
-              await processBatch(); // process any remaining rows
-              setTotalRows(parsedRowCount);
-              setDbHasData(true);
-              setStatusMessage(`Import zakończony. Zapisano ${parsedRowCount.toLocaleString('pl-PL')} wierszy.`);
-              setIsLoading(false);
-              await loadPage(1);
-            } catch (err) {
-              console.error("Error during CSV completion:", err);
-              setStatusMessage(`Błąd podczas finalizowania importu: ${err instanceof Error ? err.message : String(err)}`);
-              setIsLoading(false);
-            }
-          })();
-        },
-        error: (error: Error) => {
-          console.error("PapaParse error:", error);
-          setStatusMessage(`Błąd podczas przetwarzania pliku: ${error.message}`);
-          setIsLoading(false);
-        }
-      });
-      target.value = ''; 
+            <div class="import-section">
+              <h2>2. Dane o Paletach</h2>
+              <p>Plik z informacjami o paletach (ID, daty, przynależność).</p>
+              <label htmlFor="pallet-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
+                Wybierz plik palet
+              </label>
+              <input id="pallet-file-input" type="file" accept=".csv" onChange={handlePalletFile} disabled={isLoading} />
+              <div class="import-status">
+                <p>Zaimportowano: <strong>{palletsCount.toLocaleString('pl-PL')}</strong> rekordów</p>
+              </div>
+            </div>
+          </div>
+        );
+      case 'report':
+        return (
+          <div class="placeholder-view">
+            <h2>Raport Zagrożeń</h2>
+            <p>Tutaj znajdzie się lista artykułów z potencjalnym ryzykiem strat, posortowana według pilności. Ta funkcjonalność jest w budowie.</p>
+          </div>
+        );
+      case 'dashboard':
+        return (
+          <div class="placeholder-view">
+            <h2>Dashboard</h2>
+            <p>Główny pulpit z kluczowymi wskaźnikami (KPI), wykresami i podsumowaniem stanu magazynu. Ta funkcjonalność jest w budowie.</p>
+          </div>
+        );
+      case 'simulations':
+        return (
+          <div class="placeholder-view">
+            <h2>Symulacje</h2>
+            <p>Narzędzie do przeprowadzania analiz "co-jeśli" przez modyfikację parametrów wejściowych. Ta funkcjonalność jest w budowie.</p>
+          </div>
+        );
+      default:
+        return null;
     }
   };
-  
-  const handleClearData = async () => {
-    setIsLoading(true);
-    setStatusMessage('Usuwanie danych...');
-    try {
-        await clearData();
-        setHeaders([]);
-        setRows([]);
-        setTotalRows(0);
-        setCurrentPage(1);
-        setStatusMessage('Dane zostały usunięte. Możesz teraz załadować nowy plik.');
-        setDbHasData(false);
-    } catch(error) {
-        console.error("Failed to clear DB", error);
-        setStatusMessage('Błąd podczas usuwania danych.');
-    } finally {
-        setIsLoading(false);
-    }
-  }
+
+  const hasAnyData = productsCount > 0 || palletsCount > 0;
+  const canAnalyze = productsCount > 0 && palletsCount > 0;
 
   return (
-    <>
-      <h1>Przeglądarka plików CSV z lokalną bazą danych</h1>
-      
-      <div class="file-uploader">
-        <p>Wybierz plik CSV lub załaduj istniejące dane z lokalnej bazy.</p>
-        <div class="actions-container">
-           {dbHasData && !isLoading && (
-             <button onClick={handleLoadData} class="button-primary">Załaduj dane</button>
-           )}
-           <label htmlFor="csv-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
-             Wybierz plik
-           </label>
-           {dbHasData && !isLoading && (
-             <button onClick={handleClearData} class="button-secondary">Wyczyść dane</button>
-           )}
-        </div>
-        <input
-          id="csv-file-input"
-          type="file"
-          accept=".csv"
-          onChange={handleFileChange}
-          aria-label="File uploader"
-          disabled={isLoading}
-        />
+    <div class="page-container">
+      <h1>OMS - Optymalizacja Stanów Magazynowych</h1>
+      <div class="app-layout">
+        <nav class="sidebar">
+          <ul>
+            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('import')}} class={currentView === 'import' ? 'active' : ''}>Import Danych</a></li>
+            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('report')}} class={currentView === 'report' ? 'active' : ''}>Raport Zagrożeń</a></li>
+            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('dashboard')}} class={currentView === 'dashboard' ? 'active' : ''}>Dashboard</a></li>
+            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('simulations')}} class={currentView === 'simulations' ? 'active' : ''}>Symulacje</a></li>
+          </ul>
+        </nav>
+        <main class="main-content">
+          {statusMessage.text && (
+              <div class={`status-container ${statusMessage.type}`} role="status">
+                <div class="status-info">
+                   {isLoading && <div class="spinner"></div>}
+                   <div class="status-content">
+                      <p class="status-text">{statusMessage.text}</p>
+                   </div>
+                </div>
+              </div>
+          )}
+          {renderContent()}
+          <div class="actions-container">
+            <button class="button-primary" disabled={!canAnalyze || isLoading}>
+              Uruchom Analizę
+            </button>
+            {hasAnyData && !isLoading && (
+              <button onClick={handleClearData} class="button-secondary">Wyczyść Wszystkie Dane</button>
+            )}
+          </div>
+        </main>
       </div>
-
-      {(isLoading || statusMessage) && (
-        <div class="status-container" role="status">
-          <div class="status-info">
-             {isLoading && <div class="spinner"></div>}
-             <div class="status-content">
-                <p class="status-text">{statusMessage}</p>
-             </div>
-          </div>
-        </div>
-      )}
-
-      {rows.length > 0 && (
-        <div class="table-container" role="region" aria-labelledby="table-caption">
-          <h2 id="table-caption" class="sr-only">Dane z pliku CSV</h2>
-          <table>
-            <thead>
-              <tr>
-                {headers.map((header, index) => (
-                  <th key={index} scope="col">{header}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, rowIndex) => (
-                <tr key={rowIndex}>
-                  {row.map((cell, cellIndex) => (
-                    <td key={cellIndex}>{cell}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div class="pagination-container">
-              <button onClick={() => loadPage(currentPage - 1)} disabled={currentPage <= 1 || isLoading}>
-                  Poprzednia
-              </button>
-              <span>Strona {currentPage} z {totalPages}</span>
-              <button onClick={() => loadPage(currentPage + 1)} disabled={currentPage >= totalPages || isLoading}>
-                  Następna
-              </button>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 };
 
