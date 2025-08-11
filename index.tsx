@@ -1,5 +1,5 @@
 import { render } from "preact";
-import { useState, useEffect, useCallback, useRef } from "preact/hooks";
+import { useState, useEffect, useCallback, useRef, StateUpdater } from "preact/hooks";
 import {
   clearAllData,
   checkDBStatus,
@@ -715,7 +715,7 @@ const App = () => {
     dataTypeName: string,
     clearDbFn: () => Promise<void>,
     addDbFn: (batch: any[]) => Promise<void>,
-    setCountFn: React.Dispatch<React.SetStateAction<number>>,
+    setCountFn: StateUpdater<number>,
     rowMapperFn: (row: { [key: string]: string }) => any
   ) => {
       setIsLoading(true);
