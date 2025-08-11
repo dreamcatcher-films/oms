@@ -97,7 +97,7 @@ const App = () => {
       };
 
       Papa.parse(file, {
-        worker: true,
+        worker: false,
         header: false,
         skipEmptyLines: true,
         step: async (results: Papa.ParseStepResult<string[]>) => {
