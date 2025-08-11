@@ -163,6 +163,7 @@ const App = () => {
         };
 
         const config = {
+          worker: false, // Fix: Disable worker to prevent DataCloneError with beforeFirstChunk
           beforeFirstChunk: (chunk: string) => {
               const firstNewline = chunk.indexOf('\n');
               return firstNewline !== -1 ? chunk.substring(firstNewline + 1) : chunk;
