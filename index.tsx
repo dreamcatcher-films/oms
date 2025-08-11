@@ -5,15 +5,20 @@ import {
   checkDBStatus,
   addProducts,
   addGoodsReceipts,
+  addOpenOrders,
   clearProducts,
   clearGoodsReceipts,
+  clearOpenOrders,
   Product,
   GoodsReceipt,
+  OpenOrder,
   getProductsPaginatedAndFiltered,
   getGoodsReceiptsPaginatedAndFiltered,
+  getOpenOrdersPaginatedAndFiltered,
   getUniqueProductStatuses,
   getUniqueWarehouseIds,
   getUniqueWarehouseIdsForGoodsReceipts,
+  getUniqueWarehouseIdsForOpenOrders,
   findProductsByPartialId
 } from "./db";
 import Papa from "papaparse";
@@ -72,6 +77,24 @@ const GOODS_RECEIPT_COLUMNS: { key: keyof GoodsReceipt; label: string }[] = [
     { key: 'liaReference', label: 'LIA Ref' },
 ];
 
+const OPEN_ORDER_COLUMNS: { key: keyof OpenOrder; label: string }[] = [
+    { key: 'warehouseId', label: 'Magazyn' },
+    { key: 'productId', label: 'Nr art. krótki' },
+    { key: 'fullProductId', label: 'Nr art. pełny' },
+    { key: 'name', label: 'Nazwa' },
+    { key: 'orderUnit', label: 'Jedn. zamówienia' },
+    { key: 'orderQtyUom', label: 'Ilość (J.m.)' },
+    { key: 'caseSize', label: 'Szt. w kart.' },
+    { key: 'orderQtyPcs', label: 'Ilość (szt.)' },
+    { key: 'poNr', label: 'Nr zamówienia' },
+    { key: 'supplierId', label: 'ID Dostawcy' },
+    { key: 'supplierName', label: 'Nazwa Dostawcy' },
+    { key: 'deliveryDate', label: 'Plan. data dostawy' },
+    { key: 'creationDate', label: 'Data utworzenia' },
+    { key: 'deliveryLeadTime', label: 'Czas realizacji (dni)' },
+];
+
+
 type Status = {
   text: string;
   type: 'info' | 'error' | 'success';
@@ -81,9 +104,10 @@ type Status = {
 type View = 'import' | 'report' | 'dashboard' | 'simulations' | 'data-preview';
 
 const DataPreview = () => {
-  const [activeTab, setActiveTab] = useState<'products' | 'goodsReceipts'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'goodsReceipts' | 'openOrders'>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [goodsReceipts, setGoodsReceipts] = useState<GoodsReceipt[]>([]);
+  const [openOrders, setOpenOrders] = useState<OpenOrder[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -94,9 +118,14 @@ const DataPreview = () => {
   const [goodsReceiptsFilters, setGoodsReceiptsFilters] = useState({ warehouseId: '', productId: '' });
   const [appliedGoodsReceiptsFilters, setAppliedGoodsReceiptsFilters] = useState({ warehouseId: '', productId: '' });
 
+  const [openOrderFilters, setOpenOrderFilters] = useState({ warehouseId: '', productId: '' });
+  const [appliedOpenOrderFilters, setAppliedOpenOrderFilters] = useState({ warehouseId: '', productId: '' });
+
   const [productStatuses, setProductStatuses] = useState<string[]>([]);
   const [productWarehouseIds, setProductWarehouseIds] = useState<string[]>([]);
   const [goodsReceiptsWarehouseIds, setGoodsReceiptsWarehouseIds] = useState<string[]>([]);
+  const [openOrdersWarehouseIds, setOpenOrdersWarehouseIds] = useState<string[]>([]);
+
   const [productIdSuggestions, setProductIdSuggestions] = useState<Product[]>([]);
   const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
   const debounceTimeoutRef = useRef<number | null>(null);
@@ -104,14 +133,16 @@ const DataPreview = () => {
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
 
   const fetchDropdownData = useCallback(async () => {
-    const [statuses, pWarehouses, grWarehouses] = await Promise.all([
+    const [statuses, pWarehouses, grWarehouses, ooWarehouses] = await Promise.all([
       getUniqueProductStatuses(),
       getUniqueWarehouseIds(),
-      getUniqueWarehouseIdsForGoodsReceipts()
+      getUniqueWarehouseIdsForGoodsReceipts(),
+      getUniqueWarehouseIdsForOpenOrders(),
     ]);
     setProductStatuses(statuses);
     setProductWarehouseIds(pWarehouses);
     setGoodsReceiptsWarehouseIds(grWarehouses);
+    setOpenOrdersWarehouseIds(ooWarehouses);
   }, []);
   
   const fetchProducts = useCallback(async () => {
@@ -129,47 +160,62 @@ const DataPreview = () => {
     setTotalItems(total);
     setIsLoading(false);
   }, [currentPage, appliedGoodsReceiptsFilters]);
+  
+  const fetchOpenOrders = useCallback(async () => {
+    setIsLoading(true);
+    const { data, total } = await getOpenOrdersPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedOpenOrderFilters);
+    setOpenOrders(data);
+    setTotalItems(total);
+    setIsLoading(false);
+  }, [currentPage, appliedOpenOrderFilters]);
 
   useEffect(() => {
     fetchDropdownData();
   }, [fetchDropdownData]);
   
+  const handleTabChange = (tab: 'products' | 'goodsReceipts' | 'openOrders') => {
+      setCurrentPage(1);
+      setActiveTab(tab);
+  };
+
   useEffect(() => {
-    setCurrentPage(1); // Reset page on tab change
     if (activeTab === 'products') {
       fetchProducts();
     } else if (activeTab === 'goodsReceipts') {
       fetchGoodsReceipts();
+    } else if (activeTab === 'openOrders') {
+      fetchOpenOrders();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
-
-  useEffect(() => {
-    // Refetch data when page or filters change
-    if (activeTab === 'products') {
-      fetchProducts();
-    } else if (activeTab === 'goodsReceipts') {
-      fetchGoodsReceipts();
-    }
-  }, [currentPage, appliedProductFilters, appliedGoodsReceiptsFilters, activeTab, fetchProducts, fetchGoodsReceipts]);
+  }, [currentPage, appliedProductFilters, appliedGoodsReceiptsFilters, appliedOpenOrderFilters, activeTab, fetchProducts, fetchGoodsReceipts, fetchOpenOrders]);
 
 
-  const handleProductFilterChange = (e: Event) => {
+  const handleFilterChange = (e: Event, type: 'products' | 'goodsReceipts' | 'openOrders') => {
     const { name, value } = e.target as HTMLInputElement | HTMLSelectElement;
-    setProductFilters(prev => ({ ...prev, [name]: value }));
+    switch (type) {
+        case 'products':
+            setProductFilters(prev => ({ ...prev, [name]: value }));
+            break;
+        case 'goodsReceipts':
+            setGoodsReceiptsFilters(prev => ({ ...prev, [name]: value }));
+            break;
+        case 'openOrders':
+            setOpenOrderFilters(prev => ({ ...prev, [name]: value }));
+            break;
+    }
   };
   
-  const handleGoodsReceiptFilterChange = (e: Event) => {
-    const { name, value } = e.target as HTMLInputElement | HTMLSelectElement;
-    setGoodsReceiptsFilters(prev => ({ ...prev, [name]: value }));
-  };
-  
-  const handleProductIdChange = (e: Event, type: 'products' | 'goodsReceipts') => {
+  const handleProductIdChange = (e: Event) => {
       const value = (e.target as HTMLInputElement).value;
-      if (type === 'products') {
-        setProductFilters(prev => ({ ...prev, productId: value }));
-      } else {
-        setGoodsReceiptsFilters(prev => ({ ...prev, productId: value }));
+      switch (activeTab) {
+          case 'products':
+              setProductFilters(prev => ({ ...prev, productId: value }));
+              break;
+          case 'goodsReceipts':
+              setGoodsReceiptsFilters(prev => ({ ...prev, productId: value }));
+              break;
+          case 'openOrders':
+              setOpenOrderFilters(prev => ({ ...prev, productId: value }));
+              break;
       }
 
       if (debounceTimeoutRef.current) {
@@ -190,10 +236,16 @@ const DataPreview = () => {
   };
 
   const handleSuggestionClick = (product: Product) => {
-    if (activeTab === 'products') {
-      setProductFilters(prev => ({ ...prev, productId: product.productId }));
-    } else {
-      setGoodsReceiptsFilters(prev => ({ ...prev, productId: product.productId }));
+    switch(activeTab) {
+        case 'products':
+            setProductFilters(prev => ({ ...prev, productId: product.productId }));
+            break;
+        case 'goodsReceipts':
+            setGoodsReceiptsFilters(prev => ({ ...prev, productId: product.productId }));
+            break;
+        case 'openOrders':
+            setOpenOrderFilters(prev => ({ ...prev, productId: product.productId }));
+            break;
     }
     setIsSuggestionsVisible(false);
   };
@@ -203,8 +255,10 @@ const DataPreview = () => {
     setCurrentPage(1);
     if(activeTab === 'products') {
         setAppliedProductFilters(productFilters);
-    } else {
+    } else if (activeTab === 'goodsReceipts'){
         setAppliedGoodsReceiptsFilters(goodsReceiptsFilters);
+    } else {
+        setAppliedOpenOrderFilters(openOrderFilters);
     }
     setIsSuggestionsVisible(false);
   };
@@ -214,9 +268,12 @@ const DataPreview = () => {
     if(activeTab === 'products') {
         setProductFilters({ warehouseId: '', productId: '', status: '' });
         setAppliedProductFilters({ warehouseId: '', productId: '', status: '' });
-    } else {
+    } else if (activeTab === 'goodsReceipts') {
         setGoodsReceiptsFilters({ warehouseId: '', productId: '' });
         setAppliedGoodsReceiptsFilters({ warehouseId: '', productId: '' });
+    } else {
+        setOpenOrderFilters({ warehouseId: '', productId: '' });
+        setAppliedOpenOrderFilters({ warehouseId: '', productId: '' });
     }
     setIsSuggestionsVisible(false);
   };
@@ -243,8 +300,9 @@ const DataPreview = () => {
   return (
     <div class="data-preview-container" onBlur={() => setIsSuggestionsVisible(false)}>
       <div class="tabs">
-        <button class={`tab ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>Produkty ({activeTab === 'products' ? totalItems : '...'})</button>
-        <button class={`tab ${activeTab === 'goodsReceipts' ? 'active' : ''}`} onClick={() => setActiveTab('goodsReceipts')}>Przyjęcie Towaru (eGIN) ({activeTab === 'goodsReceipts' ? totalItems : '...'})</button>
+        <button class={`tab ${activeTab === 'products' ? 'active' : ''}`} onClick={() => handleTabChange('products')}>Produkty</button>
+        <button class={`tab ${activeTab === 'goodsReceipts' ? 'active' : ''}`} onClick={() => handleTabChange('goodsReceipts')}>Przyjęcie Towaru (eGIN)</button>
+        <button class={`tab ${activeTab === 'openOrders' ? 'active' : ''}`} onClick={() => handleTabChange('openOrders')}>Otwarte Zamówienia</button>
       </div>
 
       {activeTab === 'products' && (
@@ -252,14 +310,14 @@ const DataPreview = () => {
         <div class="filter-bar">
           <div class="filter-group">
             <label for="p-warehouseId">Magazyn</label>
-            <select id="p-warehouseId" name="warehouseId" value={productFilters.warehouseId} onChange={handleProductFilterChange} onKeyDown={handleKeyDown}>
+            <select id="p-warehouseId" name="warehouseId" value={productFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'products')} onKeyDown={handleKeyDown}>
               <option value="">Wszystkie</option>
               {productWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
           </div>
           <div class="filter-group">
             <label for="p-productId">Nr artykułu</label>
-            <input type="text" id="p-productId" name="productId" value={productFilters.productId} onInput={(e) => handleProductIdChange(e, 'products')} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
+            <input type="text" id="p-productId" name="productId" value={productFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
             {isSuggestionsVisible && productIdSuggestions.length > 0 && (
               <ul class="suggestions-list">
                 {productIdSuggestions.map(p => (
@@ -272,7 +330,7 @@ const DataPreview = () => {
           </div>
           <div class="filter-group">
             <label for="p-status">Status</label>
-            <select id="p-status" name="status" value={productFilters.status} onChange={handleProductFilterChange} onKeyDown={handleKeyDown}>
+            <select id="p-status" name="status" value={productFilters.status} onChange={(e) => handleFilterChange(e, 'products')} onKeyDown={handleKeyDown}>
               <option value="">Wszystkie</option>
               {productStatuses.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -313,6 +371,7 @@ const DataPreview = () => {
         </div>
 
         <div class="pagination">
+          <span>{totalItems.toLocaleString('pl-PL')} rekordów</span>
           <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>Poprzednia</button>
           <span>Strona {currentPage} z {totalPages}</span>
           <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>Następna</button>
@@ -325,14 +384,14 @@ const DataPreview = () => {
          <div class="filter-bar">
           <div class="filter-group">
             <label for="gr-warehouseId">Magazyn</label>
-            <select id="gr-warehouseId" name="warehouseId" value={goodsReceiptsFilters.warehouseId} onChange={handleGoodsReceiptFilterChange} onKeyDown={handleKeyDown}>
+            <select id="gr-warehouseId" name="warehouseId" value={goodsReceiptsFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'goodsReceipts')} onKeyDown={handleKeyDown}>
               <option value="">Wszystkie</option>
               {goodsReceiptsWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
           </div>
           <div class="filter-group">
             <label for="gr-productId">Nr artykułu</label>
-            <input type="text" id="gr-productId" name="productId" value={goodsReceiptsFilters.productId} onInput={(e) => handleProductIdChange(e, 'goodsReceipts')} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
+            <input type="text" id="gr-productId" name="productId" value={goodsReceiptsFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
             {isSuggestionsVisible && productIdSuggestions.length > 0 && (
               <ul class="suggestions-list">
                 {productIdSuggestions.map(p => (
@@ -372,6 +431,67 @@ const DataPreview = () => {
          </div>
  
          <div class="pagination">
+           <span>{totalItems.toLocaleString('pl-PL')} rekordów</span>
+           <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>Poprzednia</button>
+           <span>Strona {currentPage} z {totalPages}</span>
+           <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>Następna</button>
+         </div>
+         </>
+      )}
+
+      {activeTab === 'openOrders' && (
+         <>
+         <div class="filter-bar">
+          <div class="filter-group">
+            <label for="oo-warehouseId">Magazyn</label>
+            <select id="oo-warehouseId" name="warehouseId" value={openOrderFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'openOrders')} onKeyDown={handleKeyDown}>
+              <option value="">Wszystkie</option>
+              {openOrdersWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="oo-productId">Nr artykułu</label>
+            <input type="text" id="oo-productId" name="productId" value={openOrderFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
+             {isSuggestionsVisible && productIdSuggestions.length > 0 && (
+              <ul class="suggestions-list">
+                {productIdSuggestions.map(p => (
+                  <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
+                    <strong>{p.productId}</strong> - {p.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div class="filter-actions">
+            <button onClick={applyFilters} class="button-primary">Filtruj</button>
+            <button onClick={clearFilters} class="button-secondary">Wyczyść</button>
+          </div>
+        </div>
+         <div class="table-container">
+           {isLoading ? ( <div class="spinner-overlay"><div class="spinner"></div></div> ) : (
+             <table>
+               <thead>
+                 <tr>
+                   {OPEN_ORDER_COLUMNS.map(col => <th key={col.key}>{col.label}</th>)}
+                 </tr>
+               </thead>
+               <tbody>
+                 {openOrders.map(order => (
+                   <tr key={`${order.warehouseId}-${order.fullProductId}-${order.poNr}`}>
+                     {OPEN_ORDER_COLUMNS.map(col => (
+                        <td key={col.key}>
+                          {String(order[col.key] ?? '')}
+                        </td>
+                     ))}
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           )}
+         </div>
+ 
+         <div class="pagination">
+           <span>{totalItems.toLocaleString('pl-PL')} rekordów</span>
            <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>Poprzednia</button>
            <span>Strona {currentPage} z {totalPages}</span>
            <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>Następna</button>
@@ -389,6 +509,7 @@ const App = () => {
   
   const [productsCount, setProductsCount] = useState(0);
   const [goodsReceiptsCount, setGoodsReceiptsCount] = useState(0);
+  const [openOrdersCount, setOpenOrdersCount] = useState(0);
   const [currentView, setCurrentView] = useState<View>('import');
 
   useEffect(() => {
@@ -396,10 +517,11 @@ const App = () => {
       setIsLoading(true);
       setStatusMessage({ text: 'Sprawdzanie lokalnej bazy danych...', type: 'info' });
       try {
-        const { productsCount, goodsReceiptsCount } = await checkDBStatus();
+        const { productsCount, goodsReceiptsCount, openOrdersCount } = await checkDBStatus();
         setProductsCount(productsCount);
         setGoodsReceiptsCount(goodsReceiptsCount);
-        if (productsCount > 0 || goodsReceiptsCount > 0) {
+        setOpenOrdersCount(openOrdersCount);
+        if (productsCount > 0 || goodsReceiptsCount > 0 || openOrdersCount > 0) {
           setStatusMessage({ text: 'Znaleziono dane. Możesz uruchomić analizę lub wgrać nowe pliki.', type: 'success' });
         } else {
           setStatusMessage({ text: 'Wybierz pliki z danymi, aby rozpocząć.', type: 'info' });
@@ -413,6 +535,15 @@ const App = () => {
     };
     performInitialCheck();
   }, []);
+  
+  const parseDateToObj = (dateStr: string | undefined): Date | null => {
+      if (!dateStr) return null;
+      const parts = dateStr.split('/');
+      if (parts.length !== 3) return null;
+      const [day, month, year] = parts.map(Number);
+      if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+      return new Date(year, month - 1, day);
+  };
   
   const parseDateToSortableFormat = (dateStr: string | undefined): string => {
     if (!dateStr) return '00000000';
@@ -528,200 +659,173 @@ const App = () => {
         deliveryDateSortable: parseDateToSortableFormat(deliveryDate),
         bestBeforeDateSortable: parseDateToSortableFormat(bestBeforeDate),
     };
-};
+  };
 
+  const openOrderRowMapper = (row: { [key: string]: string }): OpenOrder => {
+    const parseNum = (val: string | undefined) => {
+        if (val === undefined) return 0;
+        const num = parseFloat(val);
+        return isNaN(num) ? 0 : num;
+    };
+
+    const fullProductId = row['ITEM NR']?.trim() ?? '';
+    let productId = '';
+    if (fullProductId && fullProductId.length > 4) {
+        const productIdWithoutLast4 = fullProductId.slice(0, -4);
+        if (/^\d+$/.test(productIdWithoutLast4)) {
+            productId = String(parseInt(productIdWithoutLast4, 10));
+        } else {
+            productId = productIdWithoutLast4;
+        }
+    }
+
+    const deliveryDateStr = row['DELIVERY DATE']?.trim();
+    const creationDateStr = row['CREATION DATE']?.trim();
+    
+    const deliveryDate = parseDateToObj(deliveryDateStr);
+    const creationDate = parseDateToObj(creationDateStr);
+    
+    let deliveryLeadTime = -1;
+    if (deliveryDate && creationDate) {
+        const timeDiff = deliveryDate.getTime() - creationDate.getTime();
+        deliveryLeadTime = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    }
+
+    return {
+        warehouseId: row['WH NR']?.trim() ?? '',
+        fullProductId,
+        poNr: row['PO NR']?.trim() ?? '',
+        productId: productId,
+        name: row['ITEM DESC']?.trim() ?? '',
+        orderUnit: row['ORDER UNIT OF MEASURE (CASES)']?.trim() ?? '',
+        orderQtyUom: parseNum(row['ORDER QTY (in UOM)']),
+        caseSize: parseNum(row['CASE SIZE']),
+        orderQtyPcs: parseNum(row['ORDER QTY (in PIECES)']),
+        supplierId: row['SUPPLIER NR']?.trim() ?? '',
+        supplierName: row['SUPPLIER DESC']?.trim() ?? '',
+        deliveryDate: deliveryDateStr ?? '',
+        creationDate: creationDateStr ?? '',
+        deliveryLeadTime,
+        deliveryDateSortable: parseDateToSortableFormat(deliveryDateStr)
+    };
+  };
+
+  const handleFileParse = (
+    file: File,
+    dataTypeName: string,
+    clearDbFn: () => Promise<void>,
+    addDbFn: (batch: any[]) => Promise<void>,
+    setCountFn: React.Dispatch<React.SetStateAction<number>>,
+    rowMapperFn: (row: { [key: string]: string }) => any
+  ) => {
+      setIsLoading(true);
+      setStatusMessage({ text: `Przygotowywanie do importu: ${dataTypeName}...`, type: 'info', progress: 0 });
+
+      (async () => {
+        try {
+          await clearDbFn();
+          setCountFn(0);
+        } catch (error) {
+          console.error(`Błąd podczas czyszczenia bazy danych (${dataTypeName}).`, error);
+          setStatusMessage({ text: 'Błąd podczas czyszczenia bazy danych.', type: 'error' });
+          setIsLoading(false);
+          return;
+        }
+
+        setStatusMessage({ text: `Rozpoczynanie importu pliku: ${dataTypeName}...`, type: 'info', progress: 0 });
+        
+        let header1: string[] = [];
+        let header2: string[] = [];
+        let combinedHeader: string[] = [];
+        let batch: any[] = [];
+        let processedCount = 0;
+        let rowIndex = 0;
+
+        const processBatch = async () => {
+          if (batch.length > 0) {
+            await addDbFn(batch);
+            processedCount += batch.length;
+            setCountFn(prev => prev + batch.length);
+            batch = [];
+          }
+        };
+
+        Papa.parse(file, {
+          header: false,
+          worker: false,
+          skipEmptyLines: true,
+          chunk: (results, parser) => {
+              parser.pause();
+              (async () => {
+                  for (let i = 0; i < results.data.length; i++) {
+                      const row = results.data[i] as string[];
+                      if (rowIndex === 0) {
+                          header1 = row;
+                      } else if (rowIndex === 1) {
+                          header2 = row;
+                          let lastH1 = '';
+                          combinedHeader = header1.map((h1, j) => {
+                              const currentH1 = (h1 || '').trim();
+                              if (currentH1 !== '') { lastH1 = currentH1; }
+                              const currentH2 = (header2[j] || '').trim();
+                              return `${lastH1} ${currentH2}`.trim();
+                          });
+                      } else {
+                          const rowObject: { [key: string]: string } = {};
+                          combinedHeader.forEach((header, k) => {
+                              rowObject[header] = row[k];
+                          });
+                          const mappedRow = rowMapperFn(rowObject);
+                          batch.push(mappedRow);
+                          if (batch.length >= BATCH_SIZE) {
+                              await processBatch();
+                          }
+                      }
+                      rowIndex++;
+                  }
+                  const progress = file ? (results.meta.cursor / file.size) * 100 : 0;
+                  setStatusMessage({
+                    text: `Przetwarzanie pliku... Zapisano ${processedCount.toLocaleString('pl-PL')} rekordów.`,
+                    type: 'info',
+                    progress: progress,
+                  });
+                  parser.resume();
+              })();
+          },
+          complete: async () => {
+            await processBatch();
+            setCountFn(processedCount);
+            setStatusMessage({ text: `Import zakończony. Zapisano ${processedCount.toLocaleString('pl-PL')} rekordów (${dataTypeName}).`, type: 'success' });
+            setIsLoading(false);
+          },
+          error: (error) => {
+            console.error("PapaParse error:", error);
+            setStatusMessage({ text: `Błąd krytyczny podczas parsowania pliku: ${dataTypeName}.`, type: 'error' });
+            setIsLoading(false);
+          }
+        });
+      })();
+  };
+  
   const handleProductFile = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
-
     (event.target as HTMLInputElement).value = ''; 
-    setIsLoading(true);
-    setStatusMessage({ text: 'Przygotowywanie do importu produktów...', type: 'info', progress: 0 });
-
-    (async () => {
-      try {
-        await clearProducts();
-        setProductsCount(0);
-      } catch (error) {
-        console.error("Błąd podczas czyszczenia bazy danych produktów.", error);
-        setStatusMessage({ text: 'Błąd podczas czyszczenia bazy danych.', type: 'error' });
-        setIsLoading(false);
-        return;
-      }
-
-      setStatusMessage({ text: `Rozpoczynanie importu pliku produktów...`, type: 'info', progress: 0 });
-      
-      let header1: string[] = [];
-      let header2: string[] = [];
-      let combinedHeader: string[] = [];
-      let batch: Product[] = [];
-      let processedCount = 0;
-      let rowIndex = 0;
-
-      const processBatch = async () => {
-        if (batch.length > 0) {
-          await addProducts(batch);
-          processedCount += batch.length;
-          setProductsCount(prev => prev + batch.length);
-          batch = [];
-        }
-      };
-
-      Papa.parse(file, {
-        header: false,
-        worker: false,
-        skipEmptyLines: true,
-        chunk: (results, parser) => {
-            parser.pause();
-            (async () => {
-                for (let i = 0; i < results.data.length; i++) {
-                    const row = results.data[i] as string[];
-                    if (rowIndex === 0) {
-                        header1 = row;
-                    } else if (rowIndex === 1) {
-                        header2 = row;
-                        // Smart header combination logic to handle merged cells
-                        let lastH1 = '';
-                        combinedHeader = header1.map((h1, j) => {
-                            const currentH1 = (h1 || '').trim();
-                            if (currentH1 !== '') {
-                                lastH1 = currentH1;
-                            }
-                            const currentH2 = (header2[j] || '').trim();
-                            return `${lastH1} ${currentH2}`.trim();
-                        });
-                    } else {
-                        const rowObject: { [key: string]: string } = {};
-                        combinedHeader.forEach((header, k) => {
-                            rowObject[header] = row[k];
-                        });
-                        const mappedRow = productRowMapper(rowObject);
-                        batch.push(mappedRow);
-                        if (batch.length >= BATCH_SIZE) {
-                            await processBatch();
-                        }
-                    }
-                    rowIndex++;
-                }
-                const progress = file ? (results.meta.cursor / file.size) * 100 : 0;
-                setStatusMessage({
-                  text: `Przetwarzanie pliku... Zapisano ${processedCount.toLocaleString('pl-PL')} produktów.`,
-                  type: 'info',
-                  progress: progress,
-                });
-                parser.resume();
-            })();
-        },
-        complete: async () => {
-          await processBatch();
-          setProductsCount(processedCount);
-          setStatusMessage({ text: `Import zakończony. Zapisano ${processedCount.toLocaleString('pl-PL')} produktów.`, type: 'success' });
-          setIsLoading(false);
-        },
-        error: (error) => {
-          console.error("PapaParse error:", error);
-          setStatusMessage({ text: `Błąd krytyczny podczas parsowania pliku produktów.`, type: 'error' });
-          setIsLoading(false);
-        }
-      });
-    })();
+    handleFileParse(file, "Dane podstawowe", clearProducts, addProducts, setProductsCount, productRowMapper);
   };
-
+  
   const handleGoodsReceiptFile = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
-
     (event.target as HTMLInputElement).value = ''; 
-    setIsLoading(true);
-    setStatusMessage({ text: 'Przygotowywanie do importu przyjęć towaru...', type: 'info', progress: 0 });
+    handleFileParse(file, "Przyjęcia towaru", clearGoodsReceipts, addGoodsReceipts, setGoodsReceiptsCount, goodsReceiptRowMapper);
+  };
 
-    (async () => {
-      try {
-        await clearGoodsReceipts();
-        setGoodsReceiptsCount(0);
-      } catch (error) {
-        console.error("Błąd podczas czyszczenia bazy danych przyjęć.", error);
-        setStatusMessage({ text: 'Błąd podczas czyszczenia bazy danych.', type: 'error' });
-        setIsLoading(false);
-        return;
-      }
-
-      setStatusMessage({ text: `Rozpoczynanie importu pliku przyjęć towaru...`, type: 'info', progress: 0 });
-      
-      let header1: string[] = [];
-      let header2: string[] = [];
-      let combinedHeader: string[] = [];
-      let batch: GoodsReceipt[] = [];
-      let processedCount = 0;
-      let rowIndex = 0;
-
-      const processBatch = async () => {
-        if (batch.length > 0) {
-          await addGoodsReceipts(batch);
-          processedCount += batch.length;
-          setGoodsReceiptsCount(prev => prev + batch.length);
-          batch = [];
-        }
-      };
-
-      Papa.parse(file, {
-        header: false,
-        worker: false,
-        skipEmptyLines: true,
-        chunk: (results, parser) => {
-            parser.pause();
-            (async () => {
-                for (let i = 0; i < results.data.length; i++) {
-                    const row = results.data[i] as string[];
-                    if (rowIndex === 0) {
-                        header1 = row;
-                    } else if (rowIndex === 1) {
-                        header2 = row;
-                        // Smart header combination logic to handle merged cells
-                        let lastH1 = '';
-                        combinedHeader = header1.map((h1, j) => {
-                            const currentH1 = (h1 || '').trim();
-                            if (currentH1 !== '') {
-                                lastH1 = currentH1;
-                            }
-                            const currentH2 = (header2[j] || '').trim();
-                            return `${lastH1} ${currentH2}`.trim();
-                        });
-                    } else {
-                        const rowObject: { [key: string]: string } = {};
-                        combinedHeader.forEach((header, k) => {
-                            rowObject[header] = row[k];
-                        });
-                        const mappedRow = goodsReceiptRowMapper(rowObject);
-                        batch.push(mappedRow);
-                        if (batch.length >= BATCH_SIZE) {
-                            await processBatch();
-                        }
-                    }
-                    rowIndex++;
-                }
-                const progress = file ? (results.meta.cursor / file.size) * 100 : 0;
-                setStatusMessage({
-                  text: `Przetwarzanie pliku... Zapisano ${processedCount.toLocaleString('pl-PL')} przyjęć.`,
-                  type: 'info',
-                  progress: progress,
-                });
-                parser.resume();
-            })();
-        },
-        complete: async () => {
-          await processBatch();
-          setGoodsReceiptsCount(processedCount);
-          setStatusMessage({ text: `Import zakończony. Zapisano ${processedCount.toLocaleString('pl-PL')} przyjęć.`, type: 'success' });
-          setIsLoading(false);
-        },
-        error: (error) => {
-          console.error("PapaParse error:", error);
-          setStatusMessage({ text: `Błąd krytyczny podczas parsowania pliku przyjęć towaru.`, type: 'error' });
-          setIsLoading(false);
-        }
-      });
-    })();
+  const handleOpenOrderFile = (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    (event.target as HTMLInputElement).value = ''; 
+    handleFileParse(file, "Otwarte zamówienia", clearOpenOrders, addOpenOrders, setOpenOrdersCount, openOrderRowMapper);
   };
 
   const handleClearData = async () => {
@@ -731,6 +835,7 @@ const App = () => {
       await clearAllData();
       setProductsCount(0);
       setGoodsReceiptsCount(0);
+      setOpenOrdersCount(0);
       setStatusMessage({ text: 'Wszystkie dane zostały usunięte. Możesz załadować nowe pliki.', type: 'success' });
     } catch (error) {
       console.error("Failed to clear DB", error);
@@ -768,6 +873,18 @@ const App = () => {
                 <p>Zaimportowano: <strong>{goodsReceiptsCount.toLocaleString('pl-PL')}</strong> rekordów</p>
               </div>
             </div>
+
+            <div class="import-section">
+              <h2>3. Otwarte Zamówienia</h2>
+              <p>Plik z otwartymi zamówieniami, które nie dotarły jeszcze do magazynu.</p>
+              <label htmlFor="open-order-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
+                Wybierz plik zamówień
+              </label>
+              <input id="open-order-file-input" type="file" accept=".csv" onChange={handleOpenOrderFile} disabled={isLoading} />
+              <div class="import-status">
+                <p>Zaimportowano: <strong>{openOrdersCount.toLocaleString('pl-PL')}</strong> rekordów</p>
+              </div>
+            </div>
           </div>
         );
       case 'data-preview':
@@ -798,7 +915,7 @@ const App = () => {
     }
   };
 
-  const hasAnyData = productsCount > 0 || goodsReceiptsCount > 0;
+  const hasAnyData = productsCount > 0 || goodsReceiptsCount > 0 || openOrdersCount > 0;
   const canAnalyze = productsCount > 0 && goodsReceiptsCount > 0;
 
   return (
