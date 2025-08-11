@@ -5,12 +5,13 @@ import {
   clearAllData,
   checkDBStatus,
   addProducts,
-  addPallets,
+  addGoodsReceipts,
   clearProducts,
-  clearPallets,
+  clearGoodsReceipts,
   Product,
-  Pallet,
+  GoodsReceipt,
   getProductsPaginatedAndFiltered,
+  getGoodsReceiptsPaginated,
   getUniqueProductStatuses,
   getUniqueWarehouseIds,
   findProductsByPartialId
@@ -49,6 +50,27 @@ const PRODUCT_COLUMNS: { key: keyof Product; label: string }[] = [
     { key: 'estimatedReceivings', label: 'Szac. dostawy' },
 ];
 
+const GOODS_RECEIPT_COLUMNS: { key: keyof GoodsReceipt; label: string }[] = [
+    { key: 'warehouseId', label: 'Magazyn' },
+    { key: 'productId', label: 'Nr art. krótki' },
+    { key: 'fullProductId', label: 'Nr art. pełny' },
+    { key: 'name', label: 'Nazwa' },
+    { key: 'deliveryUnit', label: 'Jedn. dostawy' },
+    { key: 'deliveryQtyUom', label: 'Ilość (J.m.)' },
+    { key: 'caseSize', label: 'Szt. w kart.' },
+    { key: 'deliveryQtyPcs', label: 'Ilość (szt.)' },
+    { key: 'poNr', label: 'Nr zamówienia' },
+    { key: 'deliveryDate', label: 'Data dostawy' },
+    { key: 'bestBeforeDate', label: 'Data przydatności' },
+    { key: 'supplierId', label: 'ID Dostawcy' },
+    { key: 'supplierName', label: 'Nazwa Dostawcy' },
+    { key: 'bolNr', label: 'BOL Nr' },
+    { key: 'deliveryNote', label: 'Nota dostawy' },
+    { key: 'intSupplierNr', label: 'Międz. ID Dostawcy' },
+    { key: 'intItemNr', label: 'Międz. nr art.' },
+    { key: 'caseGtin', label: 'GTIN kartonu' },
+    { key: 'liaReference', label: 'LIA Ref' },
+];
 
 type Status = {
   text: string;
@@ -59,9 +81,9 @@ type Status = {
 type View = 'import' | 'report' | 'dashboard' | 'simulations' | 'data-preview';
 
 const DataPreview = () => {
-  const [activeTab, setActiveTab] = useState<'products' | 'pallets'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'goodsReceipts'>('products');
   const [products, setProducts] = useState<Product[]>([]);
-  const [pallets, setPallets] = useState<Pallet[]>([]);
+  const [goodsReceipts, setGoodsReceipts] = useState<GoodsReceipt[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -93,21 +115,37 @@ const DataPreview = () => {
     setTotalItems(total);
     setIsLoading(false);
   }, [currentPage, appliedProductFilters]);
-
+  
+  const fetchGoodsReceipts = useCallback(async () => {
+    setIsLoading(true);
+    const { data, total } = await getGoodsReceiptsPaginated(currentPage, PAGE_SIZE);
+    setGoodsReceipts(data);
+    setTotalItems(total);
+    setIsLoading(false);
+  }, [currentPage]);
 
   useEffect(() => {
     fetchDropdownData();
   }, [fetchDropdownData]);
   
   useEffect(() => {
+    setCurrentPage(1); // Reset page on tab change
     if (activeTab === 'products') {
       fetchProducts();
-    } else {
-      // Logic for fetching pallets will go here
-      setPallets([]);
-      setTotalItems(0);
+    } else if (activeTab === 'goodsReceipts') {
+      fetchGoodsReceipts();
     }
-  }, [activeTab, fetchProducts]);
+  }, [activeTab, fetchProducts, fetchGoodsReceipts]);
+
+  useEffect(() => {
+    // Refetch data when page changes
+    if (activeTab === 'products') {
+      fetchProducts();
+    } else if (activeTab === 'goodsReceipts') {
+      fetchGoodsReceipts();
+    }
+  }, [currentPage]);
+
 
   const handleFilterChange = (e: Event) => {
     const { name, value } = e.target as HTMLInputElement | HTMLSelectElement;
@@ -176,8 +214,8 @@ const DataPreview = () => {
   return (
     <div class="data-preview-container" onBlur={() => setIsSuggestionsVisible(false)}>
       <div class="tabs">
-        <button class={`tab ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>Produkty ({totalItems})</button>
-        <button class={`tab ${activeTab === 'pallets' ? 'active' : ''}`} onClick={() => setActiveTab('pallets')}>Palety</button>
+        <button class={`tab ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>Produkty ({activeTab === 'products' ? totalItems : '...'})</button>
+        <button class={`tab ${activeTab === 'goodsReceipts' ? 'active' : ''}`} onClick={() => setActiveTab('goodsReceipts')}>Przyjęcie Towaru (eGIN) ({activeTab === 'goodsReceipts' ? totalItems : '...'})</button>
       </div>
 
       {activeTab === 'products' && (
@@ -253,7 +291,38 @@ const DataPreview = () => {
         </>
       )}
 
-      {activeTab === 'pallets' && <p>Przeglądanie palet zostanie dodane wkrótce.</p>}
+      {activeTab === 'goodsReceipts' && (
+         <>
+         <div class="table-container">
+           {isLoading ? ( <div class="spinner-overlay"><div class="spinner"></div></div> ) : (
+             <table>
+               <thead>
+                 <tr>
+                   {GOODS_RECEIPT_COLUMNS.map(col => <th key={col.key}>{col.label}</th>)}
+                 </tr>
+               </thead>
+               <tbody>
+                 {goodsReceipts.map(receipt => (
+                   <tr key={`${receipt.warehouseId}-${receipt.fullProductId}-${receipt.deliveryNote}`}>
+                     {GOODS_RECEIPT_COLUMNS.map(col => (
+                        <td key={col.key}>
+                          {String(receipt[col.key] ?? '')}
+                        </td>
+                     ))}
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           )}
+         </div>
+ 
+         <div class="pagination">
+           <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>Poprzednia</button>
+           <span>Strona {currentPage} z {totalPages}</span>
+           <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>Następna</button>
+         </div>
+         </>
+      )}
     </div>
   );
 };
@@ -264,7 +333,7 @@ const App = () => {
   const [statusMessage, setStatusMessage] = useState<Status>({ text: 'Inicjalizacja aplikacji...', type: 'info' });
   
   const [productsCount, setProductsCount] = useState(0);
-  const [palletsCount, setPalletsCount] = useState(0);
+  const [goodsReceiptsCount, setGoodsReceiptsCount] = useState(0);
   const [currentView, setCurrentView] = useState<View>('import');
 
   useEffect(() => {
@@ -272,10 +341,10 @@ const App = () => {
       setIsLoading(true);
       setStatusMessage({ text: 'Sprawdzanie lokalnej bazy danych...', type: 'info' });
       try {
-        const { productsCount, palletsCount } = await checkDBStatus();
+        const { productsCount, goodsReceiptsCount } = await checkDBStatus();
         setProductsCount(productsCount);
-        setPalletsCount(palletsCount);
-        if (productsCount > 0 || palletsCount > 0) {
+        setGoodsReceiptsCount(goodsReceiptsCount);
+        if (productsCount > 0 || goodsReceiptsCount > 0) {
           setStatusMessage({ text: 'Znaleziono dane. Możesz uruchomić analizę lub wgrać nowe pliki.', type: 'success' });
         } else {
           setStatusMessage({ text: 'Wybierz pliki z danymi, aby rozpocząć.', type: 'info' });
@@ -344,6 +413,47 @@ const App = () => {
           unprocessedDeliveryQty: parseNum(row['UNPROC DEL QTY']),
       };
   };
+  
+  const goodsReceiptRowMapper = (row: { [key: string]: string }): GoodsReceipt => {
+    const parseNum = (val: string | undefined) => {
+        if (val === undefined) return 0;
+        const num = parseFloat(val);
+        return isNaN(num) ? 0 : num;
+    };
+    
+    const fullProductId = row['ITEM NR']?.trim() ?? '';
+    let productId = '';
+    if (fullProductId && fullProductId.length > 4) {
+        const productIdWithoutLast4 = fullProductId.slice(0, -4);
+        if (/^\d+$/.test(productIdWithoutLast4)) {
+            productId = String(parseInt(productIdWithoutLast4, 10));
+        } else {
+            productId = productIdWithoutLast4;
+        }
+    }
+
+    return {
+        warehouseId: row['WH NR']?.trim() ?? '',
+        fullProductId: fullProductId,
+        deliveryNote: row['DELIVERY NOTE']?.trim() ?? '',
+        productId: productId,
+        name: row['ITEM DESC']?.trim() ?? '',
+        deliveryUnit: row['DELIVERY UNIT OF MEASURE (CASES)']?.trim() ?? '',
+        deliveryQtyUom: parseNum(row['DELIVERY QTY (in UOM)']),
+        caseSize: parseNum(row['CASE SIZE']),
+        deliveryQtyPcs: parseNum(row['DELIVERY QTY (in PIECES)']),
+        poNr: row['PO NR']?.trim() ?? '',
+        deliveryDate: row['DELIVERY DATE']?.trim() ?? '',
+        bestBeforeDate: row['BEST BEFORE DATE']?.trim() ?? '',
+        bolNr: row['BOL NR']?.trim() ?? '',
+        supplierId: row['SUPPLIER NR']?.trim() ?? '',
+        supplierName: row['SUPPLIER DESC']?.trim() ?? '',
+        intSupplierNr: row['INT SUPPLIER NR']?.trim() ?? '',
+        intItemNr: row['INT ITEM NR']?.trim() ?? '',
+        caseGtin: row['CASE GTIN']?.trim() ?? '',
+        liaReference: row['LIA REFERENCE']?.trim() ?? '',
+    };
+};
 
   const handleProductFile = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
@@ -442,93 +552,97 @@ const App = () => {
     })();
   };
 
-  const handlePalletFile = (event: Event) => {
+  const handleGoodsReceiptFile = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
 
-    (event.target as HTMLInputElement).value = ''; // Reset input
-    
-    // UWAGA: Mapper tymczasowy do czasu podania schematu pliku palet.
-    const palletRowMapper = (row: { [key: string]: string }): Pallet => ({
-      palletId: row['Pallet ID']?.trim() ?? '',
-      productId: row['Product ID']?.trim() ?? '',
-      warehouseId: row['Warehouse ID']?.trim() ?? '',
-      arrivalDate: new Date(row['Arrival Date']?.trim() ?? ''),
-      expiryDate: new Date(row['Expiry Date']?.trim() ?? '')
-    });
-    
+    (event.target as HTMLInputElement).value = ''; 
+    setIsLoading(true);
+    setStatusMessage({ text: 'Przygotowywanie do importu przyjęć towaru...', type: 'info', progress: 0 });
+
     (async () => {
-      setIsLoading(true);
-      setStatusMessage({ text: 'Przygotowywanie do importu palet...', type: 'info', progress: 0 });
       try {
-        await clearPallets();
-        setPalletsCount(0);
+        await clearGoodsReceipts();
+        setGoodsReceiptsCount(0);
       } catch (error) {
-        console.error("Błąd podczas czyszczenia bazy danych palet.", error);
+        console.error("Błąd podczas czyszczenia bazy danych przyjęć.", error);
         setStatusMessage({ text: 'Błąd podczas czyszczenia bazy danych.', type: 'error' });
         setIsLoading(false);
         return;
       }
-      
-      setStatusMessage({ text: `Rozpoczynanie importu pliku palet...`, type: 'info', progress: 0 });
 
-      let parsedRowCount = 0;
-      let batch: Pallet[] = [];
+      setStatusMessage({ text: `Rozpoczynanie importu pliku przyjęć towaru...`, type: 'info', progress: 0 });
+      
+      let header1: string[] = [];
+      let header2: string[] = [];
+      let combinedHeader: string[] = [];
+      let batch: GoodsReceipt[] = [];
+      let processedCount = 0;
+      let rowIndex = 0;
 
       const processBatch = async () => {
         if (batch.length > 0) {
-          await addPallets(batch);
-          parsedRowCount += batch.length;
-          setPalletsCount(prev => prev + batch.length);
+          await addGoodsReceipts(batch);
+          processedCount += batch.length;
+          setGoodsReceiptsCount(prev => prev + batch.length);
           batch = [];
         }
       };
 
-      Papa.parse<{ [key: string]: string }>(file, {
-        worker: true,
-        header: true,
+      Papa.parse(file, {
+        header: false,
+        worker: false,
         skipEmptyLines: true,
         chunk: (results, parser) => {
-          parser.pause();
-          (async () => {
-            try {
-              for (const row of results.data) {
-                const mappedRow = palletRowMapper(row);
-                batch.push(mappedRow);
-                if (batch.length >= BATCH_SIZE) {
-                  await processBatch();
+            parser.pause();
+            (async () => {
+                for (let i = 0; i < results.data.length; i++) {
+                    const row = results.data[i] as string[];
+                    if (rowIndex === 0) {
+                        header1 = row;
+                    } else if (rowIndex === 1) {
+                        header2 = row;
+                        // Smart header combination logic to handle merged cells
+                        let lastH1 = '';
+                        combinedHeader = header1.map((h1, j) => {
+                            const currentH1 = (h1 || '').trim();
+                            if (currentH1 !== '') {
+                                lastH1 = currentH1;
+                            }
+                            const currentH2 = (header2[j] || '').trim();
+                            return `${lastH1} ${currentH2}`.trim();
+                        });
+                    } else {
+                        const rowObject: { [key: string]: string } = {};
+                        combinedHeader.forEach((header, k) => {
+                            rowObject[header] = row[k];
+                        });
+                        const mappedRow = goodsReceiptRowMapper(rowObject);
+                        batch.push(mappedRow);
+                        if (batch.length >= BATCH_SIZE) {
+                            await processBatch();
+                        }
+                    }
+                    rowIndex++;
                 }
-              }
-              const progress = file ? (results.meta.cursor / file.size) * 100 : 0;
-              setStatusMessage({
-                text: `Przetwarzanie pliku... Zapisano ${parsedRowCount.toLocaleString('pl-PL')} palet.`,
-                type: 'info',
-                progress: progress,
-              });
-              parser.resume();
-            } catch (err) {
-              console.error("Error processing CSV step:", err);
-              setStatusMessage({ text: `Błąd w strukturze pliku palet. Sprawdź nazwy kolumn.`, type: 'error' });
-              setIsLoading(false);
-              parser.abort();
-            }
-          })();
+                const progress = file ? (results.meta.cursor / file.size) * 100 : 0;
+                setStatusMessage({
+                  text: `Przetwarzanie pliku... Zapisano ${processedCount.toLocaleString('pl-PL')} przyjęć.`,
+                  type: 'info',
+                  progress: progress,
+                });
+                parser.resume();
+            })();
         },
         complete: async () => {
-          try {
-            await processBatch();
-            setPalletsCount(parsedRowCount);
-            setStatusMessage({ text: `Import zakończony. Zapisano ${parsedRowCount.toLocaleString('pl-PL')} palet.`, type: 'success' });
-          } catch (err) {
-            console.error("Error during CSV completion:", err);
-            setStatusMessage({ text: `Błąd podczas finalizowania importu palet.`, type: 'error' });
-          } finally {
-            setIsLoading(false);
-          }
+          await processBatch();
+          setGoodsReceiptsCount(processedCount);
+          setStatusMessage({ text: `Import zakończony. Zapisano ${processedCount.toLocaleString('pl-PL')} przyjęć.`, type: 'success' });
+          setIsLoading(false);
         },
         error: (error) => {
           console.error("PapaParse error:", error);
-          setStatusMessage({ text: `Błąd krytyczny podczas parsowania pliku palet.`, type: 'error' });
+          setStatusMessage({ text: `Błąd krytyczny podczas parsowania pliku przyjęć towaru.`, type: 'error' });
           setIsLoading(false);
         }
       });
@@ -541,7 +655,7 @@ const App = () => {
     try {
       await clearAllData();
       setProductsCount(0);
-      setPalletsCount(0);
+      setGoodsReceiptsCount(0);
       setStatusMessage({ text: 'Wszystkie dane zostały usunięte. Możesz załadować nowe pliki.', type: 'success' });
     } catch (error) {
       console.error("Failed to clear DB", error);
@@ -569,14 +683,14 @@ const App = () => {
             </div>
 
             <div class="import-section">
-              <h2>2. Dane o Paletach</h2>
-              <p>Plik z informacjami o poszczególnych paletach. Wymaga nagłówków w pierwszym wierszu.</p>
-              <label htmlFor="pallet-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
-                Wybierz plik palet
+              <h2>2. Przyjęcie Towaru (eGIN)</h2>
+              <p>Plik z informacjami o przyjęciach towaru. Wymaga dwóch wierszy nagłówka.</p>
+              <label htmlFor="goods-receipt-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
+                Wybierz plik eGIN
               </label>
-              <input id="pallet-file-input" type="file" accept=".csv" onChange={handlePalletFile} disabled={isLoading} />
+              <input id="goods-receipt-file-input" type="file" accept=".csv" onChange={handleGoodsReceiptFile} disabled={isLoading} />
               <div class="import-status">
-                <p>Zaimportowano: <strong>{palletsCount.toLocaleString('pl-PL')}</strong> rekordów</p>
+                <p>Zaimportowano: <strong>{goodsReceiptsCount.toLocaleString('pl-PL')}</strong> rekordów</p>
               </div>
             </div>
           </div>
@@ -609,8 +723,8 @@ const App = () => {
     }
   };
 
-  const hasAnyData = productsCount > 0 || palletsCount > 0;
-  const canAnalyze = productsCount > 0 && palletsCount > 0;
+  const hasAnyData = productsCount > 0 || goodsReceiptsCount > 0;
+  const canAnalyze = productsCount > 0 && goodsReceiptsCount > 0;
 
   return (
     <>
