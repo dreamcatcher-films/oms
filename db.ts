@@ -17,7 +17,7 @@ export type Product = {
   orderArea: string;     // Kolumna D: ORDER AREA
 
   // --- Identifiers ---
-  productId: string;   // Kolumna E: ITEM NR SHOP (krótki numer)
+  productId: string;   // Kolumna E: ITEM NR SHORT (krótki numer)
   name: string;          // Kolumna G: ITEM DESC
 
   // --- Logistics & Packaging ---
