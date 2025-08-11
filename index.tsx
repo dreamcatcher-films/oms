@@ -307,10 +307,17 @@ const App = () => {
               }
           }
       }
+      
+      const rawProductId = row['ITEM NR SHORT']?.trim() ?? '';
+      let processedProductId = rawProductId;
+      // Only strip leading zeros if the string consists purely of digits.
+      if (/^\d+$/.test(rawProductId)) {
+          processedProductId = String(parseInt(rawProductId, 10));
+      }
 
       return {
           warehouseId: row['WH NR']?.trim() ?? '',
-          productId: row['ITEM NR SHORT']?.trim() ?? '',
+          productId: processedProductId,
           fullProductId: row['ITEM NR FULL']?.trim() ?? '',
           name: row['ITEM DESC']?.trim() ?? '',
           caseSize: parseNum(row['CASE SIZE']),
