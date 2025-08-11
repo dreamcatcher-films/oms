@@ -75,40 +75,45 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
-const saveDataInBatches = async <T>(storeName: string, data: T[]) => {
+const addDataInBatches = async <T>(storeName: string, data: T[]) => {
     if (data.length === 0) return;
     const db = await openDB();
     const transaction = db.transaction(storeName, 'readwrite');
     const store = transaction.objectStore(storeName);
 
+    // Using a promise to await all put requests in the transaction
+    const promises = data.map(item => {
+        return new Promise<void>((resolve, reject) => {
+            const request = store.put(item);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    });
+
+    await Promise.all(promises);
+    
     return new Promise<void>((resolve, reject) => {
-        data.forEach(item => store.put(item));
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
     });
 }
 
+export const addProducts = (products: Product[]) => addDataInBatches(PRODUCTS_STORE_NAME, products);
+export const addPallets = (pallets: Pallet[]) => addDataInBatches(PALLETS_STORE_NAME, pallets);
 
-export const saveProducts = async (products: Product[]): Promise<void> => {
-  // Clear must be in a separate transaction before saving
-  const db = await openDB();
-  const clearTx = db.transaction(PRODUCTS_STORE_NAME, 'readwrite');
-  clearTx.objectStore(PRODUCTS_STORE_NAME).clear();
-  await new Promise(r => clearTx.oncomplete = r);
-
-  return saveDataInBatches(PRODUCTS_STORE_NAME, products);
+const clearStore = async (storeName: string) => {
+    const db = await openDB();
+    const transaction = db.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    store.clear();
+    return new Promise<void>((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+    });
 };
 
-export const savePallets = async (pallets: Pallet[]): Promise<void> => {
-  // Clear must be in a separate transaction before saving
-  const db = await openDB();
-  const clearTx = db.transaction(PALLETS_STORE_NAME, 'readwrite');
-  clearTx.objectStore(PALLETS_STORE_NAME).clear();
-  await new Promise(r => clearTx.oncomplete = r);
-  
-  return saveDataInBatches(PALLETS_STORE_NAME, pallets);
-};
-
+export const clearProducts = () => clearStore(PRODUCTS_STORE_NAME);
+export const clearPallets = () => clearStore(PALLETS_STORE_NAME);
 
 export const checkDBStatus = async (): Promise<DBStatus> => {
     try {
@@ -147,13 +152,6 @@ export const checkDBStatus = async (): Promise<DBStatus> => {
 };
 
 export const clearAllData = async (): Promise<void> => {
-  const db = await openDB();
-  const transaction = db.transaction([PRODUCTS_STORE_NAME, PALLETS_STORE_NAME], 'readwrite');
-  transaction.objectStore(PRODUCTS_STORE_NAME).clear();
-  transaction.objectStore(PALLETS_STORE_NAME).clear();
-  
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
+    await clearProducts();
+    await clearPallets();
 };
