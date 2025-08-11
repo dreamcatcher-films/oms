@@ -2,7 +2,16 @@ const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
 const GOODS_RECEIPTS_STORE_NAME = 'goodsReceipts';
 const OPEN_ORDERS_STORE_NAME = 'openOrders';
-const DB_VERSION = 5; 
+const METADATA_STORE_NAME = 'importMetadata';
+const DB_VERSION = 6; 
+
+export type DataType = 'products' | 'goodsReceipts' | 'openOrders';
+
+export type ImportMeta = {
+  dataType: DataType;
+  lastImported: Date;
+};
+export type ImportMetadata = Record<DataType, ImportMeta | null>;
 
 export type Product = {
   // --- Composite Key ---
@@ -166,6 +175,12 @@ const openDB = (): Promise<IDBDatabase> => {
             store.createIndex('deliveryDateSortIndex', 'deliveryDateSortable');
         }
       }
+
+      if (oldVersion < 6) {
+        if (!db.objectStoreNames.contains(METADATA_STORE_NAME)) {
+            db.createObjectStore(METADATA_STORE_NAME, { keyPath: 'dataType' });
+        }
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -210,9 +225,21 @@ const clearStore = async (storeName: string) => {
     });
 };
 
-export const clearProducts = () => clearStore(PRODUCTS_STORE_NAME);
-export const clearGoodsReceipts = () => clearStore(GOODS_RECEIPTS_STORE_NAME);
-export const clearOpenOrders = () => clearStore(OPEN_ORDERS_STORE_NAME);
+const clearDataAndMetadata = async (storeName: string, dataType: DataType) => {
+    await clearStore(storeName);
+    const db = await openDB();
+    const transaction = db.transaction(METADATA_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(METADATA_STORE_NAME);
+    store.delete(dataType);
+     return new Promise<void>((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+    });
+};
+
+export const clearProducts = () => clearDataAndMetadata(PRODUCTS_STORE_NAME, 'products');
+export const clearGoodsReceipts = () => clearDataAndMetadata(GOODS_RECEIPTS_STORE_NAME, 'goodsReceipts');
+export const clearOpenOrders = () => clearDataAndMetadata(OPEN_ORDERS_STORE_NAME, 'openOrders');
 
 export const checkDBStatus = async (): Promise<DBStatus> => {
     try {
@@ -247,9 +274,10 @@ export const checkDBStatus = async (): Promise<DBStatus> => {
 };
 
 export const clearAllData = async (): Promise<void> => {
-    await clearProducts();
-    await clearGoodsReceipts();
-    await clearOpenOrders();
+    await clearStore(PRODUCTS_STORE_NAME);
+    await clearStore(GOODS_RECEIPTS_STORE_NAME);
+    await clearStore(OPEN_ORDERS_STORE_NAME);
+    await clearStore(METADATA_STORE_NAME);
 };
 
 export const getProductsPaginatedAndFiltered = async (
@@ -489,6 +517,42 @@ export const findProductsByPartialId = async (partialId: string, limit: number =
             } else {
                 resolve(products);
             }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+
+export const updateImportMetadata = async (dataType: DataType): Promise<void> => {
+    const db = await openDB();
+    const transaction = db.transaction(METADATA_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(METADATA_STORE_NAME);
+    const request = store.put({ dataType, lastImported: new Date() });
+
+    return new Promise<void>((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+    });
+};
+
+export const getImportMetadata = async (): Promise<ImportMetadata> => {
+    const db = await openDB();
+    const transaction = db.transaction(METADATA_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(METADATA_STORE_NAME);
+    const request = store.getAll();
+    
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+            const result: ImportMetadata = {
+                products: null,
+                goodsReceipts: null,
+                openOrders: null,
+            };
+            const allMeta = request.result as ImportMeta[];
+            allMeta.forEach(meta => {
+                result[meta.dataType] = meta;
+            });
+            resolve(result);
         };
         request.onerror = () => reject(request.error);
     });
