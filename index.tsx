@@ -7,7 +7,7 @@ import {
   saveHeaders,
   getPaginatedData,
 } from "./db";
-import Papa from "papaparse";
+import { parse } from "papaparse";
 import type { ParseError, Parser, ParseStepResult } from "papaparse";
 
 const PAGE_SIZE = 100;
@@ -97,7 +97,7 @@ const App = () => {
         }
       };
 
-      Papa.parse(file, {
+      parse(file, {
         worker: true,
         header: false,
         skipEmptyLines: true,
