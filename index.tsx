@@ -1,6 +1,6 @@
 
 import { render } from "preact";
-import { useState, useEffect } from "preact/hooks";
+import { useState, useEffect, useCallback } from "preact/hooks";
 import {
   clearAllData,
   checkDBStatus,
@@ -9,18 +9,158 @@ import {
   clearProducts,
   clearPallets,
   Product,
-  Pallet
+  Pallet,
+  getProductsPaginatedAndFiltered,
+  getUniqueProductStatuses
 } from "./db";
 import Papa from "papaparse";
 
 const BATCH_SIZE = 5000;
+const PAGE_SIZE = 20;
 
 type Status = {
   text: string;
   type: 'info' | 'error' | 'success';
+  progress?: number;
 };
 
-type View = 'import' | 'report' | 'dashboard' | 'simulations';
+type View = 'import' | 'report' | 'dashboard' | 'simulations' | 'data-preview';
+
+const DataPreview = () => {
+  const [activeTab, setActiveTab] = useState<'products' | 'pallets'>('products');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [pallets, setPallets] = useState<Pallet[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [productFilters, setProductFilters] = useState({ warehouseId: '', productId: '', status: '' });
+  const [appliedProductFilters, setAppliedProductFilters] = useState({ warehouseId: '', productId: '', status: '' });
+  const [productStatuses, setProductStatuses] = useState<string[]>([]);
+
+  const totalPages = Math.ceil(totalItems / PAGE_SIZE);
+
+  const fetchStatuses = useCallback(async () => {
+    const statuses = await getUniqueProductStatuses();
+    setProductStatuses(statuses);
+  }, []);
+  
+  const fetchProducts = useCallback(async () => {
+    setIsLoading(true);
+    const { data, total } = await getProductsPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedProductFilters);
+    setProducts(data);
+    setTotalItems(total);
+    setIsLoading(false);
+  }, [currentPage, appliedProductFilters]);
+
+
+  useEffect(() => {
+    fetchStatuses();
+  }, [fetchStatuses]);
+  
+  useEffect(() => {
+    if (activeTab === 'products') {
+      fetchProducts();
+    } else {
+      // Logic for fetching pallets will go here
+      setPallets([]);
+      setTotalItems(0);
+    }
+  }, [activeTab, fetchProducts]);
+
+  const handleFilterChange = (e: Event) => {
+    const { name, value } = e.target as HTMLInputElement | HTMLSelectElement;
+    setProductFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const applyFilters = () => {
+    setCurrentPage(1);
+    setAppliedProductFilters(productFilters);
+  };
+  
+  const clearFilters = () => {
+    setCurrentPage(1);
+    setProductFilters({ warehouseId: '', productId: '', status: '' });
+    setAppliedProductFilters({ warehouseId: '', productId: '', status: '' });
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+  
+  return (
+    <div class="data-preview-container">
+      <div class="tabs">
+        <button class={`tab ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>Produkty ({totalItems})</button>
+        <button class={`tab ${activeTab === 'pallets' ? 'active' : ''}`} onClick={() => setActiveTab('pallets')}>Palety</button>
+      </div>
+
+      {activeTab === 'products' && (
+        <>
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label for="warehouseId">Magazyn</label>
+            <input type="text" id="warehouseId" name="warehouseId" value={productFilters.warehouseId} onInput={handleFilterChange} placeholder="np. 220" />
+          </div>
+          <div class="filter-group">
+            <label for="productId">Nr artykułu</label>
+            <input type="text" id="productId" name="productId" value={productFilters.productId} onInput={handleFilterChange} placeholder="np. 40006"/>
+          </div>
+          <div class="filter-group">
+            <label for="status">Status</label>
+            <select id="status" name="status" value={productFilters.status} onChange={handleFilterChange}>
+              <option value="">Wszystkie</option>
+              {productStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button onClick={applyFilters} class="button-primary">Filtruj</button>
+            <button onClick={clearFilters} class="button-secondary">Wyczyść</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          {isLoading ? ( <div class="spinner-overlay"><div class="spinner"></div></div> ) : (
+            <table>
+              <thead>
+                <tr>
+                  {products.length > 0 && Object.keys(products[0]).map(key => <th key={key}>{key}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product, index) => (
+                  <tr key={`${product.warehouseId}-${product.productId}-${index}`}>
+                    {Object.values(product).map((value, i) => (
+                      <td key={i}>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div class="pagination">
+          <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>Poprzednia</button>
+          <span>Strona {currentPage} z {totalPages}</span>
+          <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>Następna</button>
+        </div>
+        </>
+      )}
+
+      {activeTab === 'pallets' && <p>Przeglądanie palet zostanie dodane wkrótce.</p>}
+    </div>
+  );
+};
+
 
 const App = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -96,9 +236,9 @@ const App = () => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
 
-    (event.target as HTMLInputElement).value = ''; // Reset input to allow re-uploading the same file
+    (event.target as HTMLInputElement).value = ''; 
     setIsLoading(true);
-    setStatusMessage({ text: 'Przygotowywanie do importu produktów...', type: 'info' });
+    setStatusMessage({ text: 'Przygotowywanie do importu produktów...', type: 'info', progress: 0 });
 
     (async () => {
       try {
@@ -111,7 +251,7 @@ const App = () => {
         return;
       }
 
-      setStatusMessage({ text: `Rozpoczynanie importu pliku produktów...`, type: 'info' });
+      setStatusMessage({ text: `Rozpoczynanie importu pliku produktów...`, type: 'info', progress: 0 });
       
       let header1: string[] = [];
       let header2: string[] = [];
@@ -124,7 +264,7 @@ const App = () => {
         if (batch.length > 0) {
           await addProducts(batch);
           processedCount += batch.length;
-          setStatusMessage({ text: `Przetwarzanie pliku... Zapisano ${processedCount.toLocaleString('pl-PL')} produktów.`, type: 'info' });
+          setProductsCount(prev => prev + batch.length);
           batch = [];
         }
       };
@@ -133,33 +273,39 @@ const App = () => {
         header: false,
         worker: false,
         skipEmptyLines: true,
-        step: (results, parser) => {
-          const row = results.data as string[];
-          if (rowIndex === 0) {
-            header1 = row;
-          } else if (rowIndex === 1) {
-            header2 = row;
-            combinedHeader = header1.map((h1, i) =>
-              `${(h1 || '').trim()} ${(header2[i] || '').trim()}`.trim()
-            );
-          } else {
+        chunk: (results, parser) => {
             parser.pause();
             (async () => {
-              const rowObject: { [key: string]: string } = {};
-              combinedHeader.forEach((header, i) => {
-                rowObject[header] = row[i];
-              });
-
-              const mappedRow = productRowMapper(rowObject);
-              batch.push(mappedRow);
-
-              if (batch.length >= BATCH_SIZE) {
-                await processBatch();
-              }
-              parser.resume();
+                for (let i = 0; i < results.data.length; i++) {
+                    const row = results.data[i] as string[];
+                    if (rowIndex === 0) {
+                        header1 = row;
+                    } else if (rowIndex === 1) {
+                        header2 = row;
+                        combinedHeader = header1.map((h1, j) =>
+                            `${(h1 || '').trim()} ${(header2[j] || '').trim()}`.trim()
+                        );
+                    } else {
+                        const rowObject: { [key: string]: string } = {};
+                        combinedHeader.forEach((header, k) => {
+                            rowObject[header] = row[k];
+                        });
+                        const mappedRow = productRowMapper(rowObject);
+                        batch.push(mappedRow);
+                        if (batch.length >= BATCH_SIZE) {
+                            await processBatch();
+                        }
+                    }
+                    rowIndex++;
+                }
+                const progress = file ? (results.meta.cursor / file.size) * 100 : 0;
+                setStatusMessage({
+                  text: `Przetwarzanie pliku... Zapisano ${processedCount.toLocaleString('pl-PL')} produktów.`,
+                  type: 'info',
+                  progress: progress,
+                });
+                parser.resume();
             })();
-          }
-          rowIndex++;
         },
         complete: async () => {
           await processBatch();
@@ -193,7 +339,7 @@ const App = () => {
     
     (async () => {
       setIsLoading(true);
-      setStatusMessage({ text: 'Przygotowywanie do importu palet...', type: 'info' });
+      setStatusMessage({ text: 'Przygotowywanie do importu palet...', type: 'info', progress: 0 });
       try {
         await clearPallets();
         setPalletsCount(0);
@@ -204,7 +350,7 @@ const App = () => {
         return;
       }
       
-      setStatusMessage({ text: `Rozpoczynanie importu pliku palet...`, type: 'info' });
+      setStatusMessage({ text: `Rozpoczynanie importu pliku palet...`, type: 'info', progress: 0 });
 
       let parsedRowCount = 0;
       let batch: Pallet[] = [];
@@ -213,7 +359,7 @@ const App = () => {
         if (batch.length > 0) {
           await addPallets(batch);
           parsedRowCount += batch.length;
-          setStatusMessage({ text: `Przetwarzanie pliku... Zapisano ${parsedRowCount.toLocaleString('pl-PL')} palet.`, type: 'info' });
+          setPalletsCount(prev => prev + batch.length);
           batch = [];
         }
       };
@@ -222,15 +368,23 @@ const App = () => {
         worker: true,
         header: true,
         skipEmptyLines: true,
-        step: (results, parser) => {
+        chunk: (results, parser) => {
           parser.pause();
           (async () => {
             try {
-              const mappedRow = palletRowMapper(results.data);
-              batch.push(mappedRow);
-              if (batch.length >= BATCH_SIZE) {
-                await processBatch();
+              for (const row of results.data) {
+                const mappedRow = palletRowMapper(row);
+                batch.push(mappedRow);
+                if (batch.length >= BATCH_SIZE) {
+                  await processBatch();
+                }
               }
+              const progress = file ? (results.meta.cursor / file.size) * 100 : 0;
+              setStatusMessage({
+                text: `Przetwarzanie pliku... Zapisano ${parsedRowCount.toLocaleString('pl-PL')} palet.`,
+                type: 'info',
+                progress: progress,
+              });
               parser.resume();
             } catch (err) {
               console.error("Error processing CSV step:", err);
@@ -243,9 +397,8 @@ const App = () => {
         complete: async () => {
           try {
             await processBatch();
-            const finalCount = parsedRowCount + batch.length;
-            setPalletsCount(finalCount);
-            setStatusMessage({ text: `Import zakończony. Zapisano ${finalCount.toLocaleString('pl-PL')} palet.`, type: 'success' });
+            setPalletsCount(parsedRowCount);
+            setStatusMessage({ text: `Import zakończony. Zapisano ${parsedRowCount.toLocaleString('pl-PL')} palet.`, type: 'success' });
           } catch (err) {
             console.error("Error during CSV completion:", err);
             setStatusMessage({ text: `Błąd podczas finalizowania importu palet.`, type: 'error' });
@@ -308,6 +461,8 @@ const App = () => {
             </div>
           </div>
         );
+      case 'data-preview':
+        return <DataPreview />;
       case 'report':
         return (
           <div class="placeholder-view">
@@ -346,6 +501,7 @@ const App = () => {
         <nav class="sidebar">
           <ul>
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('import')}} class={currentView === 'import' ? 'active' : ''}>Import Danych</a></li>
+            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('data-preview')}} class={currentView === 'data-preview' ? 'active' : ''}>Przeglądanie Danych</a></li>
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('report')}} class={currentView === 'report' ? 'active' : ''}>Raport Zagrożeń</a></li>
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('dashboard')}} class={currentView === 'dashboard' ? 'active' : ''}>Dashboard</a></li>
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('simulations')}} class={currentView === 'simulations' ? 'active' : ''}>Symulacje</a></li>
@@ -355,9 +511,14 @@ const App = () => {
           {statusMessage.text && (
               <div class={`status-container ${statusMessage.type}`} role="status">
                 <div class="status-info">
-                   {isLoading && <div class="spinner"></div>}
+                   {isLoading && statusMessage.type === 'info' && <div class="spinner"></div>}
                    <div class="status-content">
                       <p class="status-text">{statusMessage.text}</p>
+                      {isLoading && typeof statusMessage.progress === 'number' && (
+                        <div class="progress-bar-container">
+                           <div class="progress-bar" style={{ width: `${statusMessage.progress}%` }}></div>
+                        </div>
+                      )}
                    </div>
                 </div>
               </div>
