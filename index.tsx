@@ -7,7 +7,7 @@ import {
   saveHeaders,
   getPaginatedData,
 } from "./db";
-import Papa, { type ParseError, type Parser, type ParseStepResult } from "papaparse";
+import Papa from "papaparse";
 
 const PAGE_SIZE = 100;
 const BATCH_SIZE = 5000;
@@ -100,7 +100,7 @@ const App = () => {
         worker: true,
         header: false,
         skipEmptyLines: true,
-        step: async (results: ParseStepResult<string[]>, parser: Parser) => {
+        step: async (results: Papa.ParseStepResult<string[]>) => {
           if (fileHeaders.length === 0) {
             fileHeaders = results.data;
             setHeaders(fileHeaders);
@@ -109,9 +109,7 @@ const App = () => {
           } else {
             batch.push(results.data);
             if (batch.length >= BATCH_SIZE) {
-              parser.pause();
               await processBatch();
-              parser.resume();
             }
           }
         },
@@ -123,7 +121,7 @@ const App = () => {
           setIsLoading(false);
           await loadPage(1);
         },
-        error: (error: ParseError) => {
+        error: (error: Papa.ParseError) => {
           console.error("PapaParse error:", error);
           setStatusMessage(`Błąd podczas przetwarzania pliku: ${error.message}`);
           setIsLoading(false);
