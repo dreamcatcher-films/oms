@@ -4,8 +4,10 @@ import { useState, useEffect } from "preact/hooks";
 import {
   clearAllData,
   checkDBStatus,
-  saveProducts,
-  savePallets,
+  addProducts,
+  addPallets,
+  clearProducts,
+  clearPallets,
   Product,
   Pallet
 } from "./db";
@@ -50,172 +52,214 @@ const App = () => {
     };
     performInitialCheck();
   }, []);
+  
+  const productRowMapper = (row: { [key: string]: string }): Product => {
+      const parseNum = (val: string | undefined) => {
+          if (val === undefined) return 0;
+          const num = parseFloat(val);
+          return isNaN(num) ? 0 : num;
+      };
 
-  const handleFileParse = <T,>(
-    file: File,
-    setDataCount: (count: number) => void,
-    saveFunction: (data: T[]) => Promise<void>,
-    rowMapper: (row: { [key: string]: string }) => T,
-    dataType: 'produktów' | 'palet',
-    extraConfig: Partial<Papa.ParseConfig<{ [key: string]: string }>> = {}
-  ) => {
-    setIsLoading(true);
-    setStatusMessage({ text: `Rozpoczynanie importu pliku ${dataType}...`, type: 'info' });
-
-    let parsedRowCount = 0;
-    let batch: T[] = [];
-
-    const processBatch = async () => {
-      if (batch.length > 0) {
-        await saveFunction(batch);
-        parsedRowCount += batch.length;
-        setStatusMessage({ text: `Przetwarzanie pliku... Zapisano ${parsedRowCount.toLocaleString('pl-PL')} ${dataType}.`, type: 'info' });
-        batch = [];
-      }
-    };
-
-    Papa.parse<{ [key: string]: string }>(file, {
-      worker: true,
-      header: true,
-      skipEmptyLines: true,
-      ...extraConfig,
-      step: (results, parser) => {
-        parser.pause();
-        (async () => {
-          try {
-            const mappedRow = rowMapper(results.data);
-            batch.push(mappedRow);
-            if (batch.length >= BATCH_SIZE) {
-              await processBatch();
-            }
-            parser.resume();
-          } catch (err) {
-            console.error("Error processing CSV step:", err);
-            setStatusMessage({ text: `Błąd w strukturze pliku ${dataType}. Sprawdź nazwy kolumn.`, type: 'error' });
-            setIsLoading(false);
-            parser.abort();
+      const estimatedReceivings: { date: string, quantity: number }[] = [];
+      const dateRegex = /^\d{1,2}\.\d{1,2}\.\d{2,4}$/;
+      for (const key in row) {
+          if (dateRegex.test(key.trim())) {
+              const quantity = parseNum(row[key]);
+              if (quantity > 0) {
+                  estimatedReceivings.push({ date: key.trim(), quantity });
+              }
           }
-        })();
-      },
-      complete: () => {
-        (async () => {
-          try {
-            await processBatch();
-            const finalCount = parsedRowCount + batch.length;
-            setDataCount(finalCount);
-            setStatusMessage({ text: `Import zakończony. Zapisano ${finalCount.toLocaleString('pl-PL')} ${dataType}.`, type: 'success' });
-            setIsLoading(false);
-          } catch (err) {
-            console.error("Error during CSV completion:", err);
-            setStatusMessage({ text: `Błąd podczas finalizowania importu ${dataType}.`, type: 'error' });
-            setIsLoading(false);
-          }
-        })();
-      },
-      error: (error) => {
-        console.error("PapaParse error:", error);
-        setStatusMessage({ text: `Błąd krytyczny podczas parsowania pliku ${dataType}.`, type: 'error' });
-        setIsLoading(false);
       }
-    });
+
+      return {
+          warehouseId: row['WH NR']?.trim() ?? '',
+          productId: row['ITEM NR SHOP']?.trim() ?? '',
+          fullProductId: row['ITEM NR FULL']?.trim() ?? '',
+          name: row['ITEM DESC']?.trim() ?? '',
+          caseSize: parseNum(row['CASE SIZE']),
+          shelfLifeAtReceiving: parseNum(row['W-DATE DAYS']),
+          shelfLifeAtStore: parseNum(row['S-DATE DAYS']),
+          customerShelfLife: parseNum(row['C-DATE DAYS']),
+          price: parseNum(row['RETAIL PRICE']),
+          status: row['ITEM STATUS']?.trim() ?? '',
+          promoDate: row['ADV DATE']?.trim() ?? '',
+          supplierId: row['SUPPLIE NR']?.trim() ?? '',
+          supplierName: row['SUPPLIE NAME']?.trim() ?? '',
+          stockOnHand: parseNum(row['STOCK ON HAND']),
+          storeAllocationToday: parseNum(row['STORE ALLOC C']),
+          storeAllocationTotal: parseNum(row['STORE ALLOC C <']),
+          estimatedReceivings: estimatedReceivings,
+      };
   };
 
   const handleProductFile = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
-    if (file) {
-        const productRowMapper = (row: { [key: string]: string }): Product => {
-            const parseNum = (val: string | undefined) => {
-                if (val === undefined) return 0;
-                const num = parseFloat(val);
-                return isNaN(num) ? 0 : num;
-            };
+    if (!file) return;
 
-            const estimatedReceivings: { date: string, quantity: number }[] = [];
-            const dateRegex = /^\d{1,2}\.\d{1,2}\.\d{2,4}$/;
-            for (const key in row) {
-                if (dateRegex.test(key.trim())) {
-                    const quantity = parseNum(row[key]);
-                    if (quantity > 0) {
-                        estimatedReceivings.push({ date: key.trim(), quantity });
-                    }
-                }
-            }
+    (event.target as HTMLInputElement).value = ''; // Reset input to allow re-uploading the same file
+    setIsLoading(true);
+    setStatusMessage({ text: 'Przygotowywanie do importu produktów...', type: 'info' });
 
-            return {
-                warehouseId: row['WH NR']?.trim() ?? '',
-                productId: row['ITEM NR SHOP']?.trim() ?? '',
-                fullProductId: row['ITEM NR FULL']?.trim() ?? '',
-                name: row['ITEM DESC']?.trim() ?? '',
-                caseSize: parseNum(row['CASE SIZE']),
-                shelfLifeAtReceiving: parseNum(row['W-DATE DAYS']),
-                shelfLifeAtStore: parseNum(row['S-DATE DAYS']),
-                customerShelfLife: parseNum(row['C-DATE DAYS']),
-                price: parseNum(row['RETAIL PRICE']),
-                status: row['ITEM STATUS']?.trim() ?? '',
-                promoDate: row['ADV DATE']?.trim() ?? '',
-                supplierId: row['SUPPLIE NR']?.trim() ?? '',
-                supplierName: row['SUPPLIE NAME']?.trim() ?? '',
-                stockOnHand: parseNum(row['STOCK ON HAND']),
-                storeAllocationToday: parseNum(row['STORE ALLOC C']),
-                storeAllocationTotal: parseNum(row['STORE ALLOC C <']),
-                estimatedReceivings: estimatedReceivings,
-            };
-        };
+    (async () => {
+      try {
+        await clearProducts();
+        setProductsCount(0);
+      } catch (error) {
+        console.error("Błąd podczas czyszczenia bazy danych produktów.", error);
+        setStatusMessage({ text: 'Błąd podczas czyszczenia bazy danych.', type: 'error' });
+        setIsLoading(false);
+        return;
+      }
 
-        const config = {
-          worker: false, // Worker is disabled as we use Papa object in the callback.
-          beforeFirstChunk: (chunk: string) => {
-              const lines = chunk.split('\n');
-              if (lines.length < 2) {
-                  // Not enough lines for a two-row header
-                  return chunk;
-              }
+      setStatusMessage({ text: `Rozpoczynanie importu pliku produktów...`, type: 'info' });
+      
+      let header1: string[] = [];
+      let header2: string[] = [];
+      let combinedHeader: string[] = [];
+      let batch: Product[] = [];
+      let processedCount = 0;
+      let rowIndex = 0;
 
-              // Use PapaParse to robustly split the two header rows
-              // This handles delimiters and quotes correctly
-              const parsedHeaderData = Papa.parse(lines[0] + '\n' + lines[1], { preview: 2 }).data;
-              const headers1 = parsedHeaderData[0] as string[];
-              const headers2 = parsedHeaderData[1] as string[];
-
-              // Combine the two header rows into a single header row
-              const combinedHeaders = headers1.map((h1, i) => {
-                  const h2 = (headers2 && headers2[i]) ? headers2[i] : '';
-                  // Join non-empty parts with a space
-                  return `${(h1 || '').trim()} ${(h2 || '').trim()}`.trim();
-              });
-
-              // Use PapaParse to re-serialize the new header. This handles quoting.
-              const newHeaderLine = Papa.unparse([combinedHeaders], { header: false }).trim();
-
-              // Get the rest of the data (from the 3rd line onwards)
-              const dataChunk = lines.slice(2).join('\n');
-              
-              // Return the new chunk with the single combined header
-              return newHeaderLine + '\n' + dataChunk;
-          }
+      const processBatch = async () => {
+        if (batch.length > 0) {
+          await addProducts(batch);
+          processedCount += batch.length;
+          setStatusMessage({ text: `Przetwarzanie pliku... Zapisano ${processedCount.toLocaleString('pl-PL')} produktów.`, type: 'info' });
+          batch = [];
+        }
       };
 
-      handleFileParse<Product>(file, setProductsCount, saveProducts, productRowMapper, 'produktów', config);
-       (event.target as HTMLInputElement).value = '';
-    }
+      Papa.parse(file, {
+        header: false,
+        worker: false,
+        skipEmptyLines: true,
+        step: (results, parser) => {
+          const row = results.data as string[];
+          if (rowIndex === 0) {
+            header1 = row;
+          } else if (rowIndex === 1) {
+            header2 = row;
+            combinedHeader = header1.map((h1, i) =>
+              `${(h1 || '').trim()} ${(header2[i] || '').trim()}`.trim()
+            );
+          } else {
+            parser.pause();
+            (async () => {
+              const rowObject: { [key: string]: string } = {};
+              combinedHeader.forEach((header, i) => {
+                rowObject[header] = row[i];
+              });
+
+              const mappedRow = productRowMapper(rowObject);
+              batch.push(mappedRow);
+
+              if (batch.length >= BATCH_SIZE) {
+                await processBatch();
+              }
+              parser.resume();
+            })();
+          }
+          rowIndex++;
+        },
+        complete: async () => {
+          await processBatch();
+          setProductsCount(processedCount);
+          setStatusMessage({ text: `Import zakończony. Zapisano ${processedCount.toLocaleString('pl-PL')} produktów.`, type: 'success' });
+          setIsLoading(false);
+        },
+        error: (error) => {
+          console.error("PapaParse error:", error);
+          setStatusMessage({ text: `Błąd krytyczny podczas parsowania pliku produktów.`, type: 'error' });
+          setIsLoading(false);
+        }
+      });
+    })();
   };
 
   const handlePalletFile = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
-    if (file) {
-      // UWAGA: Mapper tymczasowy do czasu podania schematu pliku palet.
-      const palletRowMapper = (row: { [key: string]: string }): Pallet => ({
-        palletId: row['Pallet ID']?.trim() ?? '',
-        productId: row['Product ID']?.trim() ?? '',
-        warehouseId: row['Warehouse ID']?.trim() ?? '',
-        arrivalDate: new Date(row['Arrival Date']?.trim() ?? ''),
-        expiryDate: new Date(row['Expiry Date']?.trim() ?? '')
-      });
+    if (!file) return;
 
-      // Domyślna konfiguracja - zakłada jeden wiersz nagłówka
-      handleFileParse<Pallet>(file, setPalletsCount, savePallets, palletRowMapper, 'palet');
-       (event.target as HTMLInputElement).value = '';
-    }
+    (event.target as HTMLInputElement).value = ''; // Reset input
+    
+    // UWAGA: Mapper tymczasowy do czasu podania schematu pliku palet.
+    const palletRowMapper = (row: { [key: string]: string }): Pallet => ({
+      palletId: row['Pallet ID']?.trim() ?? '',
+      productId: row['Product ID']?.trim() ?? '',
+      warehouseId: row['Warehouse ID']?.trim() ?? '',
+      arrivalDate: new Date(row['Arrival Date']?.trim() ?? ''),
+      expiryDate: new Date(row['Expiry Date']?.trim() ?? '')
+    });
+    
+    (async () => {
+      setIsLoading(true);
+      setStatusMessage({ text: 'Przygotowywanie do importu palet...', type: 'info' });
+      try {
+        await clearPallets();
+        setPalletsCount(0);
+      } catch (error) {
+        console.error("Błąd podczas czyszczenia bazy danych palet.", error);
+        setStatusMessage({ text: 'Błąd podczas czyszczenia bazy danych.', type: 'error' });
+        setIsLoading(false);
+        return;
+      }
+      
+      setStatusMessage({ text: `Rozpoczynanie importu pliku palet...`, type: 'info' });
+
+      let parsedRowCount = 0;
+      let batch: Pallet[] = [];
+
+      const processBatch = async () => {
+        if (batch.length > 0) {
+          await addPallets(batch);
+          parsedRowCount += batch.length;
+          setStatusMessage({ text: `Przetwarzanie pliku... Zapisano ${parsedRowCount.toLocaleString('pl-PL')} palet.`, type: 'info' });
+          batch = [];
+        }
+      };
+
+      Papa.parse<{ [key: string]: string }>(file, {
+        worker: true,
+        header: true,
+        skipEmptyLines: true,
+        step: (results, parser) => {
+          parser.pause();
+          (async () => {
+            try {
+              const mappedRow = palletRowMapper(results.data);
+              batch.push(mappedRow);
+              if (batch.length >= BATCH_SIZE) {
+                await processBatch();
+              }
+              parser.resume();
+            } catch (err) {
+              console.error("Error processing CSV step:", err);
+              setStatusMessage({ text: `Błąd w strukturze pliku palet. Sprawdź nazwy kolumn.`, type: 'error' });
+              setIsLoading(false);
+              parser.abort();
+            }
+          })();
+        },
+        complete: async () => {
+          try {
+            await processBatch();
+            const finalCount = parsedRowCount + batch.length;
+            setPalletsCount(finalCount);
+            setStatusMessage({ text: `Import zakończony. Zapisano ${finalCount.toLocaleString('pl-PL')} palet.`, type: 'success' });
+          } catch (err) {
+            console.error("Error during CSV completion:", err);
+            setStatusMessage({ text: `Błąd podczas finalizowania importu palet.`, type: 'error' });
+          } finally {
+            setIsLoading(false);
+          }
+        },
+        error: (error) => {
+          console.error("PapaParse error:", error);
+          setStatusMessage({ text: `Błąd krytyczny podczas parsowania pliku palet.`, type: 'error' });
+          setIsLoading(false);
+        }
+      });
+    })();
   };
 
   const handleClearData = async () => {
