@@ -12,8 +12,8 @@ const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
+    request.onupgradeneeded = () => {
+      const db = request.result;
       if (!db.objectStoreNames.contains(DATA_STORE_NAME)) {
         db.createObjectStore(DATA_STORE_NAME, { autoIncrement: true });
       }
@@ -22,12 +22,12 @@ const openDB = (): Promise<IDBDatabase> => {
       }
     };
 
-    request.onsuccess = (event) => {
-      resolve((event.target as IDBOpenDBRequest).result);
+    request.onsuccess = () => {
+      resolve(request.result);
     };
 
-    request.onerror = (event) => {
-      reject('Error opening database: ' + (event.target as IDBOpenDBRequest).error);
+    request.onerror = () => {
+      reject('Error opening database: ' + request.error);
     };
   });
 };
@@ -41,23 +41,33 @@ export const saveData = async (headers: string[], rows: string[][]): Promise<voi
     const headersStore = transaction.objectStore(HEADERS_STORE_NAME);
 
     // Clear existing data first
-    dataStore.clear();
-    headersStore.clear();
+    const clearDataRequest = dataStore.clear();
+    const clearHeadersRequest = headersStore.clear();
+    
+    // Use a counter to track completion of clear requests
+    let clearCount = 0;
+    const onClearSuccess = () => {
+      clearCount++;
+      if (clearCount === 2) {
+        // Store headers
+        headersStore.put(headers, 'currentHeaders');
 
-    // Store headers
-    headersStore.put(headers, 'currentHeaders');
+        // Store rows as objects
+        const dataToStore = rows.map(row => {
+          const rowObject: CsvRow = {};
+          headers.forEach((header, index) => {
+            rowObject[header] = row[index];
+          });
+          return rowObject;
+        });
 
-    // Store rows as objects for better queryability in the future
-    const dataToStore = rows.map(row => {
-      const rowObject: CsvRow = {};
-      headers.forEach((header, index) => {
-        rowObject[header] = row[index];
-      });
-      return rowObject;
-    });
-
-    // Add each row object to the data store
-    dataToStore.forEach(item => dataStore.add(item));
+        // Add each row object to the data store
+        dataToStore.forEach(item => dataStore.add(item));
+      }
+    };
+    
+    clearDataRequest.onsuccess = onClearSuccess;
+    clearHeadersRequest.onsuccess = onClearSuccess;
 
     transaction.oncomplete = () => {
       resolve();
@@ -80,22 +90,26 @@ export const getData = async (): Promise<{ headers: string[], rows: string[][] }
         const getHeadersRequest = headersStore.get('currentHeaders');
         const getDataRequest = dataStore.getAll();
 
-        let headers: string[] = [];
-        let rows: string[][] = [];
+        let headersResult: string[] | undefined;
+        let dataObjectsResult: CsvRow[] | undefined;
 
         getHeadersRequest.onsuccess = () => {
-            headers = getHeadersRequest.result || [];
+            headersResult = getHeadersRequest.result;
         };
 
         getDataRequest.onsuccess = () => {
-            const dataObjects: CsvRow[] = getDataRequest.result || [];
-            // Revert objects back to arrays for table display
-            if (headers.length > 0) {
-                rows = dataObjects.map(obj => headers.map(header => obj[header]));
-            }
+            dataObjectsResult = getDataRequest.result;
         };
 
         transaction.oncomplete = () => {
+            const headers = headersResult || [];
+            const dataObjects = dataObjectsResult || [];
+            let rows: string[][] = [];
+
+            if (headers.length > 0 && dataObjects.length > 0) {
+                 rows = dataObjects.map(obj => headers.map(header => obj[header] || ''));
+            }
+            
             resolve({ headers, rows });
         };
 
