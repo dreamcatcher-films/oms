@@ -96,7 +96,7 @@ const App = () => {
         }
       };
 
-      Papa(file, {
+      Papa.parse(file, {
         worker: true,
         header: false,
         skipEmptyLines: true,
