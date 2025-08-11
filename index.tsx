@@ -1,30 +1,43 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
-import { saveData, getData, clearData, checkDBStatus } from "./db";
+import {
+  clearData,
+  checkDBStatus,
+  appendRows,
+  saveHeaders,
+  getPaginatedData,
+} from "./db";
+import Papa from "papaparse";
+
+const PAGE_SIZE = 100;
+const BATCH_SIZE = 5000;
 
 const App = () => {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState('Sprawdzanie lokalnej bazy danych...');
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalRows, setTotalRows] = useState(0);
 
-  const [isDataReadyToLoad, setIsDataReadyToLoad] = useState(false);
   const [dbHasData, setDbHasData] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const totalPages = Math.ceil(totalRows / PAGE_SIZE);
 
   useEffect(() => {
     const performInitialCheck = async () => {
       setIsLoading(true);
       setStatusMessage('Sprawdzanie lokalnej bazy danych...');
       try {
-        const { hasData, headers } = await checkDBStatus();
+        const { hasData, headers, rowCount } = await checkDBStatus();
         setDbHasData(hasData);
         if (hasData) {
-          setIsDataReadyToLoad(true);
           setHeaders(headers);
-          setStatusMessage('Znaleziono dane w lokalnej bazie. Gotowe do załadowania.');
+          setTotalRows(rowCount);
+          setStatusMessage(`Znaleziono ${rowCount.toLocaleString('pl-PL')} wierszy w lokalnej bazie. Gotowe do załadowania.`);
         } else {
           setStatusMessage('Wybierz plik CSV, aby rozpocząć.');
         }
@@ -39,31 +52,26 @@ const App = () => {
     performInitialCheck();
   }, []);
 
-  const handleLoadData = async () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-
-    setIsLoading(true);
-    setStatusMessage('Ładowanie danych z bazy...');
+  const loadPage = async (page: number) => {
+    if (page < 1 || page > totalPages || !dbHasData) return;
     
+    setIsLoading(true);
+    setStatusMessage(`Ładowanie strony ${page} z ${totalPages}...`);
     try {
-        const { rows: loadedRows } = await getData({ signal: abortControllerRef.current.signal });
-        setRows(loadedRows);
-        setStatusMessage('Dane załadowane pomyślnie.');
-        setIsDataReadyToLoad(false);
+      const { rows: loadedRows } = await getPaginatedData({ page, pageSize: PAGE_SIZE });
+      setRows(loadedRows);
+      setCurrentPage(page);
+      setStatusMessage(`Wyświetlanie strony ${page} z ${totalPages} (${totalRows.toLocaleString('pl-PL')} wierszy).`);
     } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
-            setStatusMessage('Ładowanie danych przerwane.');
-        } else {
-            console.error("Failed to load data from DB", error);
-            setStatusMessage('Nie udało się załadować danych. Spróbuj wyczyścić bazę.');
-        }
+      console.error(`Failed to load page ${page}`, error);
+      setStatusMessage(`Błąd podczas ładowania strony ${page}.`);
     } finally {
-        setIsLoading(false);
-        abortControllerRef.current = null;
+      setIsLoading(false);
     }
+  }
+
+  const handleLoadData = async () => {
+    await loadPage(1);
   };
 
   const handleFileChange = (event: Event) => {
@@ -72,65 +80,57 @@ const App = () => {
 
     if (file) {
       setRows([]);
-      setIsDataReadyToLoad(false);
+      setHeaders([]);
+      setTotalRows(0);
+      setCurrentPage(1);
       setIsLoading(true);
-      setUploadProgress(0);
-      setStatusMessage('Wczytywanie pliku: 0%');
-      
-      const reader = new FileReader();
 
-      reader.onprogress = (e: ProgressEvent) => {
-        if (e.lengthComputable) {
-          const progress = Math.round((e.loaded / e.total) * 100);
-          setUploadProgress(progress);
-          setStatusMessage(`Wczytywanie pliku: ${progress}%`);
+      let parsedRowCount = 0;
+      let batch: string[][] = [];
+      let fileHeaders: string[] = [];
+
+      const processBatch = async () => {
+        if (batch.length > 0) {
+          await appendRows(batch);
+          parsedRowCount += batch.length;
+          setStatusMessage(`Przetwarzanie pliku... Zapisano ${parsedRowCount.toLocaleString('pl-PL')} wierszy.`);
+          batch = [];
         }
       };
 
-      reader.onerror = () => {
-        setIsLoading(false);
-        setUploadProgress(null);
-        setStatusMessage('Błąd podczas wczytywania pliku.');
-      };
-
-      reader.onload = async (e) => {
-        setUploadProgress(100);
-        setStatusMessage('Plik wczytany. Przetwarzanie i zapisywanie danych...');
-        
-        setTimeout(async () => {
-            const text = e.target?.result as string;
-            if (text) {
-              const lines = text.split('\n').filter(line => line.trim() !== '');
-              if (lines.length > 0) {
-                const fileHeaders = lines[0].split(',').map(header => header.trim());
-                const fileRows = lines.slice(1).map(line => line.split(',').map(cell => cell.trim()));
-                
-                try {
-                  await saveData(fileHeaders, fileRows);
-                  setHeaders(fileHeaders);
-                  setRows(fileRows);
-                  setStatusMessage('Dane zostały pomyślnie zapisane i załadowane.');
-                  setDbHasData(true);
-                  setIsDataReadyToLoad(false);
-                } catch(error) {
-                  console.error("Failed to save data to DB", error);
-                  setStatusMessage('Błąd podczas zapisywania danych.');
-                } finally {
-                  setIsLoading(false);
-                  setUploadProgress(null);
-                }
-              } else {
-                setHeaders([]);
-                setRows([]);
-                setIsLoading(false);
-                setUploadProgress(null);
-                setStatusMessage('Plik jest pusty.');
-                setDbHasData(false);
-              }
+      Papa.parse(file, {
+        worker: true,
+        header: false,
+        skipEmptyLines: true,
+        step: async (results, parser) => {
+          if (fileHeaders.length === 0) {
+            fileHeaders = results.data as string[];
+            setHeaders(fileHeaders);
+            await clearData();
+            await saveHeaders(fileHeaders);
+          } else {
+            batch.push(results.data as string[]);
+            if (batch.length >= BATCH_SIZE) {
+              parser.pause();
+              await processBatch();
+              parser.resume();
             }
-        }, 50);
-      };
-      reader.readAsText(file);
+          }
+        },
+        complete: async () => {
+          await processBatch(); // process any remaining rows
+          setTotalRows(parsedRowCount);
+          setDbHasData(true);
+          setStatusMessage(`Import zakończony. Zapisano ${parsedRowCount.toLocaleString('pl-PL')} wierszy.`);
+          setIsLoading(false);
+          await loadPage(1);
+        },
+        error: (error) => {
+          console.error("PapaParse error:", error);
+          setStatusMessage(`Błąd podczas przetwarzania pliku: ${error.message}`);
+          setIsLoading(false);
+        }
+      });
       target.value = ''; 
     }
   };
@@ -142,20 +142,15 @@ const App = () => {
         await clearData();
         setHeaders([]);
         setRows([]);
+        setTotalRows(0);
+        setCurrentPage(1);
         setStatusMessage('Dane zostały usunięte. Możesz teraz załadować nowy plik.');
         setDbHasData(false);
-        setIsDataReadyToLoad(false);
     } catch(error) {
         console.error("Failed to clear DB", error);
         setStatusMessage('Błąd podczas usuwania danych.');
     } finally {
         setIsLoading(false);
-    }
-  }
-
-  const handleCancel = () => {
-    if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
     }
   }
 
@@ -166,7 +161,7 @@ const App = () => {
       <div class="file-uploader">
         <p>Wybierz plik CSV lub załaduj istniejące dane z lokalnej bazy.</p>
         <div class="actions-container">
-           {isDataReadyToLoad && !isLoading && (
+           {dbHasData && !isLoading && (
              <button onClick={handleLoadData} class="button-primary">Załaduj dane</button>
            )}
            <label htmlFor="csv-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
@@ -189,23 +184,15 @@ const App = () => {
       {(isLoading || statusMessage) && (
         <div class="status-container" role="status">
           <div class="status-info">
-             {isLoading && uploadProgress === null && <div class="spinner"></div>}
+             {isLoading && <div class="spinner"></div>}
              <div class="status-content">
                 <p class="status-text">{statusMessage}</p>
-                {uploadProgress !== null && (
-                   <div class="progress-bar-container">
-                     <div class="progress-bar" style={{ width: `${uploadProgress}%` }}></div>
-                   </div>
-                )}
              </div>
           </div>
-          {isLoading && uploadProgress === null && (
-            <button onClick={handleCancel} class="button-cancel">Anuluj</button>
-          )}
         </div>
       )}
 
-      {!isLoading && rows.length > 0 && (
+      {rows.length > 0 && (
         <div class="table-container" role="region" aria-labelledby="table-caption">
           <h2 id="table-caption" class="sr-only">Dane z pliku CSV</h2>
           <table>
@@ -226,6 +213,15 @@ const App = () => {
               ))}
             </tbody>
           </table>
+          <div class="pagination-container">
+              <button onClick={() => loadPage(currentPage - 1)} disabled={currentPage <= 1 || isLoading}>
+                  Poprzednia
+              </button>
+              <span>Strona {currentPage} z {totalPages}</span>
+              <button onClick={() => loadPage(currentPage + 1)} disabled={currentPage >= totalPages || isLoading}>
+                  Następna
+              </button>
+          </div>
         </div>
       )}
     </>
