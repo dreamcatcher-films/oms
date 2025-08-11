@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
-import { saveData, getData, clearData } from "./db";
+import { saveData, getData, clearData, checkDBStatus } from "./db";
 
 const App = () => {
   const [headers, setHeaders] = useState<string[]>([]);
@@ -8,48 +8,71 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState('Sprawdzanie lokalnej bazy danych...');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [dbMightHaveData, setDbMightHaveData] = useState(false);
+
+  const [isDataReadyToLoad, setIsDataReadyToLoad] = useState(false);
+  const [dbHasData, setDbHasData] = useState(false);
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    const loadInitialData = async () => {
-      abortControllerRef.current = new AbortController();
+    const performInitialCheck = async () => {
+      setIsLoading(true);
+      setStatusMessage('Sprawdzanie lokalnej bazy danych...');
       try {
-        const { headers, rows } = await getData({ signal: abortControllerRef.current.signal });
-        if (rows.length > 0) {
+        const { hasData, headers } = await checkDBStatus();
+        setDbHasData(hasData);
+        if (hasData) {
+          setIsDataReadyToLoad(true);
           setHeaders(headers);
-          setRows(rows);
-          setStatusMessage('Dane załadowane z lokalnej bazy danych.');
-          setDbMightHaveData(true);
+          setStatusMessage('Znaleziono dane w lokalnej bazie. Gotowe do załadowania.');
         } else {
           setStatusMessage('Wybierz plik CSV, aby rozpocząć.');
-          setDbMightHaveData(false);
         }
       } catch (error) {
-        setDbMightHaveData(true); // Assume data might be corrupted
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          setStatusMessage('Sprawdzanie przerwane. Wybierz plik, aby rozpocząć.');
-        } else {
-          console.error("Failed to load data from DB", error);
-          setStatusMessage('Nie udało się załadować danych. Spróbuj wyczyścić dane i załadować plik ponownie.');
-        }
+        console.error("Failed to check DB status", error);
+        setStatusMessage('Błąd podczas sprawdzania bazy danych.');
+        setDbHasData(false);
       } finally {
         setIsLoading(false);
-        abortControllerRef.current = null;
       }
     };
-    loadInitialData();
-
-    return () => {
-      abortControllerRef.current?.abort();
-    }
+    performInitialCheck();
   }, []);
+
+  const handleLoadData = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    setIsLoading(true);
+    setStatusMessage('Ładowanie danych z bazy...');
+    
+    try {
+        const { rows: loadedRows } = await getData({ signal: abortControllerRef.current.signal });
+        setRows(loadedRows);
+        setStatusMessage('Dane załadowane pomyślnie.');
+        setIsDataReadyToLoad(false);
+    } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+            setStatusMessage('Ładowanie danych przerwane.');
+        } else {
+            console.error("Failed to load data from DB", error);
+            setStatusMessage('Nie udało się załadować danych. Spróbuj wyczyścić bazę.');
+        }
+    } finally {
+        setIsLoading(false);
+        abortControllerRef.current = null;
+    }
+  };
 
   const handleFileChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
 
     if (file) {
+      setRows([]);
+      setIsDataReadyToLoad(false);
       setIsLoading(true);
       setUploadProgress(0);
       setStatusMessage('Wczytywanie pliku: 0%');
@@ -68,7 +91,6 @@ const App = () => {
         setIsLoading(false);
         setUploadProgress(null);
         setStatusMessage('Błąd podczas wczytywania pliku.');
-        setDbMightHaveData(true);
       };
 
       reader.onload = async (e) => {
@@ -87,12 +109,12 @@ const App = () => {
                   await saveData(fileHeaders, fileRows);
                   setHeaders(fileHeaders);
                   setRows(fileRows);
-                  setStatusMessage('Dane zostały pomyślnie zapisane.');
-                  setDbMightHaveData(true);
+                  setStatusMessage('Dane zostały pomyślnie zapisane i załadowane.');
+                  setDbHasData(true);
+                  setIsDataReadyToLoad(false);
                 } catch(error) {
                   console.error("Failed to save data to DB", error);
                   setStatusMessage('Błąd podczas zapisywania danych.');
-                  setDbMightHaveData(true);
                 } finally {
                   setIsLoading(false);
                   setUploadProgress(null);
@@ -103,7 +125,7 @@ const App = () => {
                 setIsLoading(false);
                 setUploadProgress(null);
                 setStatusMessage('Plik jest pusty.');
-                setDbMightHaveData(false);
+                setDbHasData(false);
               }
             }
         }, 50);
@@ -121,11 +143,11 @@ const App = () => {
         setHeaders([]);
         setRows([]);
         setStatusMessage('Dane zostały usunięte. Możesz teraz załadować nowy plik.');
-        setDbMightHaveData(false);
+        setDbHasData(false);
+        setIsDataReadyToLoad(false);
     } catch(error) {
         console.error("Failed to clear DB", error);
         setStatusMessage('Błąd podczas usuwania danych.');
-        setDbMightHaveData(true);
     } finally {
         setIsLoading(false);
     }
@@ -142,12 +164,15 @@ const App = () => {
       <h1>Przeglądarka plików CSV z lokalną bazą danych</h1>
       
       <div class="file-uploader">
-        <p>Wybierz plik CSV, aby zapisać go w lokalnej bazie danych przeglądarki (IndexedDB).</p>
+        <p>Wybierz plik CSV lub załaduj istniejące dane z lokalnej bazy.</p>
         <div class="actions-container">
+           {isDataReadyToLoad && !isLoading && (
+             <button onClick={handleLoadData} class="button-primary">Załaduj dane</button>
+           )}
            <label htmlFor="csv-file-input" class={`file-label ${isLoading ? 'disabled' : ''}`}>
              Wybierz plik
            </label>
-           {dbMightHaveData && !isLoading && (
+           {dbHasData && !isLoading && (
              <button onClick={handleClearData} class="button-secondary">Wyczyść dane</button>
            )}
         </div>
