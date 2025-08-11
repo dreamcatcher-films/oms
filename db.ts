@@ -7,7 +7,6 @@ interface CsvRow {
   [key: string]: string;
 }
 
-// Function to open the database and create object stores if needed
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -32,7 +31,6 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
-// Function to save parsed CSV data to the database
 export const saveData = async (headers: string[], rows: string[][]): Promise<void> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -40,14 +38,11 @@ export const saveData = async (headers: string[], rows: string[][]): Promise<voi
     const dataStore = transaction.objectStore(DATA_STORE_NAME);
     const headersStore = transaction.objectStore(HEADERS_STORE_NAME);
 
-    // Clear existing data first
     dataStore.clear();
     headersStore.clear();
 
-    // Store headers
     headersStore.put(headers, 'currentHeaders');
 
-    // Store rows as objects
     const dataToStore = rows.map(row => {
       const rowObject: CsvRow = {};
       headers.forEach((header, index) => {
@@ -56,7 +51,6 @@ export const saveData = async (headers: string[], rows: string[][]): Promise<voi
       return rowObject;
     });
 
-    // Add each row object to the data store
     dataToStore.forEach(item => dataStore.add(item));
 
     transaction.oncomplete = () => {
@@ -69,7 +63,37 @@ export const saveData = async (headers: string[], rows: string[][]): Promise<voi
   });
 };
 
-// Function to get all data from the database
+export const checkDBStatus = async (): Promise<{ hasData: boolean; headers: string[] }> => {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([DATA_STORE_NAME, HEADERS_STORE_NAME], 'readonly');
+        const dataStore = transaction.objectStore(DATA_STORE_NAME);
+        const headersStore = transaction.objectStore(HEADERS_STORE_NAME);
+
+        const countRequest = dataStore.count();
+        const getHeadersRequest = headersStore.get('currentHeaders');
+
+        let dataCount = 0;
+        let headersResult: string[] = [];
+
+        countRequest.onsuccess = () => {
+            dataCount = countRequest.result;
+        };
+
+        getHeadersRequest.onsuccess = () => {
+            headersResult = getHeadersRequest.result || [];
+        };
+        
+        transaction.oncomplete = () => {
+            resolve({ hasData: dataCount > 0, headers: headersResult });
+        };
+        
+        transaction.onerror = () => {
+            reject(transaction.error);
+        };
+    });
+};
+
 export const getData = async ({ signal }: { signal?: AbortSignal } = {}): Promise<{ headers: string[], rows: string[][] }> => {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -127,7 +151,6 @@ export const getData = async ({ signal }: { signal?: AbortSignal } = {}): Promis
     });
 };
 
-// Function to clear all data from the database
 export const clearData = async (): Promise<void> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
