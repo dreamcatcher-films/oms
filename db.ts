@@ -3,15 +3,16 @@
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
 const PALLETS_STORE_NAME = 'pallets';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Bumped version to trigger upgrade
 
 export type Product = {
   // --- Composite Key ---
+  // The primary key is now ['warehouseId', 'fullProductId'] to ensure uniqueness
   warehouseId: string; // Kolumna A: WH NR
-  productId: string;   // Kolumna E: ITEM NR SHOP
+  fullProductId: string; // Kolumna F: ITEM NR FULL (dłuższy, precyzyjny numer)
 
   // --- Identifiers ---
-  fullProductId: string; // Kolumna F: ITEM NR FULL (dłuższy, precyzyjny numer)
+  productId: string;   // Kolumna E: ITEM NR SHOP (krótki numer, nie jest już częścią klucza)
   name: string;          // Kolumna G: ITEM DESC
 
   // --- Product Attributes ---
@@ -61,12 +62,17 @@ const openDB = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(PRODUCTS_STORE_NAME)) {
-        const store = db.createObjectStore(PRODUCTS_STORE_NAME, { keyPath: ['warehouseId', 'productId'] });
-        store.createIndex('statusIndex', 'status');
+      
+      // For version 2, we ensure the 'products' store has the correct primary key.
+      // Easiest way to guarantee this on upgrade is to delete and re-create.
+      if (db.objectStoreNames.contains(PRODUCTS_STORE_NAME)) {
+          db.deleteObjectStore(PRODUCTS_STORE_NAME);
       }
+      const productsStore = db.createObjectStore(PRODUCTS_STORE_NAME, { keyPath: ['warehouseId', 'fullProductId'] });
+      productsStore.createIndex('statusIndex', 'status');
+
       if (!db.objectStoreNames.contains(PALLETS_STORE_NAME)) {
-        db.createObjectStore(PALLETS_STORE_NAME, { keyPath: 'palletId' });
+          db.createObjectStore(PALLETS_STORE_NAME, { keyPath: 'palletId' });
       }
     };
 
