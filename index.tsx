@@ -1,6 +1,6 @@
 
 import { render } from "preact";
-import { useState, useEffect, useCallback } from "preact/hooks";
+import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import {
   clearAllData,
   checkDBStatus,
@@ -11,7 +11,9 @@ import {
   Product,
   Pallet,
   getProductsPaginatedAndFiltered,
-  getUniqueProductStatuses
+  getUniqueProductStatuses,
+  getUniqueWarehouseIds,
+  findProductsByPartialId
 } from "./db";
 import Papa from "papaparse";
 
@@ -66,13 +68,22 @@ const DataPreview = () => {
 
   const [productFilters, setProductFilters] = useState({ warehouseId: '', productId: '', status: '' });
   const [appliedProductFilters, setAppliedProductFilters] = useState({ warehouseId: '', productId: '', status: '' });
+  
   const [productStatuses, setProductStatuses] = useState<string[]>([]);
+  const [warehouseIds, setWarehouseIds] = useState<string[]>([]);
+  const [productIdSuggestions, setProductIdSuggestions] = useState<Product[]>([]);
+  const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
+  const debounceTimeoutRef = useRef<number | null>(null);
 
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
 
-  const fetchStatuses = useCallback(async () => {
-    const statuses = await getUniqueProductStatuses();
+  const fetchDropdownData = useCallback(async () => {
+    const [statuses, warehouses] = await Promise.all([
+      getUniqueProductStatuses(),
+      getUniqueWarehouseIds()
+    ]);
     setProductStatuses(statuses);
+    setWarehouseIds(warehouses);
   }, []);
   
   const fetchProducts = useCallback(async () => {
@@ -85,8 +96,8 @@ const DataPreview = () => {
 
 
   useEffect(() => {
-    fetchStatuses();
-  }, [fetchStatuses]);
+    fetchDropdownData();
+  }, [fetchDropdownData]);
   
   useEffect(() => {
     if (activeTab === 'products') {
@@ -102,17 +113,53 @@ const DataPreview = () => {
     const { name, value } = e.target as HTMLInputElement | HTMLSelectElement;
     setProductFilters(prev => ({ ...prev, [name]: value }));
   };
+  
+  const handleProductIdChange = (e: Event) => {
+      const value = (e.target as HTMLInputElement).value;
+      setProductFilters(prev => ({ ...prev, productId: value }));
+
+      if (debounceTimeoutRef.current) {
+          clearTimeout(debounceTimeoutRef.current);
+      }
+
+      if (value.trim().length < 2) {
+          setProductIdSuggestions([]);
+          setIsSuggestionsVisible(false);
+          return;
+      }
+
+      debounceTimeoutRef.current = window.setTimeout(async () => {
+          const suggestions = await findProductsByPartialId(value, 5);
+          setProductIdSuggestions(suggestions);
+          setIsSuggestionsVisible(suggestions.length > 0);
+      }, 300);
+  };
+
+  const handleSuggestionClick = (product: Product) => {
+      setProductFilters(prev => ({ ...prev, productId: product.productId }));
+      setIsSuggestionsVisible(false);
+  };
+
 
   const applyFilters = () => {
     setCurrentPage(1);
     setAppliedProductFilters(productFilters);
+    setIsSuggestionsVisible(false);
   };
   
   const clearFilters = () => {
     setCurrentPage(1);
     setProductFilters({ warehouseId: '', productId: '', status: '' });
     setAppliedProductFilters({ warehouseId: '', productId: '', status: '' });
+    setIsSuggestionsVisible(false);
   };
+  
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        applyFilters();
+    }
+  }
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
@@ -127,7 +174,7 @@ const DataPreview = () => {
   };
   
   return (
-    <div class="data-preview-container">
+    <div class="data-preview-container" onBlur={() => setIsSuggestionsVisible(false)}>
       <div class="tabs">
         <button class={`tab ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>Produkty ({totalItems})</button>
         <button class={`tab ${activeTab === 'pallets' ? 'active' : ''}`} onClick={() => setActiveTab('pallets')}>Palety</button>
@@ -138,15 +185,27 @@ const DataPreview = () => {
         <div class="filter-bar">
           <div class="filter-group">
             <label for="warehouseId">Magazyn</label>
-            <input type="text" id="warehouseId" name="warehouseId" value={productFilters.warehouseId} onInput={handleFilterChange} placeholder="np. 220" />
+            <select id="warehouseId" name="warehouseId" value={productFilters.warehouseId} onChange={handleFilterChange} onKeyDown={handleKeyDown}>
+              <option value="">Wszystkie</option>
+              {warehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
+            </select>
           </div>
           <div class="filter-group">
             <label for="productId">Nr artykułu</label>
-            <input type="text" id="productId" name="productId" value={productFilters.productId} onInput={handleFilterChange} placeholder="np. 40006"/>
+            <input type="text" id="productId" name="productId" value={productFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
+            {isSuggestionsVisible && productIdSuggestions.length > 0 && (
+              <ul class="suggestions-list">
+                {productIdSuggestions.map(p => (
+                  <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
+                    <strong>{p.productId}</strong> - {p.name}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div class="filter-group">
             <label for="status">Status</label>
-            <select id="status" name="status" value={productFilters.status} onChange={handleFilterChange}>
+            <select id="status" name="status" value={productFilters.status} onChange={handleFilterChange} onKeyDown={handleKeyDown}>
               <option value="">Wszystkie</option>
               {productStatuses.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -261,8 +320,8 @@ const App = () => {
           price: parseNum(row['RETAIL PRICE']),
           status: row['ITEM STATUS']?.trim() ?? '',
           promoDate: row['ADV DATE']?.trim() ?? '',
-          supplierId: row['SUPPLIE NR']?.trim() ?? '',
-          supplierName: row['SUPPLIE NAME']?.trim() ?? '',
+          supplierId: row['SUPPLIER NR']?.trim() ?? '',
+          supplierName: row['SUPPLIER NAME']?.trim() ?? '',
           stockOnHand: parseNum(row['STOCK ON HAND']),
           storeAllocationToday: parseNum(row['STORE ALLOC C']),
           storeAllocationTotal: parseNum(row['STORE ALLOC C <']),
