@@ -251,7 +251,7 @@ const App = () => {
 
       return {
           warehouseId: row['WH NR']?.trim() ?? '',
-          productId: row['ITEM NR SHOP']?.trim() ?? '',
+          productId: row['ITEM NR SHORT']?.trim() ?? '',
           fullProductId: row['ITEM NR FULL']?.trim() ?? '',
           name: row['ITEM DESC']?.trim() ?? '',
           caseSize: parseNum(row['CASE SIZE']),
