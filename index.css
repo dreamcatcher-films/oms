@@ -610,7 +610,7 @@ tr:hover {
     gap: 1.5rem;
 }
 
-.simulation-controls, .product-details-card, .simulation-results {
+.simulation-controls, .product-details-card, .simulation-results, .manual-delivery-section {
     background-color: white;
     padding: 1.5rem;
     border-radius: 8px;
@@ -665,11 +665,73 @@ tr:hover {
     border: 1px solid var(--border-color);
 }
 
+.kpi-card h4 {
+    height: 3em; /* Reserve space for 2 lines of text */
+}
+
 .kpi-card p {
     font-size: 1.75rem;
     font-weight: 600;
     color: var(--primary-color);
     margin: 0;
+}
+
+.kpi-card .kpi-input, .detail-item .detail-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-align: center;
+    box-sizing: border-box;
+    -moz-appearance: textfield;
+}
+
+.detail-item .detail-input {
+    font-size: 1rem;
+    text-align: left;
+    color: var(--text-color);
+}
+
+.kpi-card .kpi-input::-webkit-outer-spin-button,
+.kpi-card .kpi-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.sales-adjust-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.adjust-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.adjust-btn {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.7rem;
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+}
+.adjust-btn:hover {
+    background-color: var(--border-color);
+}
+
+.status-locked {
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
+.manual-delivery-section h4 {
+    margin-bottom: 1rem;
 }
 
 .initial-stock-composition {
@@ -704,6 +766,10 @@ tr:hover {
 .initial-stock-table th {
   background-color: #f8f9fa;
   font-weight: 700;
+}
+
+.non-compliant-row {
+    background-color: #fff1f0;
 }
 
 @keyframes spin {
