@@ -180,6 +180,7 @@
       "resaleDate": "Resale Date",
       "warehouseId": "Warehouse",
       "productId": "Product No.",
+      "productName": "Product Name",
       "quantity": "Quantity Sold"
     }
   }
