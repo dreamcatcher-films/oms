@@ -877,9 +877,55 @@ tr:hover {
     background-color: #f0f4f8;
 }
 
+/* Splash Screen */
+#splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  animation: fadeOutSplash 0.5s 1.5s forwards;
+}
+
+#splash-screen h1 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300; /* Light */
+  font-size: 8rem;
+  color: #333;
+  margin: 0;
+  animation: fadeInSlideUp 1.2s forwards cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOutSplash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden; /* Hide completely */
+  }
 }
 
 @media (max-width: 900px) {
@@ -923,5 +969,8 @@ tr:hover {
   .top-header, .main-content {
       padding-left: 1rem;
       padding-right: 1rem;
+  }
+  #splash-screen h1 {
+    font-size: 4rem;
   }
 }
