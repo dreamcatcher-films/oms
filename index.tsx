@@ -6,19 +6,24 @@ import {
   addProducts,
   addGoodsReceipts,
   addOpenOrders,
+  addSales,
   clearProducts,
   clearGoodsReceipts,
   clearOpenOrders,
+  clearSales,
   Product,
   GoodsReceipt,
   OpenOrder,
+  Sale,
   getProductsPaginatedAndFiltered,
   getGoodsReceiptsPaginatedAndFiltered,
   getOpenOrdersPaginatedAndFiltered,
+  getSalesPaginatedAndFiltered,
   getUniqueProductStatuses,
   getUniqueWarehouseIds,
   getUniqueWarehouseIdsForGoodsReceipts,
   getUniqueWarehouseIdsForOpenOrders,
+  getUniqueWarehouseIdsForSales,
   findProductsByPartialId,
   getImportMetadata,
   updateImportMetadata,
@@ -37,7 +42,7 @@ type Status = {
 };
 
 type View = 'import' | 'report' | 'dashboard' | 'simulations' | 'data-preview';
-type DataType = 'products' | 'goodsReceipts' | 'openOrders';
+type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales';
 
 
 const isDateToday = (someDate: Date) => {
@@ -48,7 +53,7 @@ const isDateToday = (someDate: Date) => {
 };
 
 const LanguageSelector = () => {
-    const { language, setLanguage, t } = useTranslation();
+    const { language, setLanguage } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
 
     const languages = [
@@ -88,7 +93,7 @@ const ImportView = ({
 }: {
     isLoading: boolean;
     importMetadata: ImportMetadata;
-    counts: { products: number; goodsReceipts: number; openOrders: number };
+    counts: { products: number; goodsReceipts: number; openOrders: number; sales: number };
     onFileSelect: (type: DataType, event: Event) => void;
     onClear: (type: DataType) => void;
 }) => {
@@ -105,27 +110,37 @@ const ImportView = ({
         key: DataType;
         titleKey: string;
         descriptionKey: string;
+        accept: string;
     }[] = [
         {
             key: 'products',
             titleKey: 'import.products.title',
             descriptionKey: 'import.products.description',
+            accept: '.csv',
         },
         {
             key: 'goodsReceipts',
             titleKey: 'import.goodsReceipts.title',
             descriptionKey: 'import.goodsReceipts.description',
+            accept: '.csv',
         },
         {
             key: 'openOrders',
             titleKey: 'import.openOrders.title',
             descriptionKey: 'import.openOrders.description',
+            accept: '.csv',
+        },
+        {
+            key: 'sales',
+            titleKey: 'import.sales.title',
+            descriptionKey: 'import.sales.description',
+            accept: '.csv,.txt',
         },
     ];
 
     return (
-        <div class="import-list-container">
-            {dataTypes.map(({ key, titleKey, descriptionKey }) => {
+        <div class="import-container">
+            {dataTypes.map(({ key, titleKey, descriptionKey, accept }) => {
                 const meta = importMetadata[key];
                 const count = counts[key];
                 const isUpdatedToday = meta && meta.lastImported ? isDateToday(meta.lastImported) : false;
@@ -155,7 +170,7 @@ const ImportView = ({
                             <label htmlFor={`${key}-file-input`} class={`file-label ${isLoading ? 'disabled' : ''}`}>
                                 {t('import.buttons.selectFile')}
                             </label>
-                            <input id={`${key}-file-input`} type="file" accept=".csv" onChange={(e) => onFileSelect(key, e)} disabled={isLoading} />
+                            <input id={`${key}-file-input`} type="file" accept={accept} onChange={(e) => onFileSelect(key, e)} disabled={isLoading} />
                             {count > 0 && <button onClick={() => onClear(key)} class="button-clear" disabled={isLoading}>{t('import.buttons.clear')}</button>}
                         </div>
                     </div>
@@ -168,10 +183,11 @@ const ImportView = ({
 
 const DataPreview = () => {
   const { t, language } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'products' | 'goodsReceipts' | 'openOrders'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'goodsReceipts' | 'openOrders' | 'sales'>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [goodsReceipts, setGoodsReceipts] = useState<GoodsReceipt[]>([]);
   const [openOrders, setOpenOrders] = useState<OpenOrder[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -185,10 +201,14 @@ const DataPreview = () => {
   const [openOrderFilters, setOpenOrderFilters] = useState({ warehouseId: '', productId: '' });
   const [appliedOpenOrderFilters, setAppliedOpenOrderFilters] = useState({ warehouseId: '', productId: '' });
 
+  const [salesFilters, setSalesFilters] = useState({ warehouseId: '', productId: '' });
+  const [appliedSalesFilters, setAppliedSalesFilters] = useState({ warehouseId: '', productId: '' });
+
   const [productStatuses, setProductStatuses] = useState<string[]>([]);
   const [productWarehouseIds, setProductWarehouseIds] = useState<string[]>([]);
   const [goodsReceiptsWarehouseIds, setGoodsReceiptsWarehouseIds] = useState<string[]>([]);
   const [openOrdersWarehouseIds, setOpenOrdersWarehouseIds] = useState<string[]>([]);
+  const [salesWarehouseIds, setSalesWarehouseIds] = useState<string[]>([]);
 
   const [productIdSuggestions, setProductIdSuggestions] = useState<Product[]>([]);
   const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
@@ -264,18 +284,27 @@ const DataPreview = () => {
         { key: 'deliveryLeadTime', labelKey: 'columns.openOrder.deliveryLeadTime' },
     ];
 
+    const SALES_COLUMNS: { key: keyof Sale, labelKey: string }[] = [
+        { key: 'resaleDate', labelKey: 'columns.sale.resaleDate' },
+        { key: 'warehouseId', labelKey: 'columns.sale.warehouseId' },
+        { key: 'productId', labelKey: 'columns.sale.productId' },
+        { key: 'quantity', labelKey: 'columns.sale.quantity' },
+    ];
+
 
   const fetchDropdownData = useCallback(async () => {
-    const [statuses, pWarehouses, grWarehouses, ooWarehouses] = await Promise.all([
+    const [statuses, pWarehouses, grWarehouses, ooWarehouses, sWarehouses] = await Promise.all([
       getUniqueProductStatuses(),
       getUniqueWarehouseIds(),
       getUniqueWarehouseIdsForGoodsReceipts(),
       getUniqueWarehouseIdsForOpenOrders(),
+      getUniqueWarehouseIdsForSales(),
     ]);
     setProductStatuses(statuses);
     setProductWarehouseIds(pWarehouses);
     setGoodsReceiptsWarehouseIds(grWarehouses);
     setOpenOrdersWarehouseIds(ooWarehouses);
+    setSalesWarehouseIds(sWarehouses);
   }, []);
   
   const fetchProducts = useCallback(async () => {
@@ -302,11 +331,19 @@ const DataPreview = () => {
     setIsLoading(false);
   }, [currentPage, appliedOpenOrderFilters]);
 
+  const fetchSales = useCallback(async () => {
+    setIsLoading(true);
+    const { data, total } = await getSalesPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedSalesFilters);
+    setSales(data);
+    setTotalItems(total);
+    setIsLoading(false);
+  }, [currentPage, appliedSalesFilters]);
+
   useEffect(() => {
     fetchDropdownData();
   }, [fetchDropdownData]);
   
-  const handleTabChange = (tab: 'products' | 'goodsReceipts' | 'openOrders') => {
+  const handleTabChange = (tab: 'products' | 'goodsReceipts' | 'openOrders' | 'sales') => {
       setCurrentPage(1);
       setActiveTab(tab);
   };
@@ -318,11 +355,13 @@ const DataPreview = () => {
       fetchGoodsReceipts();
     } else if (activeTab === 'openOrders') {
       fetchOpenOrders();
+    } else if (activeTab === 'sales') {
+        fetchSales();
     }
-  }, [currentPage, appliedProductFilters, appliedGoodsReceiptsFilters, appliedOpenOrderFilters, activeTab, fetchProducts, fetchGoodsReceipts, fetchOpenOrders]);
+  }, [currentPage, appliedProductFilters, appliedGoodsReceiptsFilters, appliedOpenOrderFilters, appliedSalesFilters, activeTab, fetchProducts, fetchGoodsReceipts, fetchOpenOrders, fetchSales]);
 
 
-  const handleFilterChange = (e: Event, type: 'products' | 'goodsReceipts' | 'openOrders') => {
+  const handleFilterChange = (e: Event, type: 'products' | 'goodsReceipts' | 'openOrders' | 'sales') => {
     const { name, value } = e.target as HTMLInputElement | HTMLSelectElement;
     switch (type) {
         case 'products':
@@ -333,6 +372,9 @@ const DataPreview = () => {
             break;
         case 'openOrders':
             setOpenOrderFilters(prev => ({ ...prev, [name]: value }));
+            break;
+        case 'sales':
+            setSalesFilters(prev => ({ ...prev, [name]: value }));
             break;
     }
   };
@@ -348,6 +390,9 @@ const DataPreview = () => {
               break;
           case 'openOrders':
               setOpenOrderFilters(prev => ({ ...prev, productId: value }));
+              break;
+          case 'sales':
+              setSalesFilters(prev => ({ ...prev, productId: value }));
               break;
       }
 
@@ -379,6 +424,9 @@ const DataPreview = () => {
         case 'openOrders':
             setOpenOrderFilters(prev => ({ ...prev, productId: product.productId }));
             break;
+        case 'sales':
+            setSalesFilters(prev => ({ ...prev, productId: product.productId }));
+            break;
     }
     setIsSuggestionsVisible(false);
   };
@@ -390,8 +438,10 @@ const DataPreview = () => {
         setAppliedProductFilters(productFilters);
     } else if (activeTab === 'goodsReceipts'){
         setAppliedGoodsReceiptsFilters(goodsReceiptsFilters);
-    } else {
+    } else if (activeTab === 'openOrders') {
         setAppliedOpenOrderFilters(openOrderFilters);
+    } else if (activeTab === 'sales') {
+        setAppliedSalesFilters(salesFilters);
     }
     setIsSuggestionsVisible(false);
   };
@@ -404,9 +454,12 @@ const DataPreview = () => {
     } else if (activeTab === 'goodsReceipts') {
         setGoodsReceiptsFilters({ warehouseId: '', productId: '' });
         setAppliedGoodsReceiptsFilters({ warehouseId: '', productId: '' });
-    } else {
+    } else if (activeTab === 'openOrders') {
         setOpenOrderFilters({ warehouseId: '', productId: '' });
         setAppliedOpenOrderFilters({ warehouseId: '', productId: '' });
+    } else if (activeTab === 'sales') {
+        setSalesFilters({ warehouseId: '', productId: '' });
+        setAppliedSalesFilters({ warehouseId: '', productId: '' });
     }
     setIsSuggestionsVisible(false);
   };
@@ -436,6 +489,7 @@ const DataPreview = () => {
         <button class={`tab ${activeTab === 'products' ? 'active' : ''}`} onClick={() => handleTabChange('products')}>{t('dataPreview.tabs.products')}</button>
         <button class={`tab ${activeTab === 'goodsReceipts' ? 'active' : ''}`} onClick={() => handleTabChange('goodsReceipts')}>{t('dataPreview.tabs.goodsReceipts')}</button>
         <button class={`tab ${activeTab === 'openOrders' ? 'active' : ''}`} onClick={() => handleTabChange('openOrders')}>{t('dataPreview.tabs.openOrders')}</button>
+        <button class={`tab ${activeTab === 'sales' ? 'active' : ''}`} onClick={() => handleTabChange('sales')}>{t('dataPreview.tabs.sales')}</button>
       </div>
 
       {activeTab === 'products' && (
@@ -631,6 +685,67 @@ const DataPreview = () => {
          </div>
          </>
       )}
+
+      {activeTab === 'sales' && (
+         <>
+         <div class="filter-bar">
+          <div class="filter-group">
+            <label for="s-warehouseId">{t('dataPreview.filters.warehouse')}</label>
+            <select id="s-warehouseId" name="warehouseId" value={salesFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'sales')} onKeyDown={handleKeyDown}>
+              <option value="">{t('dataPreview.filters.all')}</option>
+              {salesWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="s-productId">{t('dataPreview.filters.productId')}</label>
+            <input type="text" id="s-productId" name="productId" value={salesFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder={t('dataPreview.filters.productIdPlaceholder')} autocomplete="off"/>
+             {isSuggestionsVisible && productIdSuggestions.length > 0 && (
+              <ul class="suggestions-list">
+                {productIdSuggestions.map(p => (
+                  <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
+                    <strong>{p.productId}</strong> - {p.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div class="filter-actions">
+            <button onClick={applyFilters} class="button-primary">{t('dataPreview.filters.apply')}</button>
+            <button onClick={clearFilters} class="button-secondary">{t('dataPreview.filters.clear')}</button>
+          </div>
+        </div>
+         <div class="table-container">
+           {isLoading ? ( <div class="spinner-overlay"><div class="spinner"></div></div> ) : (
+             <table>
+               <thead>
+                 <tr>
+                   {SALES_COLUMNS.map(col => <th key={col.key}>{t(col.labelKey)}</th>)}
+                 </tr>
+               </thead>
+               <tbody>
+                 {sales.map(sale => (
+                   <tr key={`${sale.resaleDate}-${sale.warehouseId}-${sale.productId}`}>
+                     {SALES_COLUMNS.map(col => (
+                        <td key={col.key}>
+                          {String(sale[col.key] ?? '')}
+                        </td>
+                     ))}
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           )}
+         </div>
+ 
+         <div class="pagination">
+           <span>{totalItems.toLocaleString(language)} {t('dataPreview.pagination.records')}</span>
+           <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>{t('dataPreview.pagination.previous')}</button>
+           <span>{t('dataPreview.pagination.page', { currentPage, totalPages })}</span>
+           <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>{t('dataPreview.pagination.next')}</button>
+         </div>
+         </>
+      )}
+
     </div>
   );
 };
@@ -641,8 +756,8 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<Status>({ text: 'Inicjalizacja aplikacji...', type: 'info' });
   
-  const [counts, setCounts] = useState({ products: 0, goodsReceipts: 0, openOrders: 0 });
-  const [importMetadata, setImportMetadata] = useState<ImportMetadata>({ products: null, goodsReceipts: null, openOrders: null });
+  const [counts, setCounts] = useState({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0 });
+  const [importMetadata, setImportMetadata] = useState<ImportMetadata>({ products: null, goodsReceipts: null, openOrders: null, sales: null });
   
   const [currentView, setCurrentView] = useState<View>('import');
 
@@ -650,17 +765,17 @@ const App = () => {
     setIsLoading(true);
     setStatusMessage({ text: t('status.checkingDb'), type: 'info' });
     try {
-      const [{ productsCount, goodsReceiptsCount, openOrdersCount }, metadata] = await Promise.all([
+      const [{ productsCount, goodsReceiptsCount, openOrdersCount, salesCount }, metadata] = await Promise.all([
           checkDBStatus(),
           getImportMetadata()
       ]);
-      setCounts({ products: productsCount, goodsReceipts: goodsReceiptsCount, openOrders: openOrdersCount });
+      setCounts({ products: productsCount, goodsReceipts: goodsReceiptsCount, openOrders: openOrdersCount, sales: salesCount });
       setImportMetadata(metadata);
 
-      if (productsCount > 0 || goodsReceiptsCount > 0 || openOrdersCount > 0) {
+      if (productsCount > 0 || goodsReceiptsCount > 0 || openOrdersCount > 0 || salesCount > 0) {
         setStatusMessage({ text: t('status.dbOk'), type: 'success' });
       } else {
-        setStatusMessage({ text: t('status.dbEmpty'), type: 'info' });
+        setStatusMessage({ text: 'status.dbEmpty', type: 'info' });
       }
     } catch (error) {
       console.error("Failed to check DB status", error);
@@ -846,10 +961,32 @@ const App = () => {
         deliveryDateSortable: parseDateToSortableFormat(deliveryDateStr)
     };
   };
+  
+    const saleRowMapper = (row: string[]): Sale | null => {
+        if (row.length < 6) return null;
+        
+        const resaleDate = row[0]?.trim() ?? '';
+        const warehouseId = row[1]?.trim() ?? '';
+        const productId = row[3]?.trim() ?? '';
+        const quantityStr = row[5]?.trim()?.replace(/,/g, '') ?? '0';
+        const quantity = parseFloat(quantityStr);
 
-  const handleFileParse = (
+        if (!resaleDate || !warehouseId || !productId || isNaN(quantity)) {
+            return null;
+        }
+
+        return {
+            resaleDate,
+            warehouseId,
+            productId,
+            quantity,
+            resaleDateSortable: parseDateToSortableFormat(resaleDate),
+        };
+    };
+
+  const handleComplexFileParse = (
     file: File,
-    dataType: DataType,
+    dataType: 'products' | 'goodsReceipts' | 'openOrders',
     dataTypeName: string,
     clearDbFn: () => Promise<void>,
     addDbFn: (batch: any[]) => Promise<void>,
@@ -883,7 +1020,7 @@ const App = () => {
           if (batch.length > 0) {
             await addDbFn(batch);
             processedCount += batch.length;
-            setCounts(prev => ({ ...prev, [dataType]: prev[dataType] + batch.length }));
+            setCounts(prev => ({ ...prev, [dataType]: (prev[dataType] || 0) + batch.length }));
             batch = [];
           }
         };
@@ -945,6 +1082,83 @@ const App = () => {
         });
       })();
   };
+
+  const handleSalesFileParse = (file: File) => {
+      const dataTypeName = t('dataType.sales');
+      setIsLoading(true);
+      setStatusMessage({ text: t('status.import.preparing', { dataTypeName }), type: 'info', progress: 0 });
+
+      (async () => {
+          try {
+              await clearSales();
+              setCounts(prev => ({ ...prev, sales: 0 }));
+              setImportMetadata(prev => ({ ...prev, sales: null }));
+          } catch (error) {
+              console.error(`Error clearing database for ${dataTypeName}.`, error);
+              setStatusMessage({ text: t('status.import.clearError'), type: 'error' });
+              setIsLoading(false);
+              return;
+          }
+
+          let batch: Sale[] = [];
+          let processedCount = 0;
+          let isFirstChunk = true;
+
+          const processBatch = async () => {
+              if (batch.length > 0) {
+                  await addSales(batch);
+                  processedCount += batch.length;
+                  setCounts(prev => ({ ...prev, sales: (prev.sales || 0) + batch.length }));
+                  batch = [];
+              }
+          };
+
+          Papa.parse(file, {
+              worker: false,
+              skipEmptyLines: true,
+              chunk: async (results, parser) => {
+                  parser.pause();
+                  
+                  let rows = results.data as string[][];
+                  if (isFirstChunk) {
+                      rows.shift(); // Skip header row
+                      isFirstChunk = false;
+                  }
+
+                  for (const row of rows) {
+                      const mappedRow = saleRowMapper(row as string[]);
+                      if (mappedRow) {
+                          batch.push(mappedRow);
+                      }
+                      if (batch.length >= BATCH_SIZE) {
+                          await processBatch();
+                      }
+                  }
+
+                  const progress = file ? (results.meta.cursor / file.size) * 100 : 0;
+                  setStatusMessage({
+                      text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }),
+                      type: 'info',
+                      progress: progress,
+                  });
+
+                  parser.resume();
+              },
+              complete: async () => {
+                  await processBatch();
+                  await updateImportMetadata('sales');
+                  setImportMetadata(prev => ({ ...prev, sales: { dataType: 'sales', lastImported: new Date() } }));
+                  setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
+                  setIsLoading(false);
+              },
+              error: (error) => {
+                  console.error("PapaParse error:", error);
+                  setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
+                  setIsLoading(false);
+              }
+          });
+      })();
+  };
   
   const handleFileSelect = (dataType: DataType, event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
@@ -953,13 +1167,16 @@ const App = () => {
     
     switch (dataType) {
         case 'products':
-            handleFileParse(file, 'products', t('dataType.products'), clearProducts, addProducts, productRowMapper);
+            handleComplexFileParse(file, 'products', t('dataType.products'), clearProducts, addProducts, productRowMapper);
             break;
         case 'goodsReceipts':
-            handleFileParse(file, 'goodsReceipts', t('dataType.goodsReceipts'), clearGoodsReceipts, addGoodsReceipts, goodsReceiptRowMapper);
+            handleComplexFileParse(file, 'goodsReceipts', t('dataType.goodsReceipts'), clearGoodsReceipts, addGoodsReceipts, goodsReceiptRowMapper);
             break;
         case 'openOrders':
-            handleFileParse(file, 'openOrders', t('dataType.openOrders'), clearOpenOrders, addOpenOrders, openOrderRowMapper);
+            handleComplexFileParse(file, 'openOrders', t('dataType.openOrders'), clearOpenOrders, addOpenOrders, openOrderRowMapper);
+            break;
+        case 'sales':
+            handleSalesFileParse(file);
             break;
     }
   };
@@ -973,6 +1190,7 @@ const App = () => {
         case 'products': clearFn = clearProducts; break;
         case 'goodsReceipts': clearFn = clearGoodsReceipts; break;
         case 'openOrders': clearFn = clearOpenOrders; break;
+        case 'sales': clearFn = clearSales; break;
     }
 
     setStatusMessage({ text: t('status.clear.clearing', { dataTypeName }), type: 'info' });
@@ -994,8 +1212,8 @@ const App = () => {
     setStatusMessage({ text: t('status.clear.clearingAll'), type: 'info' });
     try {
       await clearAllData();
-      setCounts({ products: 0, goodsReceipts: 0, openOrders: 0 });
-      setImportMetadata({ products: null, goodsReceipts: null, openOrders: null });
+      setCounts({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0 });
+      setImportMetadata({ products: null, goodsReceipts: null, openOrders: null, sales: null });
       setStatusMessage({ text: t('status.clear.clearedAll'), type: 'success' });
     } catch (error) {
       console.error("Failed to clear DB", error);
@@ -1045,7 +1263,7 @@ const App = () => {
     }
   };
 
-  const hasAnyData = counts.products > 0 || counts.goodsReceipts > 0 || counts.openOrders > 0;
+  const hasAnyData = counts.products > 0 || counts.goodsReceipts > 0 || counts.openOrders > 0 || counts.sales > 0;
   const canAnalyze = counts.products > 0 && counts.goodsReceipts > 0;
 
   return (
