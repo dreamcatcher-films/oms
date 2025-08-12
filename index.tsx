@@ -763,6 +763,14 @@ const SimulationView = () => {
     const [warehouseIds, setWarehouseIds] = useState<string[]>([]);
     const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
     const [isSimulating, setIsSimulating] = useState(false);
+    
+    // State for user overrides
+    const [overrideWDate, setOverrideWDate] = useState('');
+    const [overrideSDate, setOverrideSDate] = useState('');
+    const [overrideCDate, setOverrideCDate] = useState('');
+    const [overrideAvgSales, setOverrideAvgSales] = useState('');
+    const [manualDelivery, setManualDelivery] = useState({ date: '', quantity: '' });
+
     const debounceTimeoutRef = useRef<number | null>(null);
     const workerRef = useRef<Worker | null>(null);
 
@@ -772,6 +780,15 @@ const SimulationView = () => {
         workerRef.current.onmessage = (event: MessageEvent<SimulationResult>) => {
             setSimulationResult(event.data);
             setIsSimulating(false);
+            
+            // Pre-fill override and manual delivery states after first run
+            setOverrideAvgSales(event.data.avgDailySales.toFixed(2));
+            const lastReceipt = event.data.initialStockComposition
+                .filter(b => !b.isUnknown)
+                .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))[0];
+            if (lastReceipt) {
+                setManualDelivery({ date: lastReceipt.deliveryDate, quantity: '' });
+            }
         };
 
         return () => {
@@ -785,6 +802,14 @@ const SimulationView = () => {
             setWarehouseIds(ids);
         })();
     }, []);
+
+    useEffect(() => {
+        if (selectedProduct) {
+            setOverrideWDate(String(selectedProduct.shelfLifeAtReceiving));
+            setOverrideSDate(String(selectedProduct.shelfLifeAtStore));
+            setOverrideCDate(String(selectedProduct.customerShelfLife));
+        }
+    }, [selectedProduct]);
 
     const handleProductIdChange = (e: Event) => {
         const value = (e.target as HTMLInputElement).value;
@@ -823,15 +848,42 @@ const SimulationView = () => {
         setSimulationResult(null);
         workerRef.current.postMessage({
             warehouseId: selectedProduct.warehouseId,
-            fullProductId: selectedProduct.fullProductId
+            fullProductId: selectedProduct.fullProductId,
+            overrides: {
+                wDate: overrideWDate !== '' ? parseFloat(overrideWDate) : undefined,
+                sDate: overrideSDate !== '' ? parseFloat(overrideSDate) : undefined,
+                cDate: overrideCDate !== '' ? parseFloat(overrideCDate) : undefined,
+                avgDailySales: overrideAvgSales !== '' ? parseFloat(overrideAvgSales) : undefined,
+            },
+            manualDelivery: {
+                date: manualDelivery.date,
+                quantity: manualDelivery.quantity !== '' ? parseFloat(manualDelivery.quantity) : 0,
+            }
         });
     };
+    
+    const adjustSales = (percentage: number) => {
+        const currentSales = parseFloat(overrideAvgSales);
+        if (!isNaN(currentSales)) {
+            const newSales = currentSales * (1 + percentage);
+            setOverrideAvgSales(newSales.toFixed(2));
+        }
+    };
 
-    const renderDetail = (labelKey: string, value: string | number | undefined) => {
+    const renderDetail = (labelKey: string, value: any, isEditable: boolean = false, overrideValue?: string, onOverrideChange?: (val: string) => void) => {
         return (
             <div class="detail-item">
                 <span class="detail-label">{t(labelKey)}</span>
-                <span class="detail-value">{value ?? 'N/A'}</span>
+                {isEditable ? (
+                    <input 
+                        type="number" 
+                        value={overrideValue} 
+                        onInput={(e) => onOverrideChange?.((e.target as HTMLInputElement).value)}
+                        class="detail-input"
+                    />
+                ) : (
+                    <span class="detail-value">{value ?? 'N/A'}</span>
+                )}
             </div>
         )
     };
@@ -879,9 +931,35 @@ const SimulationView = () => {
                             </ul>
                         )}
                     </div>
-                    <div class="filter-actions">
-                         <button onClick={handleRunSimulation} disabled={!selectedProduct || isSimulating} class="button-primary">{t('simulations.controls.run')}</button>
-                    </div>
+                </div>
+                {selectedProduct && (
+                <div class="manual-delivery-section">
+                    <h4>{t('simulations.manualDelivery.title')}</h4>
+                     <div class="filter-bar">
+                        <div class="filter-group">
+                            <label htmlFor="manual-delivery-date">{t('simulations.manualDelivery.date')}</label>
+                            <input 
+                                type="date" 
+                                id="manual-delivery-date" 
+                                value={manualDelivery.date}
+                                onInput={(e) => setManualDelivery(prev => ({...prev, date: (e.target as HTMLInputElement).value}))}
+                            />
+                        </div>
+                        <div class="filter-group">
+                             <label htmlFor="manual-delivery-qty">{t('simulations.manualDelivery.quantity')}</label>
+                             <input 
+                                type="number" 
+                                id="manual-delivery-qty" 
+                                value={manualDelivery.quantity}
+                                onInput={(e) => setManualDelivery(prev => ({...prev, quantity: (e.target as HTMLInputElement).value}))}
+                                placeholder="0"
+                            />
+                        </div>
+                     </div>
+                </div>
+                )}
+                 <div class="filter-actions" style={{ marginTop: '1rem' }}>
+                    <button onClick={handleRunSimulation} disabled={!selectedProduct || isSimulating} class="button-primary">{t('simulations.controls.run')}</button>
                 </div>
             </div>
 
@@ -901,11 +979,16 @@ const SimulationView = () => {
                         {renderDetail('columns.product.name', selectedProduct.name)}
                         {renderDetail('columns.product.caseSize', selectedProduct.caseSize)}
                         {renderDetail('columns.product.cartonsPerPallet', selectedProduct.cartonsPerPallet)}
-                        {renderDetail('columns.product.shelfLifeAtReceiving', `${selectedProduct.shelfLifeAtReceiving} ${t('simulations.details.days')}`)}
-                        {renderDetail('columns.product.shelfLifeAtStore', `${selectedProduct.shelfLifeAtStore} ${t('simulations.details.days')}`)}
-                        {renderDetail('columns.product.customerShelfLife', `${selectedProduct.customerShelfLife} ${t('simulations.details.days')}`)}
+                        {renderDetail('columns.product.shelfLifeAtReceiving', `${selectedProduct.shelfLifeAtReceiving} ${t('simulations.details.days')}`, true, overrideWDate, setOverrideWDate)}
+                        {renderDetail('columns.product.shelfLifeAtStore', `${selectedProduct.shelfLifeAtStore} ${t('simulations.details.days')}`, true, overrideSDate, setOverrideSDate)}
+                        {renderDetail('columns.product.customerShelfLife', `${selectedProduct.customerShelfLife} ${t('simulations.details.days')}`, true, overrideCDate, setOverrideCDate)}
                         {renderDetail('columns.product.price', formatCurrency(selectedProduct.price))}
-                        {renderDetail('columns.product.status', `${selectedProduct.status} (${t('simulations.details.locked')}: ${selectedProduct.itemLocked})`)}
+                        {renderDetail('columns.product.status', 
+                            <span>
+                                {selectedProduct.status}
+                                {selectedProduct.itemLocked && <span class="status-locked"> ({t('simulations.details.locked')}: {selectedProduct.itemLocked})</span>}
+                            </span>
+                        )}
                         {renderDetail('columns.product.supplierId', selectedProduct.supplierId)}
                         {renderDetail('columns.product.supplierName', selectedProduct.supplierName)}
                     </div>
@@ -926,7 +1009,18 @@ const SimulationView = () => {
                         </div>
                          <div class="kpi-card">
                             <h4>{t('simulations.kpi.avgDailySales')}</h4>
-                            <p>{simulationResult.avgDailySales.toFixed(2)}</p>
+                            <div class="sales-adjust-controls">
+                               <input 
+                                 type="number" 
+                                 value={overrideAvgSales}
+                                 onInput={(e) => setOverrideAvgSales((e.target as HTMLInputElement).value)}
+                                 class="kpi-input"
+                                />
+                               <div class="adjust-buttons">
+                                <button class="adjust-btn" onClick={() => adjustSales(0.10)} title={t('simulations.kpi.salesAdjustUp')}>+10%</button>
+                                <button class="adjust-btn" onClick={() => adjustSales(-0.10)} title={t('simulations.kpi.salesAdjustDown')}>-10%</button>
+                               </div>
+                            </div>
                         </div>
                         <div class="kpi-card">
                             <h4>{t('simulations.kpi.nonCompliantReceipts')}</h4>
