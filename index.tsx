@@ -933,6 +933,35 @@ const SimulationView = () => {
                             <p>{simulationResult.firstWriteOffDate || t('simulations.results.none')}</p>
                         </div>
                     </div>
+
+                    <div class="initial-stock-composition">
+                        <h4>{t('simulations.initialStock.title')}</h4>
+                        {!simulationResult.isStockDataComplete && (
+                            <p class="data-completeness-warning">
+                                {t('simulations.initialStock.warning')}
+                            </p>
+                        )}
+                        <div class="table-container">
+                            <table class="initial-stock-table">
+                                <thead>
+                                    <tr>
+                                        <th>{t('simulations.initialStock.deliveryDate')}</th>
+                                        <th>{t('simulations.initialStock.bestBeforeDate')}</th>
+                                        <th>{t('simulations.initialStock.quantity')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {simulationResult.initialStockComposition.map(batch => (
+                                        <tr key={batch.deliveryDate}>
+                                            <td>{batch.isUnknown ? t('simulations.initialStock.unknownBatch') : batch.deliveryDate}</td>
+                                            <td>{batch.bestBeforeDate}</td>
+                                            <td>{batch.quantity.toLocaleString(language)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                     
                     <h4>{t('simulations.log.title')}</h4>
                     <div class="table-container">
@@ -1185,18 +1214,29 @@ const App = () => {
   };
   
   const saleRowMapper = (row: string[]): Sale | null => {
-      if (row.length < 6) return null;
+      if (row.length < 5) return null; // Adjusted for new logic
       
       const resaleDate = row[0]?.trim() ?? '';
       const warehouseId = row[1]?.trim() ?? '';
       // row[2] is warehouse name, we skip it
       const productId = row[3]?.trim() ?? '';
-      const productName = row[4]?.trim() ?? '';
       
-      const quantityRaw = row[5]?.replace(/"/g, '').replace(/,/g, '') ?? '0';
+      // All remaining parts are joined to form the name and quantity
+      const remainingParts = row.slice(4);
+      const combinedRemaining = remainingParts.join(';');
+      
+      const lastSemicolonIndex = combinedRemaining.lastIndexOf(';');
+      if(lastSemicolonIndex === -1) return null; // No separator for quantity
+
+      const productName = combinedRemaining.substring(0, lastSemicolonIndex).trim();
+      const quantityRaw = combinedRemaining.substring(lastSemicolonIndex + 1)
+          .replace(/"/g, '')
+          .replace(/,/g, '')
+          .trim();
+
       const quantity = parseFloat(quantityRaw);
 
-      if (!resaleDate || !warehouseId || !productId || isNaN(quantity)) {
+      if (!resaleDate || !warehouseId || !productId || !productName || isNaN(quantity)) {
           return null;
       }
 
