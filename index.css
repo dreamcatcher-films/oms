@@ -9,6 +9,7 @@
   --danger-hover-color: #c0392b;
   --success-color: #2ecc71;
   --info-color: #3498db;
+  --warning-color: #f39c12;
   --font-family-main: 'Inter', sans-serif;
   --font-family-data: 'Source Sans 3', sans-serif;
   --header-height: 64px;
@@ -875,6 +876,97 @@ tr:hover {
 }
 .log-toggle-button:hover {
     background-color: #f0f4f8;
+}
+
+/* Stock Chart Styles */
+.stock-chart-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 2rem;
+}
+
+.stock-chart-svg {
+    width: 100%;
+    height: auto;
+    font-family: var(--font-family-main);
+}
+
+.stock-chart-svg .axis-line {
+    stroke: var(--border-color);
+    stroke-width: 1;
+}
+
+.stock-chart-svg .axis-text {
+    font-size: 0.75rem;
+    fill: var(--text-light-color);
+}
+
+.stock-chart-svg .stock-line {
+    fill: none;
+    stroke: var(--primary-color);
+    stroke-width: 2;
+}
+
+.stock-chart-svg .data-point-receipt {
+    fill: var(--success-color);
+    stroke: white;
+    stroke-width: 2;
+}
+
+.stock-chart-svg .data-point-write-off {
+    stroke: var(--danger-color);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+}
+
+.stock-chart-svg .data-point-stockout {
+    fill: var(--warning-color);
+    stroke: white;
+    stroke-width: 2;
+}
+
+.stock-chart-svg .hover-area {
+    fill: transparent;
+    cursor: crosshair;
+}
+
+.chart-tooltip {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    opacity: 0;
+    transform: translate(-50%, -110%);
+    white-space: nowrap;
+    z-index: 20;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.chart-tooltip.visible {
+    opacity: 1;
+}
+
+.tooltip-title {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+.tooltip-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 0.75rem;
+}
+.tooltip-grid span:nth-child(odd) {
+    font-weight: 500;
+    color: #ccc;
+}
+.tooltip-grid span:nth-child(even) {
+    font-weight: bold;
+    text-align: right;
 }
 
 /* Splash Screen */
