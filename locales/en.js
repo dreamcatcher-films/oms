@@ -169,7 +169,9 @@ export default {
         "resetDefaults": "Reset to Defaults",
         "showMore": "Show More",
         "showLess": "Show Less",
-        "rerun": "Rerun Simulation"
+        "rerun": "Rerun Simulation",
+        "showChart": "Show Chart",
+        "hideChart": "Hide Chart"
     }
   },
   "common": {
