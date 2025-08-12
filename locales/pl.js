@@ -161,6 +161,9 @@ export default {
       "stockEnd": "Stan Końcowy",
       "notes": "Notatki"
     },
+    "chart": {
+      "title": "Prognoza Stanu Magazynowego (14 dni)"
+    },
     "buttons": {
         "add": "Dodaj",
         "resetDefaults": "Resetuj",
