@@ -14,7 +14,7 @@ type TooltipData = {
 };
 
 const PADDING = { top: 20, right: 20, bottom: 40, left: 60 };
-const SVG_HEIGHT = 300;
+const SVG_HEIGHT = 250;
 const SVG_WIDTH = 800; // Will be scaled by CSS
 
 export const StockChart = ({ data }: StockChartProps) => {
