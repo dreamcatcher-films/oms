@@ -753,6 +753,12 @@ const DataPreview = () => {
   );
 };
 
+type ManualDelivery = {
+    date: string;
+    quantity: number;
+    id: number;
+};
+
 const SimulationView = () => {
     const { t, language } = useTranslation();
     const [warehouseId, setWarehouseId] = useState('');
@@ -769,7 +775,12 @@ const SimulationView = () => {
     const [overrideSDate, setOverrideSDate] = useState('');
     const [overrideCDate, setOverrideCDate] = useState('');
     const [overrideAvgSales, setOverrideAvgSales] = useState('');
-    const [manualDelivery, setManualDelivery] = useState({ date: '', quantity: '' });
+
+    const [newDelivery, setNewDelivery] = useState({ date: '', quantity: '' });
+    const [manualDeliveries, setManualDeliveries] = useState<ManualDelivery[]>([]);
+
+    const [isDirty, setIsDirty] = useState(false);
+    const [isLogExpanded, setIsLogExpanded] = useState(false);
 
     const debounceTimeoutRef = useRef<number | null>(null);
     const workerRef = useRef<Worker | null>(null);
@@ -781,14 +792,14 @@ const SimulationView = () => {
             setSimulationResult(event.data);
             setIsSimulating(false);
             
-            // Pre-fill override and manual delivery states after first run
             setOverrideAvgSales(event.data.avgDailySales.toFixed(2));
             const lastReceipt = event.data.initialStockComposition
                 .filter(b => !b.isUnknown)
                 .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))[0];
             if (lastReceipt) {
-                setManualDelivery({ date: lastReceipt.deliveryDate, quantity: '' });
+                setNewDelivery({ date: lastReceipt.deliveryDate, quantity: '' });
             }
+            setIsDirty(false); // Reset dirty state after simulation
         };
 
         return () => {
@@ -803,13 +814,28 @@ const SimulationView = () => {
         })();
     }, []);
 
+    const resetOverrides = useCallback((product: Product | null) => {
+        if (product) {
+            setOverrideWDate(String(product.shelfLifeAtReceiving));
+            setOverrideSDate(String(product.shelfLifeAtStore));
+            setOverrideCDate(String(product.customerShelfLife));
+        } else {
+            setOverrideWDate('');
+            setOverrideSDate('');
+            setOverrideCDate('');
+        }
+        setOverrideAvgSales(simulationResult?.avgDailySales.toFixed(2) ?? '');
+        setManualDeliveries([]);
+        setNewDelivery({ date: '', quantity: '' });
+        setIsDirty(false);
+    }, [simulationResult]);
+
+
     useEffect(() => {
         if (selectedProduct) {
-            setOverrideWDate(String(selectedProduct.shelfLifeAtReceiving));
-            setOverrideSDate(String(selectedProduct.shelfLifeAtStore));
-            setOverrideCDate(String(selectedProduct.customerShelfLife));
+            resetOverrides(selectedProduct);
         }
-    }, [selectedProduct]);
+    }, [selectedProduct, resetOverrides]);
 
     const handleProductIdChange = (e: Event) => {
         const value = (e.target as HTMLInputElement).value;
@@ -840,12 +866,13 @@ const SimulationView = () => {
         setIsSuggestionsVisible(false);
         const fullProductDetails = await getProductDetails(product.warehouseId, product.fullProductId);
         setSelectedProduct(fullProductDetails);
+        setSimulationResult(null); // Clear previous results
     };
 
     const handleRunSimulation = () => {
         if (!selectedProduct || !workerRef.current) return;
         setIsSimulating(true);
-        setSimulationResult(null);
+        
         workerRef.current.postMessage({
             warehouseId: selectedProduct.warehouseId,
             fullProductId: selectedProduct.fullProductId,
@@ -855,35 +882,42 @@ const SimulationView = () => {
                 cDate: overrideCDate !== '' ? parseFloat(overrideCDate) : undefined,
                 avgDailySales: overrideAvgSales !== '' ? parseFloat(overrideAvgSales) : undefined,
             },
-            manualDelivery: {
-                date: manualDelivery.date,
-                quantity: manualDelivery.quantity !== '' ? parseFloat(manualDelivery.quantity) : 0,
-            }
+            manualDeliveries: manualDeliveries.map(({ id, ...rest }) => rest)
         });
     };
+    
+    const handleAddManualDelivery = () => {
+        if (newDelivery.date && newDelivery.quantity) {
+            setManualDeliveries(prev => [...prev, { ...newDelivery, quantity: parseFloat(newDelivery.quantity), id: Date.now() }]);
+            setNewDelivery({ date: newDelivery.date, quantity: '' }); // Keep date, clear quantity
+            setIsDirty(true);
+        }
+    };
+    
+    const handleRemoveManualDelivery = (id: number) => {
+        setManualDeliveries(prev => prev.filter(d => d.id !== id));
+        setIsDirty(true);
+    };
+
+    const handleOverrideChange = (setter: (val: string) => void, value: string) => {
+        setter(value);
+        setIsDirty(true);
+    }
     
     const adjustSales = (percentage: number) => {
         const currentSales = parseFloat(overrideAvgSales);
         if (!isNaN(currentSales)) {
             const newSales = currentSales * (1 + percentage);
             setOverrideAvgSales(newSales.toFixed(2));
+            setIsDirty(true);
         }
     };
 
-    const renderDetail = (labelKey: string, value: any, isEditable: boolean = false, overrideValue?: string, onOverrideChange?: (val: string) => void) => {
+    const renderDetail = (labelKey: string, value: any) => {
         return (
             <div class="detail-item">
                 <span class="detail-label">{t(labelKey)}</span>
-                {isEditable ? (
-                    <input 
-                        type="number" 
-                        value={overrideValue} 
-                        onInput={(e) => onOverrideChange?.((e.target as HTMLInputElement).value)}
-                        class="detail-input"
-                    />
-                ) : (
-                    <span class="detail-value">{value ?? 'N/A'}</span>
-                )}
+                <span class="detail-value">{value ?? 'N/A'}</span>
             </div>
         )
     };
@@ -895,7 +929,10 @@ const SimulationView = () => {
     return (
         <div class="simulation-view-container">
             <div class="simulation-controls">
-                <h2>{t('simulations.controls.title')}</h2>
+                <div class="simulation-controls-header">
+                    <h2>{t('simulations.controls.title')}</h2>
+                    {selectedProduct && <button class="button-secondary reset-button" onClick={() => resetOverrides(selectedProduct)}>{t('simulations.buttons.resetDefaults')}</button>}
+                </div>
                 <div class="filter-bar">
                     <div class="filter-group">
                         <label htmlFor="sim-warehouseId">{t('simulations.controls.warehouse')}</label>
@@ -903,6 +940,7 @@ const SimulationView = () => {
                             setWarehouseId((e.target as HTMLSelectElement).value);
                             setSelectedProduct(null);
                             setProductId('');
+                            setSimulationResult(null);
                         }}>
                             <option value="">{t('simulations.controls.selectWarehouse')}</option>
                             {warehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
@@ -931,35 +969,9 @@ const SimulationView = () => {
                             </ul>
                         )}
                     </div>
-                </div>
-                {selectedProduct && (
-                <div class="manual-delivery-section">
-                    <h4>{t('simulations.manualDelivery.title')}</h4>
-                     <div class="filter-bar">
-                        <div class="filter-group">
-                            <label htmlFor="manual-delivery-date">{t('simulations.manualDelivery.date')}</label>
-                            <input 
-                                type="date" 
-                                id="manual-delivery-date" 
-                                value={manualDelivery.date}
-                                onInput={(e) => setManualDelivery(prev => ({...prev, date: (e.target as HTMLInputElement).value}))}
-                            />
-                        </div>
-                        <div class="filter-group">
-                             <label htmlFor="manual-delivery-qty">{t('simulations.manualDelivery.quantity')}</label>
-                             <input 
-                                type="number" 
-                                id="manual-delivery-qty" 
-                                value={manualDelivery.quantity}
-                                onInput={(e) => setManualDelivery(prev => ({...prev, quantity: (e.target as HTMLInputElement).value}))}
-                                placeholder="0"
-                            />
-                        </div>
-                     </div>
-                </div>
-                )}
-                 <div class="filter-actions" style={{ marginTop: '1rem' }}>
-                    <button onClick={handleRunSimulation} disabled={!selectedProduct || isSimulating} class="button-primary">{t('simulations.controls.run')}</button>
+                     <div class="filter-actions">
+                        <button onClick={handleRunSimulation} disabled={!selectedProduct || isSimulating} class={`button-primary ${isDirty ? 'dirty' : ''}`}>{isDirty ? t('simulations.controls.rerun') : t('simulations.controls.run')}</button>
+                    </div>
                 </div>
             </div>
 
@@ -971,6 +983,7 @@ const SimulationView = () => {
             )}
 
             {selectedProduct && !isSimulating && (
+                <>
                  <div class="product-details-card">
                     <h3>{t('simulations.details.title')}</h3>
                     <div class="details-grid">
@@ -979,9 +992,6 @@ const SimulationView = () => {
                         {renderDetail('columns.product.name', selectedProduct.name)}
                         {renderDetail('columns.product.caseSize', selectedProduct.caseSize)}
                         {renderDetail('columns.product.cartonsPerPallet', selectedProduct.cartonsPerPallet)}
-                        {renderDetail('columns.product.shelfLifeAtReceiving', `${selectedProduct.shelfLifeAtReceiving} ${t('simulations.details.days')}`, true, overrideWDate, setOverrideWDate)}
-                        {renderDetail('columns.product.shelfLifeAtStore', `${selectedProduct.shelfLifeAtStore} ${t('simulations.details.days')}`, true, overrideSDate, setOverrideSDate)}
-                        {renderDetail('columns.product.customerShelfLife', `${selectedProduct.customerShelfLife} ${t('simulations.details.days')}`, true, overrideCDate, setOverrideCDate)}
                         {renderDetail('columns.product.price', formatCurrency(selectedProduct.price))}
                         {renderDetail('columns.product.status', 
                             <span>
@@ -993,6 +1003,25 @@ const SimulationView = () => {
                         {renderDetail('columns.product.supplierName', selectedProduct.supplierName)}
                     </div>
                 </div>
+
+                <div class="simulation-overrides-card">
+                    <h3>{t('simulations.overrides.title')}</h3>
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <label class="detail-label" htmlFor="wdate-override">{t('columns.product.shelfLifeAtReceiving')}</label>
+                            <input id="wdate-override" type="number" value={overrideWDate} onInput={(e) => handleOverrideChange(setOverrideWDate, (e.target as HTMLInputElement).value)} class="detail-input"/>
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label" htmlFor="sdate-override">{t('columns.product.shelfLifeAtStore')}</label>
+                            <input id="sdate-override" type="number" value={overrideSDate} onInput={(e) => handleOverrideChange(setOverrideSDate, (e.target as HTMLInputElement).value)} class="detail-input"/>
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label" htmlFor="cdate-override">{t('columns.product.customerShelfLife')}</label>
+                            <input id="cdate-override" type="number" value={overrideCDate} onInput={(e) => handleOverrideChange(setOverrideCDate, (e.target as HTMLInputElement).value)} class="detail-input"/>
+                        </div>
+                    </div>
+                </div>
+                </>
             )}
             
             {simulationResult && !isSimulating && (
@@ -1013,7 +1042,7 @@ const SimulationView = () => {
                                <input 
                                  type="number" 
                                  value={overrideAvgSales}
-                                 onInput={(e) => setOverrideAvgSales((e.target as HTMLInputElement).value)}
+                                 onInput={(e) => handleOverrideChange(setOverrideAvgSales, (e.target as HTMLInputElement).value)}
                                  class="kpi-input"
                                 />
                                <div class="adjust-buttons">
@@ -1021,6 +1050,9 @@ const SimulationView = () => {
                                 <button class="adjust-btn" onClick={() => adjustSales(-0.10)} title={t('simulations.kpi.salesAdjustDown')}>-10%</button>
                                </div>
                             </div>
+                            <span class="sales-reset-value" onClick={() => { setOverrideAvgSales(simulationResult.avgDailySales.toFixed(2)); setIsDirty(true);}} title={t('simulations.kpi.salesResetTooltip')}>
+                                {t('simulations.kpi.original')}: {simulationResult.avgDailySales.toFixed(2)}
+                            </span>
                         </div>
                         <div class="kpi-card">
                             <h4>{t('simulations.kpi.nonCompliantReceipts')}</h4>
@@ -1052,7 +1084,7 @@ const SimulationView = () => {
                                 </thead>
                                 <tbody>
                                     {simulationResult.initialStockComposition.map((batch: InitialStockBatch) => (
-                                        <tr key={batch.deliveryDate + batch.bestBeforeDate} class={batch.isNonCompliant ? 'non-compliant-row' : ''}>
+                                        <tr key={batch.deliveryDate + batch.bestBeforeDate} class={`${batch.isNonCompliant ? 'non-compliant-row' : ''} ${batch.isAffectedByWriteOff ? 'batch-risk-row' : ''}`}>
                                             <td>{batch.isUnknown ? t('simulations.initialStock.unknownBatch') : batch.deliveryDate}</td>
                                             <td>{batch.bestBeforeDate}</td>
                                             <td>{batch.daysToSell}</td>
@@ -1063,6 +1095,47 @@ const SimulationView = () => {
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+
+                    <div class="manual-delivery-section">
+                        <h4>{t('simulations.manualDelivery.title')}</h4>
+                         <div class="filter-bar">
+                            <div class="filter-group">
+                                <label htmlFor="manual-delivery-date">{t('simulations.manualDelivery.date')}</label>
+                                <input 
+                                    type="date" 
+                                    id="manual-delivery-date" 
+                                    value={newDelivery.date}
+                                    onInput={(e) => setNewDelivery(prev => ({...prev, date: (e.target as HTMLInputElement).value}))}
+                                />
+                            </div>
+                            <div class="filter-group">
+                                 <label htmlFor="manual-delivery-qty">{t('simulations.manualDelivery.quantity')}</label>
+                                 <input 
+                                    type="number" 
+                                    id="manual-delivery-qty" 
+                                    value={newDelivery.quantity}
+                                    onInput={(e) => setNewDelivery(prev => ({...prev, quantity: (e.target as HTMLInputElement).value}))}
+                                    placeholder="0"
+                                />
+                            </div>
+                            <div class="filter-actions">
+                                <button class="button-primary" onClick={handleAddManualDelivery}>{t('simulations.buttons.add')}</button>
+                            </div>
+                         </div>
+                         {manualDeliveries.length > 0 && (
+                            <div class="manual-deliveries-list">
+                                <h5>{t('simulations.manualDelivery.addedTitle')}</h5>
+                                <ul>
+                                    {manualDeliveries.map(d => (
+                                        <li key={d.id}>
+                                            <span>{d.date}: {d.quantity.toLocaleString(language)}</span>
+                                            <button onClick={() => handleRemoveManualDelivery(d.id)}>&times;</button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                         )}
                     </div>
                     
                     <h4>{t('simulations.log.title')}</h4>
@@ -1080,15 +1153,13 @@ const SimulationView = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {simulationResult.log.map(entry => (
-                                    <tr key={entry.date}>
+                                {(isLogExpanded ? simulationResult.log : simulationResult.log.slice(0, 14)).map(entry => (
+                                    <tr key={entry.date} class={`${entry.writeOffs > 0 ? 'log-write-off-row' : ''} ${entry.stockEnd === 0 ? 'log-stock-out-row' : ''}`}>
                                         <td>{entry.date}</td>
                                         <td>{entry.stockStart.toLocaleString(language)}</td>
                                         <td>{entry.sales.toLocaleString(language)}</td>
                                         <td>{entry.receipts.toLocaleString(language)}</td>
-                                        <td style={{ color: entry.writeOffs > 0 ? 'var(--danger-color)' : 'inherit' }}>
-                                            {entry.writeOffs.toLocaleString(language)}
-                                        </td>
+                                        <td>{entry.writeOffs.toLocaleString(language)}</td>
                                         <td>{entry.stockEnd.toLocaleString(language)}</td>
                                         <td>{entry.notes}</td>
                                     </tr>
@@ -1096,6 +1167,13 @@ const SimulationView = () => {
                             </tbody>
                         </table>
                     </div>
+                     {simulationResult.log.length > 14 && (
+                        <div class="log-toggle-container">
+                            <button class="log-toggle-button" onClick={() => setIsLogExpanded(!isLogExpanded)}>
+                                {isLogExpanded ? t('simulations.buttons.showLess') : t('simulations.buttons.showMore')}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 
