@@ -32,7 +32,7 @@ import {
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
-import { SimulationResult } from "./simulation.worker";
+import { SimulationResult, InitialStockBatch } from "./simulation.worker";
 
 const BATCH_SIZE = 5000;
 const PAGE_SIZE = 20;
@@ -929,6 +929,10 @@ const SimulationView = () => {
                             <p>{simulationResult.avgDailySales.toFixed(2)}</p>
                         </div>
                         <div class="kpi-card">
+                            <h4>{t('simulations.kpi.nonCompliantReceipts')}</h4>
+                            <p>{simulationResult.nonCompliantReceiptsCount}</p>
+                        </div>
+                        <div class="kpi-card">
                             <h4>{t('simulations.kpi.firstWriteOffDate')}</h4>
                             <p>{simulationResult.firstWriteOffDate || t('simulations.results.none')}</p>
                         </div>
@@ -947,14 +951,18 @@ const SimulationView = () => {
                                     <tr>
                                         <th>{t('simulations.initialStock.deliveryDate')}</th>
                                         <th>{t('simulations.initialStock.bestBeforeDate')}</th>
+                                        <th>{t('simulations.initialStock.daysForSale')}</th>
+                                        <th>{t('simulations.initialStock.regulationBreached')}</th>
                                         <th>{t('simulations.initialStock.quantity')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {simulationResult.initialStockComposition.map(batch => (
-                                        <tr key={batch.deliveryDate}>
+                                    {simulationResult.initialStockComposition.map((batch: InitialStockBatch) => (
+                                        <tr key={batch.deliveryDate + batch.bestBeforeDate} class={batch.isNonCompliant ? 'non-compliant-row' : ''}>
                                             <td>{batch.isUnknown ? t('simulations.initialStock.unknownBatch') : batch.deliveryDate}</td>
                                             <td>{batch.bestBeforeDate}</td>
+                                            <td>{batch.daysToSell}</td>
+                                            <td>{batch.isNonCompliant ? t('common.yesShort') : t('common.noShort')}</td>
                                             <td>{batch.quantity.toLocaleString(language)}</td>
                                         </tr>
                                     ))}
@@ -1214,23 +1222,16 @@ const App = () => {
   };
   
   const saleRowMapper = (row: string[]): Sale | null => {
-      if (row.length < 5) return null; // Adjusted for new logic
+      if (row.length < 6) return null; 
       
       const resaleDate = row[0]?.trim() ?? '';
       const warehouseId = row[1]?.trim() ?? '';
       // row[2] is warehouse name, we skip it
       const productId = row[3]?.trim() ?? '';
+      const productName = row[4]?.trim() ?? '';
       
-      // All remaining parts are joined to form the name and quantity
-      const remainingParts = row.slice(4);
-      const combinedRemaining = remainingParts.join(';');
-      
-      const lastSemicolonIndex = combinedRemaining.lastIndexOf(';');
-      if(lastSemicolonIndex === -1) return null; // No separator for quantity
-
-      const productName = combinedRemaining.substring(0, lastSemicolonIndex).trim();
-      const quantityRaw = combinedRemaining.substring(lastSemicolonIndex + 1)
-          .replace(/"/g, '')
+      const quantityRaw = row[5]
+          ?.replace(/"/g, '')
           .replace(/,/g, '')
           .trim();
 
