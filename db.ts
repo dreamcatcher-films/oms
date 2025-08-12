@@ -2,10 +2,11 @@ const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
 const GOODS_RECEIPTS_STORE_NAME = 'goodsReceipts';
 const OPEN_ORDERS_STORE_NAME = 'openOrders';
+const SALES_STORE_NAME = 'sales';
 const METADATA_STORE_NAME = 'importMetadata';
-const DB_VERSION = 6; 
+const DB_VERSION = 7; 
 
-export type DataType = 'products' | 'goodsReceipts' | 'openOrders';
+export type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales';
 
 export type ImportMeta = {
   dataType: DataType;
@@ -131,10 +132,24 @@ export type OpenOrder = {
     deliveryDateSortable: string; // YYYYMMDD format for sorting
 };
 
+export type Sale = {
+    // Composite Key
+    resaleDate: string;     // Column 1
+    warehouseId: string;    // Column 2
+    productId: string;      // Column 4
+
+    // Data
+    quantity: number;       // Column 6
+    
+    // Sortable fields
+    resaleDateSortable: string; // YYYYMMDD format
+};
+
 export type DBStatus = {
   productsCount: number;
   goodsReceiptsCount: number;
   openOrdersCount: number;
+  salesCount: number;
 };
 
 const openDB = (): Promise<IDBDatabase> => {
@@ -181,6 +196,13 @@ const openDB = (): Promise<IDBDatabase> => {
             db.createObjectStore(METADATA_STORE_NAME, { keyPath: 'dataType' });
         }
       }
+      
+      if (oldVersion < 7) {
+        if (!db.objectStoreNames.contains(SALES_STORE_NAME)) {
+            const store = db.createObjectStore(SALES_STORE_NAME, { keyPath: ['resaleDate', 'warehouseId', 'productId'] });
+            store.createIndex('resaleDateSortIndex', 'resaleDateSortable');
+        }
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -213,6 +235,7 @@ const addDataInBatches = async <T>(storeName: string, data: T[]) => {
 export const addProducts = (products: Product[]) => addDataInBatches(PRODUCTS_STORE_NAME, products);
 export const addGoodsReceipts = (receipts: GoodsReceipt[]) => addDataInBatches(GOODS_RECEIPTS_STORE_NAME, receipts);
 export const addOpenOrders = (orders: OpenOrder[]) => addDataInBatches(OPEN_ORDERS_STORE_NAME, orders);
+export const addSales = (sales: Sale[]) => addDataInBatches(SALES_STORE_NAME, sales);
 
 const clearStore = async (storeName: string) => {
     const db = await openDB();
@@ -240,36 +263,41 @@ const clearDataAndMetadata = async (storeName: string, dataType: DataType) => {
 export const clearProducts = () => clearDataAndMetadata(PRODUCTS_STORE_NAME, 'products');
 export const clearGoodsReceipts = () => clearDataAndMetadata(GOODS_RECEIPTS_STORE_NAME, 'goodsReceipts');
 export const clearOpenOrders = () => clearDataAndMetadata(OPEN_ORDERS_STORE_NAME, 'openOrders');
+export const clearSales = () => clearDataAndMetadata(SALES_STORE_NAME, 'sales');
 
 export const checkDBStatus = async (): Promise<DBStatus> => {
     try {
         const db = await openDB();
-        const transaction = db.transaction([PRODUCTS_STORE_NAME, GOODS_RECEIPTS_STORE_NAME, OPEN_ORDERS_STORE_NAME], 'readonly');
+        const transaction = db.transaction([PRODUCTS_STORE_NAME, GOODS_RECEIPTS_STORE_NAME, OPEN_ORDERS_STORE_NAME, SALES_STORE_NAME], 'readonly');
         const productsStore = transaction.objectStore(PRODUCTS_STORE_NAME);
         const goodsReceiptsStore = transaction.objectStore(GOODS_RECEIPTS_STORE_NAME);
         const openOrdersStore = transaction.objectStore(OPEN_ORDERS_STORE_NAME);
+        const salesStore = transaction.objectStore(SALES_STORE_NAME);
 
         const productsCountRequest = productsStore.count();
         const goodsReceiptsCountRequest = goodsReceiptsStore.count();
         const openOrdersCountRequest = openOrdersStore.count();
+        const salesCountRequest = salesStore.count();
 
         return new Promise((resolve, reject) => {
             let productsCount = 0;
             let goodsReceiptsCount = 0;
             let openOrdersCount = 0;
+            let salesCount = 0;
 
             productsCountRequest.onsuccess = () => { productsCount = productsCountRequest.result; };
             goodsReceiptsCountRequest.onsuccess = () => { goodsReceiptsCount = goodsReceiptsCountRequest.result; };
             openOrdersCountRequest.onsuccess = () => { openOrdersCount = openOrdersCountRequest.result; };
+            salesCountRequest.onsuccess = () => { salesCount = salesCountRequest.result; };
             
             transaction.oncomplete = () => {
-                resolve({ productsCount, goodsReceiptsCount, openOrdersCount });
+                resolve({ productsCount, goodsReceiptsCount, openOrdersCount, salesCount });
             };
             
             transaction.onerror = () => { reject(transaction.error); };
         });
     } catch (e) {
-        return { productsCount: 0, goodsReceiptsCount: 0, openOrdersCount: 0 };
+        return { productsCount: 0, goodsReceiptsCount: 0, openOrdersCount: 0, salesCount: 0 };
     }
 };
 
@@ -277,6 +305,7 @@ export const clearAllData = async (): Promise<void> => {
     await clearStore(PRODUCTS_STORE_NAME);
     await clearStore(GOODS_RECEIPTS_STORE_NAME);
     await clearStore(OPEN_ORDERS_STORE_NAME);
+    await clearStore(SALES_STORE_NAME);
     await clearStore(METADATA_STORE_NAME);
 };
 
@@ -399,6 +428,46 @@ export const getOpenOrdersPaginatedAndFiltered = async (
     });
 };
 
+export const getSalesPaginatedAndFiltered = async (
+    page: number,
+    pageSize: number,
+    filters: { warehouseId?: string; productId?: string }
+): Promise<{ data: Sale[]; total: number }> => {
+    const db = await openDB();
+    const transaction = db.transaction(SALES_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(SALES_STORE_NAME);
+    const index = store.index('resaleDateSortIndex');
+
+    const data: Sale[] = [];
+    let total = 0;
+    const offset = (page - 1) * pageSize;
+
+    return new Promise((resolve, reject) => {
+        const request = index.openCursor(null, 'prev'); // 'prev' for descending order (newest first)
+
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const sale: Sale = cursor.value;
+
+                const matchesWarehouse = !filters.warehouseId || sale.warehouseId === filters.warehouseId;
+                const matchesProduct = !filters.productId || sale.productId === filters.productId;
+
+                if (matchesWarehouse && matchesProduct) {
+                    if (total >= offset && data.length < pageSize) {
+                        data.push(sale);
+                    }
+                    total++;
+                }
+                cursor.continue();
+            } else {
+                resolve({ data, total });
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
 
 export const getUniqueProductStatuses = async (): Promise<string[]> => {
     const db = await openDB();
@@ -496,6 +565,30 @@ export const getUniqueWarehouseIdsForOpenOrders = async (): Promise<string[]> =>
     });
 };
 
+export const getUniqueWarehouseIdsForSales = async (): Promise<string[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(SALES_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(SALES_STORE_NAME);
+    const request = store.openCursor();
+    const warehouses = new Set<string>();
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const sale: Sale = cursor.value;
+                if(sale.warehouseId) {
+                    warehouses.add(sale.warehouseId);
+                }
+                cursor.continue();
+            } else {
+                resolve(Array.from(warehouses).sort());
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
 
 export const findProductsByPartialId = async (partialId: string, limit: number = 5): Promise<Product[]> => {
     const db = await openDB();
@@ -547,6 +640,7 @@ export const getImportMetadata = async (): Promise<ImportMetadata> => {
                 products: null,
                 goodsReceipts: null,
                 openOrders: null,
+                sales: null,
             };
             const allMeta = request.result as ImportMeta[];
             allMeta.forEach(meta => {
