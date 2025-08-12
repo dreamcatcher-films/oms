@@ -161,12 +161,17 @@ export default {
       "stockEnd": "Endbestand",
       "notes": "Notizen"
     },
+    "chart": {
+      "title": "Lagerbestandsprognose (14 Tage)"
+    },
     "buttons": {
         "add": "Hinzufügen",
         "resetDefaults": "Zurücksetzen",
         "showMore": "Mehr anzeigen",
         "showLess": "Weniger anzeigen",
-        "rerun": "Neu ausführen"
+        "rerun": "Neu ausführen",
+        "showChart": "Diagramm anzeigen",
+        "hideChart": "Diagramm ausblenden"
     }
   },
   "common": {
