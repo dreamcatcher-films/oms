@@ -48,6 +48,10 @@
         "title": "3. Otwarte Zamówienia",
         "description": "Plik z otwartymi zamówieniami, które nie dotarły jeszcze do magazynu."
     },
+    "sales": {
+        "title": "4. Dane o Odsprzedaży",
+        "description": "Plik z historycznymi danymi o odsprzedaży. Akceptuje .csv lub .txt."
+    },
     "status": {
         "updated": "Zaktualizowano",
         "todayAt": "dzisiaj o",
@@ -63,7 +67,8 @@
       "tabs": {
           "products": "Produkty",
           "goodsReceipts": "Przyjęcie Towaru (eGIN)",
-          "openOrders": "Otwarte Zamówienia"
+          "openOrders": "Otwarte Zamówienia",
+          "sales": "Odsprzedaże"
       },
       "filters": {
           "warehouse": "Magazyn",
@@ -102,7 +107,8 @@
   "dataType": {
     "products": "Dane podstawowe",
     "goodsReceipts": "Przyjęcia towaru",
-    "openOrders": "Otwarte zamówienia"
+    "openOrders": "Otwarte zamówienia",
+    "sales": "Dane o odsprzedaży"
   },
   "columns": {
     "product": {
@@ -169,6 +175,12 @@
       "deliveryDate": "Plan. data dostawy",
       "creationDate": "Data utworzenia",
       "deliveryLeadTime": "Czas realizacji (dni)"
+    },
+    "sale": {
+      "resaleDate": "Data odsprzedaży",
+      "warehouseId": "Magazyn",
+      "productId": "Nr artykułu",
+      "quantity": "Sprzedana ilość"
     }
   }
 }
