@@ -1,10 +1,11 @@
+
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
 const GOODS_RECEIPTS_STORE_NAME = 'goodsReceipts';
 const OPEN_ORDERS_STORE_NAME = 'openOrders';
 const SALES_STORE_NAME = 'sales';
 const METADATA_STORE_NAME = 'importMetadata';
-const DB_VERSION = 7; 
+const DB_VERSION = 8; 
 
 export type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales';
 
@@ -202,6 +203,23 @@ const openDB = (): Promise<IDBDatabase> => {
         if (!db.objectStoreNames.contains(SALES_STORE_NAME)) {
             const store = db.createObjectStore(SALES_STORE_NAME, { keyPath: ['resaleDate', 'warehouseId', 'productId'] });
             store.createIndex('resaleDateSortIndex', 'resaleDateSortable');
+        }
+      }
+
+      if (oldVersion < 8) {
+        const goodsReceiptsStore = transaction.objectStore(GOODS_RECEIPTS_STORE_NAME);
+        if (!goodsReceiptsStore.indexNames.contains('productIndex')) {
+            goodsReceiptsStore.createIndex('productIndex', ['warehouseId', 'fullProductId']);
+        }
+        
+        const openOrdersStore = transaction.objectStore(OPEN_ORDERS_STORE_NAME);
+        if (!openOrdersStore.indexNames.contains('productIndex')) {
+            openOrdersStore.createIndex('productIndex', ['warehouseId', 'fullProductId']);
+        }
+        
+        const salesStore = transaction.objectStore(SALES_STORE_NAME);
+        if (!salesStore.indexNames.contains('productIndex')) {
+            salesStore.createIndex('productIndex', ['warehouseId', 'productId']);
         }
       }
     };
@@ -616,6 +634,50 @@ export const findProductsByPartialId = async (partialId: string, limit: number =
     });
 };
 
+export const getProductDetails = async (warehouseId: string, fullProductId: string): Promise<Product | null> => {
+    const db = await openDB();
+    const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(PRODUCTS_STORE_NAME);
+    const request = store.get([warehouseId, fullProductId]);
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+            resolve(request.result ?? null);
+        };
+        request.onerror = () => {
+            reject(request.error);
+        };
+    });
+};
+
+const getAllFromIndex = async <T>(storeName: string, indexName: string, key: IDBValidKey): Promise<T[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    const index = store.index(indexName);
+    const request = index.getAll(key);
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+            resolve(request.result ?? []);
+        };
+        request.onerror = () => {
+            reject(request.error);
+        };
+    });
+};
+
+export const getAllGoodsReceiptsForProduct = (warehouseId: string, fullProductId: string): Promise<GoodsReceipt[]> => {
+    return getAllFromIndex<GoodsReceipt>(GOODS_RECEIPTS_STORE_NAME, 'productIndex', [warehouseId, fullProductId]);
+};
+
+export const getAllOpenOrdersForProduct = (warehouseId: string, fullProductId: string): Promise<OpenOrder[]> => {
+    return getAllFromIndex<OpenOrder>(OPEN_ORDERS_STORE_NAME, 'productIndex', [warehouseId, fullProductId]);
+};
+
+export const getAllSalesForProduct = (warehouseId: string, productId: string): Promise<Sale[]> => {
+    return getAllFromIndex<Sale>(SALES_STORE_NAME, 'productIndex', [warehouseId, productId]);
+};
 
 export const updateImportMetadata = async (dataType: DataType): Promise<void> => {
     const db = await openDB();
