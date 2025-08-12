@@ -161,6 +161,9 @@ export default {
       "stockEnd": "Stock End",
       "notes": "Notes"
     },
+    "chart": {
+      "title": "Stock Level Forecast (14 days)"
+    },
     "buttons": {
         "add": "Add",
         "resetDefaults": "Reset to Defaults",
