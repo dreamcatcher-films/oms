@@ -69,54 +69,68 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
     const uniqueSaleDays = new Set(allSales.map(s => s.resaleDate)).size;
     const avgDailySales = uniqueSaleDays > 0 ? totalSales / uniqueSaleDays : 0;
     
-    // 3. Determine initial stock on hand (FIFO)
-    let effectiveStockOnHand = productDetails.stockOnHand + productDetails.unprocessedDeliveryQty;
-    let stock: { quantity: number; bestBefore: Date; sDateHorizon: Date }[] = [];
-    let initialStockComposition: InitialStockBatch[] = [];
+    // 3. Determine initial stock on hand (Corrected "FIFO Rollback" logic)
+    const effectiveStockOnHand = productDetails.stockOnHand + productDetails.unprocessedDeliveryQty;
+    let initialStockBatches: InitialStockBatch[] = [];
     
-    // Sort receipts by delivery date to apply FIFO
-    allReceipts.sort((a, b) => a.deliveryDateSortable.localeCompare(b.deliveryDateSortable));
+    // Sort receipts by delivery date DESCENDING (newest first) to find the batches that make up current stock
+    allReceipts.sort((a, b) => b.deliveryDateSortable.localeCompare(a.deliveryDateSortable));
     
-    let tempStock = effectiveStockOnHand;
-    for (const receipt of allReceipts) {
-        if (tempStock <= 0) break;
-        const bestBefore = parseSortableDate(receipt.bestBeforeDateSortable);
-        const sDateHorizon = new Date(bestBefore);
-        sDateHorizon.setDate(sDateHorizon.getDate() - productDetails.shelfLifeAtStore);
+    let remainingStockToAllocate = effectiveStockOnHand;
 
-        const qtyToTake = Math.min(tempStock, receipt.deliveryQtyPcs);
-        stock.push({ quantity: qtyToTake, bestBefore, sDateHorizon });
-        initialStockComposition.push({
+    for (const receipt of allReceipts) {
+        if (remainingStockToAllocate <= 0) break;
+
+        const quantityFromThisBatch = Math.min(remainingStockToAllocate, receipt.deliveryQtyPcs);
+        
+        initialStockBatches.push({
             deliveryDate: formatDate(parseSortableDate(receipt.deliveryDateSortable)),
-            bestBeforeDate: formatDate(bestBefore),
-            quantity: qtyToTake,
+            bestBeforeDate: formatDate(parseSortableDate(receipt.bestBeforeDateSortable)),
+            quantity: quantityFromThisBatch,
             isUnknown: false,
         });
-        tempStock -= qtyToTake;
+        
+        remainingStockToAllocate -= quantityFromThisBatch;
     }
 
-    const isStockDataComplete = tempStock <= 0;
+    const isStockDataComplete = remainingStockToAllocate <= 0;
     if (!isStockDataComplete) {
-        // This is stock that couldn't be matched to a receipt, assume it's the oldest.
-        const pessimisticBestBefore = new Date(); // Expires now
-        pessimisticBestBefore.setHours(0,0,0,0);
-        const pessimisticSDateHorizon = new Date(pessimisticBestBefore);
-        pessimisticSDateHorizon.setDate(pessimisticSDateHorizon.getDate() - productDetails.shelfLifeAtStore);
-        
-        // Add to front of stock array to mark as oldest
-        stock.unshift({ quantity: tempStock, bestBefore: pessimisticBestBefore, sDateHorizon: pessimisticSDateHorizon });
-        initialStockComposition.unshift({
-            deliveryDate: `unknown-${Date.now()}`, // unique key for react
+        initialStockBatches.push({
+            deliveryDate: 'Unknown',
             bestBeforeDate: 'Unknown',
-            quantity: tempStock,
+            quantity: remainingStockToAllocate,
             isUnknown: true
         });
     }
-    
-    // Reverse the stock to have the oldest items (to be sold first) at the end
-    stock.reverse();
-    initialStockComposition.reverse();
-    
+
+    // Now, create the simulation stock array from the identified batches
+    let stock: { quantity: number; bestBefore: Date; sDateHorizon: Date }[] = initialStockBatches
+        .filter(b => !b.isUnknown)
+        .map(batch => {
+            const bestBefore = new Date(batch.bestBeforeDate);
+            const sDateHorizon = new Date(bestBefore);
+            sDateHorizon.setDate(sDateHorizon.getDate() - productDetails.shelfLifeAtStore);
+            return {
+                quantity: batch.quantity,
+                bestBefore,
+                sDateHorizon
+            };
+        });
+
+    // If there's an unknown batch, add it with a pessimistic BBD
+    if (!isStockDataComplete) {
+        const pessimisticBestBefore = new Date();
+        pessimisticBestBefore.setHours(0,0,0,0);
+        const pessimisticSDateHorizon = new Date(pessimisticBestBefore);
+        pessimisticSDateHorizon.setDate(pessimisticSDateHorizon.getDate() - productDetails.shelfLifeAtStore);
+        stock.push({ quantity: remainingStockToAllocate, bestBefore: pessimisticBestBefore, sDateHorizon: pessimisticSDateHorizon });
+    }
+
+    // Sort the final stock for simulation: oldest BBD first (ASCENDING) to apply FIFO
+    stock.sort((a, b) => a.bestBefore.getTime() - b.bestBefore.getTime());
+    // Also sort the display composition array for clarity (oldest first)
+    initialStockBatches.sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate));
+
     // 4. Prepare future receipts calendar
     const receiptsCalendar: Map<string, number> = new Map();
     for (const order of allOpenOrders) {
@@ -127,6 +141,7 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
     // 5. Run simulation for the next year
     const log: SimulationLogEntry[] = [];
     let currentDate = new Date();
+    currentDate.setHours(0,0,0,0);
     let totalWriteOffs = 0;
     let firstWriteOffDate: string | null = null;
     const simulationEndDate = new Date();
@@ -150,7 +165,6 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
         if (receiptsCalendar.has(dateStr)) {
             const newReceiptQty = receiptsCalendar.get(dateStr)!;
             logEntry.receipts = newReceiptQty;
-            currentStockQty += newReceiptQty;
             
             // Assume new stock has ideal shelf life
             const deliveryDate = new Date(currentDate);
@@ -159,23 +173,25 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
             const sDateHorizon = new Date(bestBefore);
             sDateHorizon.setDate(bestBefore.getDate() - productDetails.shelfLifeAtStore);
 
-            stock.unshift({ quantity: newReceiptQty, bestBefore, sDateHorizon });
+            stock.push({ quantity: newReceiptQty, bestBefore, sDateHorizon });
+            // Re-sort stock after adding new batch to maintain FIFO order by BBD
+            stock.sort((a, b) => a.bestBefore.getTime() - b.bestBefore.getTime());
             logEntry.notes += `Receipt: ${newReceiptQty}. `;
         }
         
-        // B. Process sales (FIFO)
-        let salesToday = Math.min(currentStockQty, avgDailySales);
+        // B. Process sales (FIFO - from the start of the array now)
+        let salesToday = Math.min(currentStockQty + logEntry.receipts, avgDailySales);
         logEntry.sales = salesToday;
         
         while (salesToday > 0 && stock.length > 0) {
-            const oldestBatch = stock[stock.length - 1];
+            const oldestBatch = stock[0];
             const qtyToSell = Math.min(salesToday, oldestBatch.quantity);
             
             oldestBatch.quantity -= qtyToSell;
             salesToday -= qtyToSell;
             
             if (oldestBatch.quantity <= 0) {
-                stock.pop();
+                stock.shift();
             }
         }
         
@@ -183,7 +199,7 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
         let writeOffsToday = 0;
         const remainingStock = [];
         for (const batch of stock) {
-            if (currentDate > batch.sDateHorizon) {
+            if (currentDate >= batch.sDateHorizon) {
                 writeOffsToday += batch.quantity;
                 totalWriteOffs += batch.quantity;
                 if (!firstWriteOffDate) {
@@ -210,16 +226,14 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
 
         currentDate.setDate(currentDate.getDate() + 1);
     }
-    
-    const finalStock = stock.reduce((sum, item) => sum + item.quantity, 0);
-    
+        
     const result: SimulationResult = {
       totalWriteOffValue: totalWriteOffs * productDetails.price,
-      daysOfStock: avgDailySales > 0 ? finalStock / avgDailySales : Infinity,
+      daysOfStock: avgDailySales > 0 ? effectiveStockOnHand / avgDailySales : Infinity,
       avgDailySales: avgDailySales,
       firstWriteOffDate: firstWriteOffDate,
       log: log,
-      initialStockComposition,
+      initialStockComposition: initialStockBatches,
       isStockDataComplete,
     };
 
