@@ -15,9 +15,10 @@ export default {
   },
   "status": {
     "checkingDb": "Sprawdzanie lokalnej bazy danych...",
-    "dbOk": "Znaleziono dane. Możesz uruchomić analizę lub wgrać nowe pliki.",
+    "dbOk": "Dane gotowe do analizy.",
     "dbEmpty": "Wybierz pliki z danymi, aby rozpocząć.",
     "dbError": "Błąd podczas sprawdzania bazy danych.",
+    "close": "Zamknij powiadomienie",
     "import": {
         "preparing": "Przygotowywanie do importu: {{dataTypeName}}...",
         "clearError": "Błąd podczas czyszczenia bazy danych.",
