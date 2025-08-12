@@ -180,6 +180,7 @@
       "resaleDate": "Data odsprzedaży",
       "warehouseId": "Magazyn",
       "productId": "Nr artykułu",
+      "productName": "Nazwa produktu",
       "quantity": "Sprzedana ilość"
     }
   }
