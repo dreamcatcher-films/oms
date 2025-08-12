@@ -124,6 +124,7 @@ export default {
       "totalWriteOffValue": "Total Write-Off Value",
       "daysOfStock": "Days of Stock",
       "avgDailySales": "Avg. Daily Sales",
+      "nonCompliantReceipts": "Non-Compliant Receipts",
       "firstWriteOffDate": "First Write-Off Date"
     },
     "initialStock": {
@@ -131,6 +132,8 @@ export default {
       "warning": "Initial stock on hand could not be fully matched with goods receipts. The simulation assumes this unmatched portion is the oldest stock and may be subject to earlier write-offs.",
       "deliveryDate": "Delivery Date",
       "bestBeforeDate": "Best Before Date",
+      "daysForSale": "Days For Sale",
+      "regulationBreached": "Regulation Breached",
       "quantity": "Quantity",
       "unknownBatch": "Unknown Batch"
     },
@@ -144,6 +147,10 @@ export default {
       "stockEnd": "Stock End",
       "notes": "Notes"
     }
+  },
+  "common": {
+      "yesShort": "Y",
+      "noShort": "N"
   },
   "dataType": {
     "products": "Master Data",
