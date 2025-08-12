@@ -11,5 +11,6 @@ export type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales';
 export type ManualDelivery = {
     date: string;
     quantity: number;
+    bestBeforeDate: string;
     id: number;
 };
