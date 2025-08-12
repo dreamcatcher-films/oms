@@ -15,9 +15,10 @@ export default {
   },
   "status": {
     "checkingDb": "Lokale Datenbank wird geprüft...",
-    "dbOk": "Daten gefunden. Sie können die Analyse starten oder neue Dateien hochladen.",
+    "dbOk": "Daten gefunden. Bereit zur Analyse.",
     "dbEmpty": "Wählen Sie Datendateien, um zu beginnen.",
     "dbError": "Fehler beim Prüfen der Datenbank.",
+    "close": "Benachrichtigung schließen",
     "import": {
         "preparing": "Vorbereitung für den Import: {{dataTypeName}}...",
         "clearError": "Fehler beim Löschen der Datenbank.",
