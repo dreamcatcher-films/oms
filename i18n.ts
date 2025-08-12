@@ -1,9 +1,9 @@
 import { h, createContext, Component, VNode } from 'preact';
 import { useState, useContext, useEffect } from 'preact/hooks';
 
-import en from './locales/en.json';
-import pl from './locales/pl.json';
-import de from './locales/de.json';
+import en from './locales/en.json' assert { type: 'json' };
+import pl from './locales/pl.json' assert { type: 'json' };
+import de from './locales/de.json' assert { type: 'json' };
 
 type Translations = { [key: string]: any };
 
