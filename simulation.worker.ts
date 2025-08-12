@@ -27,6 +27,7 @@ export type InitialStockBatch = {
     isNonCompliant: boolean;
     daysToSell: number;
     isAffectedByWriteOff: boolean;
+    isManual?: boolean;
 };
 
 export type SimulationResult = {
@@ -60,6 +61,7 @@ type SimulationParams = {
     manualDeliveries?: {
         date: string;
         quantity: number;
+        bestBeforeDate: string;
     }[];
 };
 
@@ -157,6 +159,32 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         });
     }
 
+    // Add manual deliveries to the initial stock composition
+    if (manualDeliveries) {
+        for (const delivery of manualDeliveries) {
+            if (delivery.date && delivery.bestBeforeDate && delivery.quantity > 0) {
+                const deliveryDate = new Date(delivery.date);
+                const bestBeforeDate = new Date(delivery.bestBeforeDate);
+                
+                const shelfLifeAtReceipt = (bestBeforeDate.getTime() - deliveryDate.getTime()) / (1000 * 3600 * 24);
+                const isNonCompliant = shelfLifeAtReceipt < wDate;
+                const daysToSell = Math.max(0, Math.floor((bestBeforeDate.getTime() - today.getTime()) / (1000 * 3600 * 24)) - cDate);
+
+                initialStockBatches.push({
+                    deliveryDate: formatDate(deliveryDate),
+                    bestBeforeDate: formatDate(bestBeforeDate),
+                    quantity: delivery.quantity,
+                    isUnknown: false,
+                    isNonCompliant: isNonCompliant,
+                    daysToSell,
+                    isAffectedByWriteOff: false, // Will be determined later
+                    isManual: true, // Flag as manual
+                });
+            }
+        }
+    }
+
+
     let stock: StockBatch[] = initialStockBatches
         .filter(b => !b.isUnknown)
         .map(batch => {
@@ -195,14 +223,6 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
     for (const order of allOpenOrders) {
         const deliveryDate = formatDate(parseSortableDate(order.deliveryDateSortable));
         receiptsCalendar.set(deliveryDate, (receiptsCalendar.get(deliveryDate) || 0) + order.orderQtyPcs);
-    }
-    
-    if (manualDeliveries) {
-        for (const delivery of manualDeliveries) {
-            if (delivery.date && delivery.quantity > 0) {
-                receiptsCalendar.set(delivery.date, (receiptsCalendar.get(delivery.date) || 0) + delivery.quantity);
-            }
-        }
     }
 
     // 5. Run simulation
