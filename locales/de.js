@@ -124,6 +124,7 @@ export default {
       "totalWriteOffValue": "Gesamtabschreibungswert",
       "daysOfStock": "Lagerreichweite",
       "avgDailySales": "Ø tägl. Absatz",
+      "nonCompliantReceipts": "Regelwidrige Eingänge",
       "firstWriteOffDate": "Erstes Abschreibungsdatum"
     },
     "initialStock": {
@@ -131,6 +132,8 @@ export default {
       "warning": "Der anfängliche Lagerbestand konnte nicht vollständig mit den Wareneingängen abgeglichen werden. Die Simulation geht davon aus, dass dieser nicht zugeordnete Teil der älteste Bestand ist und möglicherweise früher abgeschrieben wird.",
       "deliveryDate": "Lieferdatum",
       "bestBeforeDate": "Mindesthaltbarkeitsdatum",
+      "daysForSale": "Verkaufstage",
+      "regulationBreached": "Regelverstoß",
       "quantity": "Menge",
       "unknownBatch": "Unbekannte Charge"
     },
@@ -144,6 +147,10 @@ export default {
       "stockEnd": "Endbestand",
       "notes": "Notizen"
     }
+  },
+  "common": {
+      "yesShort": "J",
+      "noShort": "N"
   },
   "dataType": {
     "products": "Stammdaten",
