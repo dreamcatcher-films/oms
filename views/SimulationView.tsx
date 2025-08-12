@@ -15,13 +15,20 @@ export const SimulationView = () => {
     const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
     const [isSimulating, setIsSimulating] = useState(false);
     
+    const [originalSimParams, setOriginalSimParams] = useState<{
+        wDate: number;
+        sDate: number;
+        cDate: number;
+        avgDailySales: number;
+    } | null>(null);
+
     // State for user overrides
     const [overrideWDate, setOverrideWDate] = useState('');
     const [overrideSDate, setOverrideSDate] = useState('');
     const [overrideCDate, setOverrideCDate] = useState('');
     const [overrideAvgSales, setOverrideAvgSales] = useState('');
 
-    const [newDelivery, setNewDelivery] = useState({ date: '', quantity: '' });
+    const [newDelivery, setNewDelivery] = useState({ date: '', quantity: '', bestBeforeDate: '' });
     const [manualDeliveries, setManualDeliveries] = useState<ManualDelivery[]>([]);
 
     const [isDirty, setIsDirty] = useState(false);
@@ -34,23 +41,33 @@ export const SimulationView = () => {
         workerRef.current = new Worker(new URL('../simulation.worker.ts', import.meta.url), { type: 'module' });
 
         workerRef.current.onmessage = (event: MessageEvent<SimulationResult>) => {
-            setSimulationResult(event.data);
+            const result = event.data;
+            setSimulationResult(result);
             setIsSimulating(false);
+
+            if (!originalSimParams && selectedProduct) {
+                 setOriginalSimParams({
+                    wDate: selectedProduct.shelfLifeAtReceiving,
+                    sDate: selectedProduct.shelfLifeAtStore,
+                    cDate: selectedProduct.customerShelfLife,
+                    avgDailySales: result.avgDailySales,
+                });
+            }
             
-            setOverrideAvgSales(event.data.avgDailySales.toFixed(2));
-            const lastReceipt = event.data.initialStockComposition
-                .filter(b => !b.isUnknown)
+            setOverrideAvgSales(result.avgDailySales.toFixed(2));
+            const lastReceipt = result.initialStockComposition
+                .filter(b => !b.isUnknown && !b.isManual)
                 .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))[0];
             if (lastReceipt) {
-                setNewDelivery({ date: lastReceipt.deliveryDate, quantity: '' });
+                setNewDelivery({ date: lastReceipt.deliveryDate, quantity: '', bestBeforeDate: '' });
             }
-            setIsDirty(false); // Reset dirty state after simulation
+            setIsDirty(false);
         };
 
         return () => {
             workerRef.current?.terminate();
         };
-    }, []);
+    }, [originalSimParams, selectedProduct]);
 
     useEffect(() => {
         (async () => {
@@ -59,34 +76,41 @@ export const SimulationView = () => {
         })();
     }, []);
 
-    const resetOverrides = useCallback((product: Product | null) => {
-        if (product) {
-            setOverrideWDate(String(product.shelfLifeAtReceiving));
-            setOverrideSDate(String(product.shelfLifeAtStore));
-            setOverrideCDate(String(product.customerShelfLife));
+    const resetOverrides = useCallback(() => {
+        if (originalSimParams) {
+            setOverrideWDate(String(originalSimParams.wDate));
+            setOverrideSDate(String(originalSimParams.sDate));
+            setOverrideCDate(String(originalSimParams.cDate));
+            setOverrideAvgSales(originalSimParams.avgDailySales.toFixed(2));
+        } else if (selectedProduct) {
+            setOverrideWDate(String(selectedProduct.shelfLifeAtReceiving));
+            setOverrideSDate(String(selectedProduct.shelfLifeAtStore));
+            setOverrideCDate(String(selectedProduct.customerShelfLife));
+            setOverrideAvgSales(simulationResult?.avgDailySales.toFixed(2) ?? '');
         } else {
             setOverrideWDate('');
             setOverrideSDate('');
             setOverrideCDate('');
+            setOverrideAvgSales('');
         }
-        setOverrideAvgSales(simulationResult?.avgDailySales.toFixed(2) ?? '');
         setManualDeliveries([]);
-        setNewDelivery({ date: '', quantity: '' });
-        setIsDirty(false);
-    }, [simulationResult]);
+        setNewDelivery({ date: '', quantity: '', bestBeforeDate: '' });
+        setIsDirty(true);
+    }, [selectedProduct, simulationResult, originalSimParams]);
 
 
     useEffect(() => {
-        if (selectedProduct) {
-            resetOverrides(selectedProduct);
+        if (selectedProduct && !simulationResult) {
+            resetOverrides();
         }
-    }, [selectedProduct, resetOverrides]);
+    }, [selectedProduct, simulationResult, resetOverrides]);
 
     const handleProductIdChange = (e: Event) => {
         const value = (e.target as HTMLInputElement).value;
         setProductId(value);
         setSelectedProduct(null); // Clear selected product on new input
         setSimulationResult(null);
+        setOriginalSimParams(null);
 
         if (debounceTimeoutRef.current) {
             clearTimeout(debounceTimeoutRef.current);
@@ -111,7 +135,8 @@ export const SimulationView = () => {
         setIsSuggestionsVisible(false);
         const fullProductDetails = await getProductDetails(product.warehouseId, product.fullProductId);
         setSelectedProduct(fullProductDetails);
-        setSimulationResult(null); // Clear previous results
+        setSimulationResult(null);
+        setOriginalSimParams(null);
     };
 
     const handleRunSimulation = () => {
@@ -132,9 +157,9 @@ export const SimulationView = () => {
     };
     
     const handleAddManualDelivery = () => {
-        if (newDelivery.date && newDelivery.quantity) {
+        if (newDelivery.date && newDelivery.quantity && newDelivery.bestBeforeDate) {
             setManualDeliveries(prev => [...prev, { ...newDelivery, quantity: parseFloat(newDelivery.quantity), id: Date.now() }]);
-            setNewDelivery({ date: newDelivery.date, quantity: '' }); // Keep date, clear quantity
+            setNewDelivery({ date: newDelivery.date, quantity: '', bestBeforeDate: '' }); // Keep date, clear others
             setIsDirty(true);
         }
     };
@@ -176,7 +201,7 @@ export const SimulationView = () => {
             <div class="simulation-controls">
                 <div class="simulation-controls-header">
                     <h2>{t('simulations.controls.title')}</h2>
-                    {selectedProduct && <button class="button-secondary reset-button" onClick={() => resetOverrides(selectedProduct)}>{t('simulations.buttons.resetDefaults')}</button>}
+                    {selectedProduct && <button class="button-secondary reset-button" onClick={resetOverrides}>{t('simulations.buttons.resetDefaults')}</button>}
                 </div>
                 <div class="filter-bar">
                     <div class="filter-group">
@@ -186,6 +211,7 @@ export const SimulationView = () => {
                             setSelectedProduct(null);
                             setProductId('');
                             setSimulationResult(null);
+                            setOriginalSimParams(null);
                         }}>
                             <option value="">{t('simulations.controls.selectWarehouse')}</option>
                             {warehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
@@ -295,8 +321,8 @@ export const SimulationView = () => {
                                 <button class="adjust-btn" onClick={() => adjustSales(-0.10)} title={t('simulations.kpi.salesAdjustDown')}>-10%</button>
                                </div>
                             </div>
-                            <span class="sales-reset-value" onClick={() => { setOverrideAvgSales(simulationResult.avgDailySales.toFixed(2)); setIsDirty(true);}} title={t('simulations.kpi.salesResetTooltip')}>
-                                {t('simulations.kpi.original')}: {simulationResult.avgDailySales.toFixed(2)}
+                            <span class="sales-reset-value" onClick={() => { setOverrideAvgSales((originalSimParams || simulationResult).avgDailySales.toFixed(2)); setIsDirty(true);}} title={t('simulations.kpi.salesResetTooltip')}>
+                                {t('simulations.kpi.original')}: {(originalSimParams || simulationResult).avgDailySales.toFixed(2)}
                             </span>
                         </div>
                         <div class="kpi-card">
@@ -328,8 +354,8 @@ export const SimulationView = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {simulationResult.initialStockComposition.map((batch: InitialStockBatch) => (
-                                        <tr key={batch.deliveryDate + batch.bestBeforeDate} class={`${batch.isNonCompliant ? 'non-compliant-row' : ''} ${batch.isAffectedByWriteOff ? 'batch-risk-row' : ''}`}>
+                                    {simulationResult.initialStockComposition.map((batch: InitialStockBatch, index) => (
+                                        <tr key={`${batch.deliveryDate}-${batch.bestBeforeDate}-${index}`} class={`${batch.isNonCompliant ? 'non-compliant-row' : ''} ${batch.isAffectedByWriteOff ? 'batch-risk-row' : ''} ${batch.isManual ? 'manual-delivery-row' : ''}`}>
                                             <td>{batch.isUnknown ? t('simulations.initialStock.unknownBatch') : batch.deliveryDate}</td>
                                             <td>{batch.bestBeforeDate}</td>
                                             <td>{batch.daysToSell}</td>
@@ -355,6 +381,15 @@ export const SimulationView = () => {
                                 />
                             </div>
                             <div class="filter-group">
+                                <label htmlFor="manual-best-before-date">{t('simulations.manualDelivery.bestBeforeDate')}</label>
+                                <input 
+                                    type="date" 
+                                    id="manual-best-before-date" 
+                                    value={newDelivery.bestBeforeDate}
+                                    onInput={(e) => setNewDelivery(prev => ({...prev, bestBeforeDate: (e.target as HTMLInputElement).value}))}
+                                />
+                            </div>
+                            <div class="filter-group">
                                  <label htmlFor="manual-delivery-qty">{t('simulations.manualDelivery.quantity')}</label>
                                  <input 
                                     type="number" 
@@ -374,7 +409,7 @@ export const SimulationView = () => {
                                 <ul>
                                     {manualDeliveries.map(d => (
                                         <li key={d.id}>
-                                            <span>{d.date}: {d.quantity.toLocaleString(language)}</span>
+                                            <span>{d.date} (BBD: {d.bestBeforeDate}): {d.quantity.toLocaleString(language)}</span>
                                             <button onClick={() => handleRemoveManualDelivery(d.id)}>&times;</button>
                                         </li>
                                     ))}
