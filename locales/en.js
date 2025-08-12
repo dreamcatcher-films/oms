@@ -125,6 +125,14 @@ export default {
       "avgDailySales": "Avg. Daily Sales",
       "firstWriteOffDate": "First Write-Off Date"
     },
+    "initialStock": {
+      "title": "Initial Stock Composition",
+      "warning": "Initial stock on hand could not be fully matched with goods receipts. The simulation assumes this unmatched portion is the oldest stock and may be subject to earlier write-offs.",
+      "deliveryDate": "Delivery Date",
+      "bestBeforeDate": "Best Before Date",
+      "quantity": "Quantity",
+      "unknownBatch": "Unknown Batch"
+    },
     "log": {
       "title": "Simulation Log",
       "date": "Date",
