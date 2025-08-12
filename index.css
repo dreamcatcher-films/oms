@@ -9,7 +9,8 @@
   --danger-hover-color: #c0392b;
   --success-color: #2ecc71;
   --info-color: #3498db;
-  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-family-main: 'Inter', sans-serif;
+  --font-family-data: 'Source Sans 3', sans-serif;
   --header-height: 64px;
 }
 
@@ -18,7 +19,7 @@ body, html {
   height: 100%;
   background-color: var(--secondary-color);
   color: var(--text-color);
-  font-family: var(--font-family);
+  font-family: var(--font-family-main);
   overflow: hidden; /* Prevent body scroll */
 }
 
@@ -455,6 +456,7 @@ p {
 table {
   width: 100%;
   border-collapse: collapse;
+  font-family: var(--font-family-data);
 }
 
 th, td {
@@ -466,7 +468,7 @@ th, td {
 
 th {
   background-color: #f8f9fa;
-  font-weight: 600;
+  font-weight: 700;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -690,7 +692,7 @@ tr:hover {
 
 .initial-stock-table th {
   background-color: #f8f9fa;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 @keyframes spin {
