@@ -970,7 +970,7 @@ const SimulationView = () => {
                         )}
                     </div>
                      <div class="filter-actions">
-                        <button onClick={handleRunSimulation} disabled={!selectedProduct || isSimulating} class={`button-primary ${isDirty ? 'dirty' : ''}`}>{isDirty ? t('simulations.controls.rerun') : t('simulations.controls.run')}</button>
+                        <button onClick={handleRunSimulation} disabled={!selectedProduct || isSimulating} class={`button-primary ${isDirty ? 'dirty' : ''}`}>{isDirty ? t('simulations.buttons.rerun') : t('simulations.controls.run')}</button>
                     </div>
                 </div>
             </div>
@@ -1154,7 +1154,7 @@ const SimulationView = () => {
                             </thead>
                             <tbody>
                                 {(isLogExpanded ? simulationResult.log : simulationResult.log.slice(0, 14)).map(entry => (
-                                    <tr key={entry.date} class={`${entry.writeOffs > 0 ? 'log-write-off-row' : ''} ${entry.stockEnd === 0 ? 'log-stock-out-row' : ''}`}>
+                                    <tr key={entry.date} class={`${entry.writeOffs > 0 ? 'log-write-off-row' : ''} ${entry.stockEnd === 0 && entry.writeOffs === 0 ? 'log-stock-out-row' : ''}`}>
                                         <td>{entry.date}</td>
                                         <td>{entry.stockStart.toLocaleString(language)}</td>
                                         <td>{entry.sales.toLocaleString(language)}</td>
@@ -1394,7 +1394,7 @@ const App = () => {
   };
   
   const saleRowMapper = (row: string[]): Sale | null => {
-      if (row.length < 6) return null; 
+      if (row.length < 5) return null;
       
       const resaleDate = row[0]?.trim() ?? '';
       const warehouseId = row[1]?.trim() ?? '';
@@ -1402,10 +1402,8 @@ const App = () => {
       const productId = row[3]?.trim() ?? '';
       const productName = row[4]?.trim() ?? '';
       
-      const quantityRaw = row[5]
-          ?.replace(/"/g, '')
-          .replace(/,/g, '')
-          .trim();
+      // Handle cases where quantity is split into multiple columns
+      const quantityRaw = row.slice(5).join('').replace(/"/g, '').replace(/,/g, '').trim();
 
       const quantity = parseFloat(quantityRaw);
 
