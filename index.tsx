@@ -28,9 +28,11 @@ import {
   getImportMetadata,
   updateImportMetadata,
   ImportMetadata,
+  getProductDetails,
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
+import { SimulationResult } from "./simulation.worker";
 
 const BATCH_SIZE = 5000;
 const PAGE_SIZE = 20;
@@ -751,6 +753,225 @@ const DataPreview = () => {
   );
 };
 
+const SimulationView = () => {
+    const { t, language } = useTranslation();
+    const [warehouseId, setWarehouseId] = useState('');
+    const [productId, setProductId] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [productSuggestions, setProductSuggestions] = useState<Product[]>([]);
+    const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
+    const [warehouseIds, setWarehouseIds] = useState<string[]>([]);
+    const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
+    const [isSimulating, setIsSimulating] = useState(false);
+    const debounceTimeoutRef = useRef<number | null>(null);
+    const workerRef = useRef<Worker | null>(null);
+
+    useEffect(() => {
+        workerRef.current = new Worker(new URL('./simulation.worker.ts', import.meta.url), { type: 'module' });
+
+        workerRef.current.onmessage = (event: MessageEvent<SimulationResult>) => {
+            setSimulationResult(event.data);
+            setIsSimulating(false);
+        };
+
+        return () => {
+            workerRef.current?.terminate();
+        };
+    }, []);
+
+    useEffect(() => {
+        (async () => {
+            const ids = await getUniqueWarehouseIds();
+            setWarehouseIds(ids);
+        })();
+    }, []);
+
+    const handleProductIdChange = (e: Event) => {
+        const value = (e.target as HTMLInputElement).value;
+        setProductId(value);
+        setSelectedProduct(null); // Clear selected product on new input
+        setSimulationResult(null);
+
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+        }
+
+        if (value.trim().length < 2) {
+            setProductSuggestions([]);
+            setIsSuggestionsVisible(false);
+            return;
+        }
+
+        debounceTimeoutRef.current = window.setTimeout(async () => {
+            const suggestions = await findProductsByPartialId(value, 10);
+            setProductSuggestions(suggestions);
+            setIsSuggestionsVisible(suggestions.length > 0);
+        }, 300);
+    };
+
+    const handleSuggestionClick = async (product: Product) => {
+        setProductId(product.productId);
+        setWarehouseId(product.warehouseId); // Auto-select warehouse
+        setIsSuggestionsVisible(false);
+        const fullProductDetails = await getProductDetails(product.warehouseId, product.fullProductId);
+        setSelectedProduct(fullProductDetails);
+    };
+
+    const handleRunSimulation = () => {
+        if (!selectedProduct || !workerRef.current) return;
+        setIsSimulating(true);
+        setSimulationResult(null);
+        workerRef.current.postMessage({
+            warehouseId: selectedProduct.warehouseId,
+            fullProductId: selectedProduct.fullProductId
+        });
+    };
+
+    const renderDetail = (labelKey: string, value: string | number | undefined) => {
+        return (
+            <div class="detail-item">
+                <span class="detail-label">{t(labelKey)}</span>
+                <span class="detail-value">{value ?? 'N/A'}</span>
+            </div>
+        )
+    };
+    
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat(language, { style: 'currency', currency: 'EUR' }).format(value);
+    }
+
+    return (
+        <div class="simulation-view-container">
+            <div class="simulation-controls">
+                <h2>{t('simulations.controls.title')}</h2>
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label htmlFor="sim-warehouseId">{t('simulations.controls.warehouse')}</label>
+                        <select id="sim-warehouseId" value={warehouseId} onChange={(e) => {
+                            setWarehouseId((e.target as HTMLSelectElement).value);
+                            setSelectedProduct(null);
+                            setProductId('');
+                        }}>
+                            <option value="">{t('simulations.controls.selectWarehouse')}</option>
+                            {warehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label htmlFor="sim-productId">{t('simulations.controls.productId')}</label>
+                        <input
+                            type="text"
+                            id="sim-productId"
+                            value={productId}
+                            onInput={handleProductIdChange}
+                            placeholder={t('simulations.controls.productIdPlaceholder')}
+                            disabled={!warehouseId}
+                            autocomplete="off"
+                        />
+                        {isSuggestionsVisible && productSuggestions.length > 0 && (
+                            <ul class="suggestions-list">
+                                {productSuggestions
+                                .filter(p => p.warehouseId === warehouseId)
+                                .map(p => (
+                                    <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
+                                        <strong>{p.productId}</strong> - {p.name}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                    <div class="filter-actions">
+                         <button onClick={handleRunSimulation} disabled={!selectedProduct || isSimulating} class="button-primary">{t('simulations.controls.run')}</button>
+                    </div>
+                </div>
+            </div>
+
+            {isSimulating && (
+                 <div class="simulation-loading">
+                    <div class="spinner"></div>
+                    <p>{t('simulations.results.calculating')}</p>
+                 </div>
+            )}
+
+            {selectedProduct && !isSimulating && (
+                 <div class="product-details-card">
+                    <h3>{t('simulations.details.title')}</h3>
+                    <div class="details-grid">
+                        {renderDetail('columns.product.itemGroup', selectedProduct.itemGroup)}
+                        {renderDetail('columns.product.productId', selectedProduct.productId)}
+                        {renderDetail('columns.product.name', selectedProduct.name)}
+                        {renderDetail('columns.product.caseSize', selectedProduct.caseSize)}
+                        {renderDetail('columns.product.cartonsPerPallet', selectedProduct.cartonsPerPallet)}
+                        {renderDetail('columns.product.shelfLifeAtReceiving', `${selectedProduct.shelfLifeAtReceiving} ${t('simulations.details.days')}`)}
+                        {renderDetail('columns.product.shelfLifeAtStore', `${selectedProduct.shelfLifeAtStore} ${t('simulations.details.days')}`)}
+                        {renderDetail('columns.product.customerShelfLife', `${selectedProduct.customerShelfLife} ${t('simulations.details.days')}`)}
+                        {renderDetail('columns.product.price', formatCurrency(selectedProduct.price))}
+                        {renderDetail('columns.product.status', `${selectedProduct.status} (${t('simulations.details.locked')}: ${selectedProduct.itemLocked})`)}
+                        {renderDetail('columns.product.supplierId', selectedProduct.supplierId)}
+                        {renderDetail('columns.product.supplierName', selectedProduct.supplierName)}
+                    </div>
+                </div>
+            )}
+            
+            {simulationResult && !isSimulating && (
+                <div class="simulation-results">
+                    <h3>{t('simulations.results.title')}</h3>
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <h4>{t('simulations.kpi.totalWriteOffValue')}</h4>
+                            <p>{formatCurrency(simulationResult.totalWriteOffValue)}</p>
+                        </div>
+                        <div class="kpi-card">
+                            <h4>{t('simulations.kpi.daysOfStock')}</h4>
+                            <p>{simulationResult.daysOfStock.toFixed(1)} {t('simulations.details.days')}</p>
+                        </div>
+                         <div class="kpi-card">
+                            <h4>{t('simulations.kpi.avgDailySales')}</h4>
+                            <p>{simulationResult.avgDailySales.toFixed(2)}</p>
+                        </div>
+                        <div class="kpi-card">
+                            <h4>{t('simulations.kpi.firstWriteOffDate')}</h4>
+                            <p>{simulationResult.firstWriteOffDate || t('simulations.results.none')}</p>
+                        </div>
+                    </div>
+                    
+                    <h4>{t('simulations.log.title')}</h4>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>{t('simulations.log.date')}</th>
+                                    <th>{t('simulations.log.stockStart')}</th>
+                                    <th>{t('simulations.log.sales')}</th>
+                                    <th>{t('simulations.log.receipts')}</th>
+                                    <th>{t('simulations.log.writeOffs')}</th>
+                                    <th>{t('simulations.log.stockEnd')}</th>
+                                    <th>{t('simulations.log.notes')}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {simulationResult.log.map(entry => (
+                                    <tr key={entry.date}>
+                                        <td>{entry.date}</td>
+                                        <td>{entry.stockStart.toLocaleString(language)}</td>
+                                        <td>{entry.sales.toLocaleString(language)}</td>
+                                        <td>{entry.receipts.toLocaleString(language)}</td>
+                                        <td style={{ color: entry.writeOffs > 0 ? 'var(--danger-color)' : 'inherit' }}>
+                                            {entry.writeOffs.toLocaleString(language)}
+                                        </td>
+                                        <td>{entry.stockEnd.toLocaleString(language)}</td>
+                                        <td>{entry.notes}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+        </div>
+    );
+};
+
 
 const App = () => {
   const { t, language } = useTranslation();
@@ -776,7 +997,7 @@ const App = () => {
       if (productsCount > 0 || goodsReceiptsCount > 0 || openOrdersCount > 0 || salesCount > 0) {
         setStatusMessage({ text: t('status.dbOk'), type: 'success' });
       } else {
-        setStatusMessage({ text: 'status.dbEmpty', type: 'info' });
+        setStatusMessage({ text: t('status.dbEmpty'), type: 'info' });
       }
     } catch (error) {
       console.error("Failed to check DB status", error);
@@ -964,16 +1185,18 @@ const App = () => {
   };
   
   const saleRowMapper = (row: string[]): Sale | null => {
-      if (row.length < 5) return null;
+      if (row.length < 6) return null;
       
       const resaleDate = row[0]?.trim() ?? '';
       const warehouseId = row[1]?.trim() ?? '';
+      // row[2] is warehouse name, we skip it
       const productId = row[3]?.trim() ?? '';
       const productName = row[4]?.trim() ?? '';
-      const quantityStr = row[5]?.trim()?.replace(/,/g, '') ?? '0';
-      const quantity = parseFloat(quantityStr);
+      
+      const quantityRaw = row[5]?.replace(/"/g, '').replace(/,/g, '') ?? '0';
+      const quantity = parseFloat(quantityRaw);
 
-      if (!resaleDate || !warehouseId || !productId || !productName || isNaN(quantity)) {
+      if (!resaleDate || !warehouseId || !productId || isNaN(quantity)) {
           return null;
       }
 
@@ -1256,19 +1479,14 @@ const App = () => {
           </div>
         );
       case 'simulations':
-        return (
-          <div class="placeholder-view">
-            <h2>{t('placeholders.simulations.title')}</h2>
-            <p>{t('placeholders.simulations.description')}</p>
-          </div>
-        );
+        return <SimulationView />;
       default:
         return null;
     }
   };
 
   const hasAnyData = counts.products > 0 || counts.goodsReceipts > 0 || counts.openOrders > 0 || counts.sales > 0;
-  const canAnalyze = counts.products > 0 && counts.goodsReceipts > 0;
+  const canAnalyze = counts.products > 0 && counts.goodsReceipts > 0 && counts.sales > 0;
 
   return (
     <>
@@ -1306,7 +1524,11 @@ const App = () => {
             {renderContent()}
           </div>
           <div class="actions-container">
-            <button class="button-primary" disabled={!canAnalyze || isLoading}>
+            <button 
+                class="button-primary" 
+                disabled={!canAnalyze || isLoading}
+                onClick={() => setCurrentView('simulations')}
+            >
               {t('actions.runAnalysis')}
             </button>
             {hasAnyData && !isLoading && (
