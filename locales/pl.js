@@ -125,7 +125,14 @@ export default {
       "daysOfStock": "Dni Zapasu",
       "avgDailySales": "Śr. Sprzedaż Dzienna",
       "nonCompliantReceipts": "Niezgodne Przyjęcia",
-      "firstWriteOffDate": "Data Pierwszego Odpisu"
+      "firstWriteOffDate": "Data Pierwszego Odpisu",
+      "salesAdjustUp": "Zwiększ sprzedaż o 10%",
+      "salesAdjustDown": "Zmniejsz sprzedaż o 10%"
+    },
+    "manualDelivery": {
+        "title": "Dodaj Ręczną Dostawę",
+        "date": "Data Dostawy",
+        "quantity": "Ilość"
     },
     "initialStock": {
       "title": "Skład Początkowego Stanu Magazynowego",
@@ -133,7 +140,7 @@ export default {
       "deliveryDate": "Data Dostawy",
       "bestBeforeDate": "Data Przydatności",
       "daysForSale": "Dni na Sprzedaż",
-      "regulationBreached": "Naruszenie Regulacji",
+      "regulationBreached": "Przekroczone (T/N)",
       "quantity": "Ilość",
       "unknownBatch": "Nieznana Partia"
     },
