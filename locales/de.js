@@ -98,10 +98,42 @@ export default {
     "dashboard": {
         "title": "Dashboard",
         "description": "Das Haupt-Dashboard mit den wichtigsten Leistungsindikatoren (KPIs), Diagrammen und einer Zusammenfassung des Lagerstatus. Diese Funktion ist in Entwicklung."
+    }
+  },
+  "simulations": {
+    "controls": {
+      "title": "Simulationssteuerung",
+      "warehouse": "Lager",
+      "selectWarehouse": "Lager auswählen",
+      "productId": "Artikel-Nr.",
+      "productIdPlaceholder": "Tippen, um Produkt zu suchen...",
+      "run": "Simulation starten"
     },
-    "simulations": {
-        "title": "Simulationen",
-        "description": "Ein Werkzeug zur Durchführung von 'Was-wäre-wenn'-Analysen durch Änderung von Eingabeparametern. Diese Funktion ist in Entwicklung."
+    "details": {
+      "title": "Produktdetails",
+      "days": "Tage",
+      "locked": "Gesperrt"
+    },
+    "results": {
+      "title": "Simulationsergebnisse",
+      "calculating": "Simulation wird berechnet, dies kann einen Moment dauern...",
+      "none": "Keine"
+    },
+    "kpi": {
+      "totalWriteOffValue": "Gesamtabschreibungswert",
+      "daysOfStock": "Lagerreichweite",
+      "avgDailySales": "Ø tägl. Absatz",
+      "firstWriteOffDate": "Erstes Abschreibungsdatum"
+    },
+    "log": {
+      "title": "Simulationsprotokoll",
+      "date": "Datum",
+      "stockStart": "Anfangsbestand",
+      "sales": "Verkäufe",
+      "receipts": "Eingänge",
+      "writeOffs": "Abschreibungen",
+      "stockEnd": "Endbestand",
+      "notes": "Notizen"
     }
   },
   "dataType": {
