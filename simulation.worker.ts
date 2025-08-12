@@ -108,6 +108,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
     const today = new Date();
     today.setHours(0,0,0,0);
     
+    // Sort receipts from newest to oldest for FIFO rollback
     allReceipts.sort((a, b) => b.deliveryDateSortable.localeCompare(a.deliveryDateSortable));
     
     let remainingStockToAllocate = effectiveStockOnHand;
@@ -124,7 +125,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         const quantityFromThisBatch = Math.min(remainingStockToAllocate, receipt.deliveryQtyPcs);
         
         if (isNonCompliant) {
-            // Count all non-compliant receipts, not just those in stock
+            // Count all non-compliant receipts identified in the rollback, not just the one batch.
             nonCompliantReceiptsCount++;
         }
 
@@ -137,7 +138,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             isUnknown: false,
             isNonCompliant: isNonCompliant,
             daysToSell: daysToSell,
-            isAffectedByWriteOff: false,
+            isAffectedByWriteOff: false, // Will be determined later
         });
         
         remainingStockToAllocate -= quantityFromThisBatch;
@@ -171,7 +172,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             };
         });
 
-    if (!isStockDataComplete) {
+    if (remainingStockToAllocate > 0) {
         const pessimisticBestBefore = new Date();
         pessimisticBestBefore.setHours(0,0,0,0);
         const pessimisticSDateHorizon = new Date(pessimisticBestBefore);
@@ -185,6 +186,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         });
     }
 
+    // Re-sort for FIFO simulation (oldest first)
     stock.sort((a, b) => a.bestBefore.getTime() - b.bestBefore.getTime());
     initialStockBatches.sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate));
 
