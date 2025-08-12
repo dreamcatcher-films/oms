@@ -375,6 +375,11 @@ const App = () => {
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('dashboard')}} class={currentView === 'dashboard' ? 'active' : ''}>{t('sidebar.dashboard')}</a></li>
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('simulations')}} class={currentView === 'simulations' ? 'active' : ''}>{t('sidebar.simulations')}</a></li>
           </ul>
+          <div class="sidebar-footer">
+              <p>Proof of Concept Supply Chain UK</p>
+              <p>OMS - Outdate Mitigation System</p>
+              <p>&copy; 2025 | Version 0.1</p>
+          </div>
         </nav>
         <main class="main-content">
           {statusMessage && (
