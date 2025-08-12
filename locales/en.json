@@ -48,6 +48,10 @@
         "title": "3. Open Orders",
         "description": "File with open orders that have not yet arrived at the warehouse."
     },
+    "sales": {
+        "title": "4. Sales Data",
+        "description": "File with historical sales data. Accepts .csv or .txt."
+    },
     "status": {
         "updated": "Updated",
         "todayAt": "today at",
@@ -63,7 +67,8 @@
       "tabs": {
           "products": "Products",
           "goodsReceipts": "Goods Receipt (eGIN)",
-          "openOrders": "Open Orders"
+          "openOrders": "Open Orders",
+          "sales": "Sales"
       },
       "filters": {
           "warehouse": "Warehouse",
@@ -102,7 +107,8 @@
   "dataType": {
     "products": "Master Data",
     "goodsReceipts": "Goods Receipts",
-    "openOrders": "Open Orders"
+    "openOrders": "Open Orders",
+    "sales": "Sales Data"
   },
   "columns": {
     "product": {
@@ -169,6 +175,12 @@
       "deliveryDate": "Est. Delivery Date",
       "creationDate": "Creation Date",
       "deliveryLeadTime": "Lead Time (days)"
+    },
+    "sale": {
+      "resaleDate": "Resale Date",
+      "warehouseId": "Warehouse",
+      "productId": "Product No.",
+      "quantity": "Quantity Sold"
     }
   }
 }
