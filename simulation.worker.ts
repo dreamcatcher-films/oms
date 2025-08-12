@@ -1,5 +1,3 @@
-
-
 import {
   getProductDetails,
   getAllGoodsReceiptsForProduct,
@@ -28,6 +26,7 @@ export type InitialStockBatch = {
     isUnknown: boolean;
     isNonCompliant: boolean;
     daysToSell: number;
+    isAffectedByWriteOff: boolean;
 };
 
 export type SimulationResult = {
@@ -41,6 +40,14 @@ export type SimulationResult = {
   isStockDataComplete: boolean;
 };
 
+type StockBatch = {
+    quantity: number;
+    bestBefore: Date;
+    sDateHorizon: Date;
+    deliveryDate: string;
+    bestBeforeDate: string;
+};
+
 type SimulationParams = {
     warehouseId: string;
     fullProductId: string;
@@ -50,10 +57,10 @@ type SimulationParams = {
         cDate?: number;
         avgDailySales?: number;
     };
-    manualDelivery?: {
+    manualDeliveries?: {
         date: string;
         quantity: number;
-    }
+    }[];
 };
 
 const formatDate = (date: Date): string => {
@@ -68,7 +75,7 @@ const parseSortableDate = (dateStr: string): Date => {
 };
 
 onmessage = async (event: MessageEvent<SimulationParams>) => {
-  const { warehouseId, fullProductId, overrides, manualDelivery } = event.data;
+  const { warehouseId, fullProductId, overrides, manualDeliveries } = event.data;
 
   try {
     // 1. Fetch all necessary data
@@ -130,6 +137,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             isUnknown: false,
             isNonCompliant: isNonCompliant,
             daysToSell: daysToSell,
+            isAffectedByWriteOff: false,
         });
         
         remainingStockToAllocate -= quantityFromThisBatch;
@@ -144,10 +152,11 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             isUnknown: true,
             isNonCompliant: true, 
             daysToSell: 0,
+            isAffectedByWriteOff: false,
         });
     }
 
-    let stock: { quantity: number; bestBefore: Date; sDateHorizon: Date }[] = initialStockBatches
+    let stock: StockBatch[] = initialStockBatches
         .filter(b => !b.isUnknown)
         .map(batch => {
             const bestBefore = new Date(batch.bestBeforeDate);
@@ -156,7 +165,9 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             return {
                 quantity: batch.quantity,
                 bestBefore,
-                sDateHorizon
+                sDateHorizon,
+                deliveryDate: batch.deliveryDate,
+                bestBeforeDate: batch.bestBeforeDate,
             };
         });
 
@@ -165,7 +176,13 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         pessimisticBestBefore.setHours(0,0,0,0);
         const pessimisticSDateHorizon = new Date(pessimisticBestBefore);
         pessimisticSDateHorizon.setDate(pessimisticSDateHorizon.getDate() - sDate);
-        stock.push({ quantity: remainingStockToAllocate, bestBefore: pessimisticBestBefore, sDateHorizon: pessimisticSDateHorizon });
+        stock.push({
+            quantity: remainingStockToAllocate,
+            bestBefore: pessimisticBestBefore,
+            sDateHorizon: pessimisticSDateHorizon,
+            deliveryDate: 'Unknown',
+            bestBeforeDate: 'Unknown'
+        });
     }
 
     stock.sort((a, b) => a.bestBefore.getTime() - b.bestBefore.getTime());
@@ -178,8 +195,12 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         receiptsCalendar.set(deliveryDate, (receiptsCalendar.get(deliveryDate) || 0) + order.orderQtyPcs);
     }
     
-    if (manualDelivery && manualDelivery.date && manualDelivery.quantity > 0) {
-        receiptsCalendar.set(manualDelivery.date, (receiptsCalendar.get(manualDelivery.date) || 0) + manualDelivery.quantity);
+    if (manualDeliveries) {
+        for (const delivery of manualDeliveries) {
+            if (delivery.date && delivery.quantity > 0) {
+                receiptsCalendar.set(delivery.date, (receiptsCalendar.get(delivery.date) || 0) + delivery.quantity);
+            }
+        }
     }
 
     // 5. Run simulation
@@ -190,6 +211,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
     let firstWriteOffDate: string | null = null;
     const simulationEndDate = new Date();
     simulationEndDate.setFullYear(simulationEndDate.getFullYear() + 1);
+    const writtenOffBatchKeys = new Set<string>();
 
     while (currentDate <= simulationEndDate) {
         const dateStr = formatDate(currentDate);
@@ -215,7 +237,13 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             const sDateHorizon = new Date(bestBefore);
             sDateHorizon.setDate(bestBefore.getDate() - sDate);
 
-            stock.push({ quantity: newReceiptQty, bestBefore, sDateHorizon });
+            stock.push({
+                quantity: newReceiptQty,
+                bestBefore,
+                sDateHorizon,
+                deliveryDate: formatDate(deliveryDate),
+                bestBeforeDate: formatDate(bestBefore),
+            });
             stock.sort((a, b) => a.bestBefore.getTime() - b.bestBefore.getTime());
             logEntry.notes += `Receipt: ${newReceiptQty}. `;
         }
@@ -237,7 +265,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         }
         
         let writeOffsToday = 0;
-        const remainingStock = [];
+        const remainingStock: StockBatch[] = [];
         for (const batch of stock) {
             if (currentDate >= batch.sDateHorizon) {
                 writeOffsToday += batch.quantity;
@@ -245,6 +273,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
                     firstWriteOffDate = dateStr;
                 }
                 logEntry.notes += `Write-off: ${batch.quantity} (BBD: ${formatDate(batch.bestBefore)}). `;
+                writtenOffBatchKeys.add(`${batch.deliveryDate}:${batch.bestBeforeDate}`);
             } else {
                 remainingStock.push(batch);
             }
@@ -266,6 +295,12 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         currentDate.setDate(currentDate.getDate() + 1);
     }
         
+    initialStockBatches.forEach(batch => {
+        if(writtenOffBatchKeys.has(`${batch.deliveryDate}:${batch.bestBeforeDate}`)) {
+            batch.isAffectedByWriteOff = true;
+        }
+    });
+
     const result: SimulationResult = {
       totalWriteOffValue: totalWriteOffs * productDetails.price,
       daysOfStock: avgDailySales > 0 ? effectiveStockOnHand / avgDailySales : Infinity,
