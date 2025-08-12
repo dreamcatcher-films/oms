@@ -857,6 +857,10 @@ tr:hover {
     background-color: #fff1f0 !important;
 }
 
+.manual-delivery-row {
+    background-color: #e7f3fe !important;
+}
+
 .log-toggle-container {
     text-align: center;
     padding-top: 1rem;
