@@ -48,6 +48,10 @@
         "title": "3. Offene Bestellungen",
         "description": "Datei mit offenen Bestellungen, die noch nicht im Lager eingetroffen sind."
     },
+    "sales": {
+        "title": "4. Verkaufsdaten",
+        "description": "Datei mit historischen Verkaufsdaten. Akzeptiert .csv oder .txt."
+    },
     "status": {
         "updated": "Aktualisiert",
         "todayAt": "heute um",
@@ -63,7 +67,8 @@
       "tabs": {
           "products": "Produkte",
           "goodsReceipts": "Wareneingang (eGIN)",
-          "openOrders": "Offene Bestellungen"
+          "openOrders": "Offene Bestellungen",
+          "sales": "Verkäufe"
       },
       "filters": {
           "warehouse": "Lager",
@@ -102,7 +107,8 @@
   "dataType": {
     "products": "Stammdaten",
     "goodsReceipts": "Wareneingänge",
-    "openOrders": "Offene Bestellungen"
+    "openOrders": "Offene Bestellungen",
+    "sales": "Verkaufsdaten"
   },
   "columns": {
     "product": {
@@ -169,6 +175,12 @@
         "deliveryDate": "Erw. Lieferdatum",
         "creationDate": "Erstelldatum",
         "deliveryLeadTime": "Vorlaufzeit (Tage)"
+    },
+    "sale": {
+        "resaleDate": "Verkaufsdatum",
+        "warehouseId": "Lager",
+        "productId": "Artikel-Nr.",
+        "quantity": "Verkaufte Menge"
     }
   }
 }
