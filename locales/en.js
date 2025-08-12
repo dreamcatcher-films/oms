@@ -125,7 +125,14 @@ export default {
       "daysOfStock": "Days of Stock",
       "avgDailySales": "Avg. Daily Sales",
       "nonCompliantReceipts": "Non-Compliant Receipts",
-      "firstWriteOffDate": "First Write-Off Date"
+      "firstWriteOffDate": "First Write-Off Date",
+      "salesAdjustUp": "Increase sales by 10%",
+      "salesAdjustDown": "Decrease sales by 10%"
+    },
+    "manualDelivery": {
+        "title": "Add Manual Delivery",
+        "date": "Delivery Date",
+        "quantity": "Quantity"
     },
     "initialStock": {
       "title": "Initial Stock Composition",
@@ -133,7 +140,7 @@ export default {
       "deliveryDate": "Delivery Date",
       "bestBeforeDate": "Best Before Date",
       "daysForSale": "Days For Sale",
-      "regulationBreached": "Regulation Breached",
+      "regulationBreached": "Breached (Y/N)",
       "quantity": "Quantity",
       "unknownBatch": "Unknown Batch"
     },
