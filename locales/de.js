@@ -115,6 +115,9 @@ export default {
       "days": "Tage",
       "locked": "Gesperrt"
     },
+    "overrides": {
+        "title": "Parameterüberschreibungen"
+    },
     "results": {
       "title": "Simulationsergebnisse",
       "calculating": "Simulation wird berechnet, dies kann einen Moment dauern...",
@@ -127,10 +130,13 @@ export default {
       "nonCompliantReceipts": "Regelwidrige Eingänge",
       "firstWriteOffDate": "Erstes Abschreibungsdatum",
       "salesAdjustUp": "Absatz um 10% erhöhen",
-      "salesAdjustDown": "Absatz um 10% verringern"
+      "salesAdjustDown": "Absatz um 10% verringern",
+      "original": "Original",
+      "salesResetTooltip": "Klicken, um den Originalwert wiederherzustellen"
     },
      "manualDelivery": {
         "title": "Manuelle Lieferung hinzufügen",
+        "addedTitle": "Hinzugefügte Lieferungen",
         "date": "Lieferdatum",
         "quantity": "Menge"
     },
@@ -153,6 +159,13 @@ export default {
       "writeOffs": "Abschreibungen",
       "stockEnd": "Endbestand",
       "notes": "Notizen"
+    },
+    "buttons": {
+        "add": "Hinzufügen",
+        "resetDefaults": "Zurücksetzen",
+        "showMore": "Mehr anzeigen",
+        "showLess": "Weniger anzeigen",
+        "rerun": "Neu ausführen"
     }
   },
   "common": {
