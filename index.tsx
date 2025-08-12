@@ -24,79 +24,11 @@ import {
   updateImportMetadata,
   ImportMetadata,
 } from "./db";
+import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
 
 const BATCH_SIZE = 5000;
 const PAGE_SIZE = 20;
-
-const PRODUCT_COLUMNS: { key: keyof Product; label: string }[] = [
-    { key: 'warehouseId', label: 'Magazyn' },
-    { key: 'dispoGroup', label: 'Grupa Dispo' },
-    { key: 'itemGroup', label: 'Grupa Tow.' },
-    { key: 'orderArea', label: 'Obszar Zam.' },
-    { key: 'productId', label: 'Nr art. krótki' },
-    { key: 'fullProductId', label: 'Nr art. pełny' },
-    { key: 'name', label: 'Nazwa' },
-    { key: 'caseSize', label: 'Szt. w kart.' },
-    { key: 'cartonsPerLayer', label: 'Kart. na war.' },
-    { key: 'duessFactor', label: 'DD' },
-    { key: 'cartonsPerPallet', label: 'Kart. na pal.' },
-    { key: 'shelfLifeAtReceiving', label: 'W-DATE dni' },
-    { key: 'shelfLifeAtStore', label: 'S-DATE dni' },
-    { key: 'customerShelfLife', label: 'C-DATE dni' },
-    { key: 'price', label: 'Cena' },
-    { key: 'status', label: 'Status' },
-    { key: 'itemLocked', label: 'Zablokowany' },
-    { key: 'slotNr', label: 'Slot' },
-    { key: 'unprocessedDeliveryQty', label: 'Nieroz. dost.' },
-    { key: 'supplierId', label: 'ID Dostawcy' },
-    { key: 'supplierName', label: 'Nazwa Dostawcy' },
-    { key: 'stockOnHand', label: 'Stan mag.' },
-    { key: 'storeAllocationToday', label: 'Alok. dzisiaj' },
-    { key: 'storeAllocationTotal', label: 'Alok. łączna' },
-    { key: 'promoDate', label: 'Data promo' },
-    { key: 'estimatedReceivings', label: 'Szac. dostawy' },
-];
-
-const GOODS_RECEIPT_COLUMNS: { key: keyof GoodsReceipt; label: string }[] = [
-    { key: 'warehouseId', label: 'Magazyn' },
-    { key: 'productId', label: 'Nr art. krótki' },
-    { key: 'fullProductId', label: 'Nr art. pełny' },
-    { key: 'name', label: 'Nazwa' },
-    { key: 'deliveryUnit', label: 'Jedn. dostawy' },
-    { key: 'deliveryQtyUom', label: 'Ilość (J.m.)' },
-    { key: 'caseSize', label: 'Szt. w kart.' },
-    { key: 'deliveryQtyPcs', label: 'Ilość (szt.)' },
-    { key: 'poNr', label: 'Nr zamówienia' },
-    { key: 'deliveryDate', label: 'Data dostawy' },
-    { key: 'bestBeforeDate', label: 'Data przydatności' },
-    { key: 'supplierId', label: 'ID Dostawcy' },
-    { key: 'supplierName', label: 'Nazwa Dostawcy' },
-    { key: 'bolNr', label: 'BOL Nr' },
-    { key: 'deliveryNote', label: 'Nota dostawy' },
-    { key: 'intSupplierNr', label: 'Międz. ID Dostawcy' },
-    { key: 'intItemNr', label: 'Międz. nr art.' },
-    { key: 'caseGtin', label: 'GTIN kartonu' },
-    { key: 'liaReference', label: 'LIA Ref' },
-];
-
-const OPEN_ORDER_COLUMNS: { key: keyof OpenOrder; label: string }[] = [
-    { key: 'warehouseId', label: 'Magazyn' },
-    { key: 'productId', label: 'Nr art. krótki' },
-    { key: 'fullProductId', label: 'Nr art. pełny' },
-    { key: 'name', label: 'Nazwa' },
-    { key: 'orderUnit', label: 'Jedn. zamówienia' },
-    { key: 'orderQtyUom', label: 'Ilość (J.m.)' },
-    { key: 'caseSize', label: 'Szt. w kart.' },
-    { key: 'orderQtyPcs', label: 'Ilość (szt.)' },
-    { key: 'poNr', label: 'Nr zamówienia' },
-    { key: 'supplierId', label: 'ID Dostawcy' },
-    { key: 'supplierName', label: 'Nazwa Dostawcy' },
-    { key: 'deliveryDate', label: 'Plan. data dostawy' },
-    { key: 'creationDate', label: 'Data utworzenia' },
-    { key: 'deliveryLeadTime', label: 'Czas realizacji (dni)' },
-];
-
 
 type Status = {
   text: string;
@@ -115,11 +47,35 @@ const isDateToday = (someDate: Date) => {
         someDate.getFullYear() === today.getFullYear();
 };
 
-const formatStatusDate = (date: Date): string => {
-    if (isDateToday(date)) {
-        return `dzisiaj o ${date.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}`;
-    }
-    return date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const LanguageSelector = () => {
+    const { language, setLanguage, t } = useTranslation();
+    const [isOpen, setIsOpen] = useState(false);
+
+    const languages = [
+        { code: 'en', name: 'English', flag: '🇬🇧' },
+        { code: 'pl', name: 'Polski', flag: '🇵🇱' },
+        { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+    ];
+
+    const selectedLanguage = languages.find(lang => lang.code === language);
+
+    return (
+        <div class="language-selector" onBlur={() => setIsOpen(false)} tabIndex={0}>
+            <button class="selector-button" onClick={() => setIsOpen(!isOpen)}>
+                {selectedLanguage?.flag}
+                <span class="arrow">{isOpen ? '▲' : '▼'}</span>
+            </button>
+            {isOpen && (
+                <ul class="selector-dropdown">
+                    {languages.map(lang => (
+                        <li key={lang.code} onMouseDown={() => { setLanguage(lang.code); setIsOpen(false); }}>
+                            {lang.flag} {lang.name}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
 };
 
 
@@ -136,62 +92,71 @@ const ImportView = ({
     onFileSelect: (type: DataType, event: Event) => void;
     onClear: (type: DataType) => void;
 }) => {
+    const { t, language } = useTranslation();
+    
+    const formatStatusDate = (date: Date): string => {
+        if (isDateToday(date)) {
+            return `${t('import.status.todayAt')} ${date.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' })}`;
+        }
+        return date.toLocaleDateString(language, { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
     const dataTypes: {
         key: DataType;
-        title: string;
-        description: string;
+        titleKey: string;
+        descriptionKey: string;
     }[] = [
         {
             key: 'products',
-            title: '1. Dane Podstawowe Artykułów',
-            description: 'Plik z informacjami o produktach. Wymaga dwóch wierszy nagłówka.',
+            titleKey: 'import.products.title',
+            descriptionKey: 'import.products.description',
         },
         {
             key: 'goodsReceipts',
-            title: '2. Przyjęcie Towaru (eGIN)',
-            description: 'Plik z informacjami o przyjęciach towaru. Wymaga dwóch wierszy nagłówka.',
+            titleKey: 'import.goodsReceipts.title',
+            descriptionKey: 'import.goodsReceipts.description',
         },
         {
             key: 'openOrders',
-            title: '3. Otwarte Zamówienia',
-            description: 'Plik z otwartymi zamówieniami, które nie dotarły jeszcze do magazynu.',
+            titleKey: 'import.openOrders.title',
+            descriptionKey: 'import.openOrders.description',
         },
     ];
 
     return (
         <div class="import-list-container">
-            {dataTypes.map(({ key, title, description }) => {
+            {dataTypes.map(({ key, titleKey, descriptionKey }) => {
                 const meta = importMetadata[key];
                 const count = counts[key];
                 const isUpdatedToday = meta && meta.lastImported ? isDateToday(meta.lastImported) : false;
                 const statusIcon = count > 0 && isUpdatedToday ? '✓' : '✗';
                 const statusClass = count > 0 && isUpdatedToday ? 'success' : 'error';
-                let statusText = 'Brak danych';
+                let statusText = t('import.status.noData');
                 if (meta && meta.lastImported) {
-                    statusText = `Zaktualizowano ${formatStatusDate(meta.lastImported)}`;
+                    statusText = `${t('import.status.updated')} ${formatStatusDate(meta.lastImported)}`;
                 }
 
                 return (
                     <div class="import-section" key={key}>
                         <div class="import-section-header">
-                            <h2>{title}</h2>
+                            <h2>{t(titleKey)}</h2>
                             <div class={`import-status-details`}>
                                 <span class={`status-icon ${statusClass}`}>{statusIcon}</span>
                                 <div>
                                     <p class="status-main-text">{statusText}</p>
-                                    <p class="status-sub-text">{count.toLocaleString('pl-PL')} rekordów</p>
+                                    <p class="status-sub-text">{count.toLocaleString(language)} {t('import.status.records')}</p>
                                 </div>
                             </div>
                         </div>
                         <div class="import-section-description">
-                            <p>{description}</p>
+                            <p>{t(descriptionKey)}</p>
                         </div>
                         <div class="import-section-actions">
                             <label htmlFor={`${key}-file-input`} class={`file-label ${isLoading ? 'disabled' : ''}`}>
-                                Wybierz plik
+                                {t('import.buttons.selectFile')}
                             </label>
                             <input id={`${key}-file-input`} type="file" accept=".csv" onChange={(e) => onFileSelect(key, e)} disabled={isLoading} />
-                            {count > 0 && <button onClick={() => onClear(key)} class="button-clear" disabled={isLoading}>Wyczyść</button>}
+                            {count > 0 && <button onClick={() => onClear(key)} class="button-clear" disabled={isLoading}>{t('import.buttons.clear')}</button>}
                         </div>
                     </div>
                 );
@@ -202,6 +167,7 @@ const ImportView = ({
 
 
 const DataPreview = () => {
+  const { t, language } = useTranslation();
   const [activeTab, setActiveTab] = useState<'products' | 'goodsReceipts' | 'openOrders'>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [goodsReceipts, setGoodsReceipts] = useState<GoodsReceipt[]>([]);
@@ -229,6 +195,75 @@ const DataPreview = () => {
   const debounceTimeoutRef = useRef<number | null>(null);
 
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
+  
+    const PRODUCT_COLUMNS: { key: keyof Product; labelKey: string }[] = [
+        { key: 'warehouseId', labelKey: 'columns.product.warehouseId' },
+        { key: 'dispoGroup', labelKey: 'columns.product.dispoGroup' },
+        { key: 'itemGroup', labelKey: 'columns.product.itemGroup' },
+        { key: 'orderArea', labelKey: 'columns.product.orderArea' },
+        { key: 'productId', labelKey: 'columns.product.productId' },
+        { key: 'fullProductId', labelKey: 'columns.product.fullProductId' },
+        { key: 'name', labelKey: 'columns.product.name' },
+        { key: 'caseSize', labelKey: 'columns.product.caseSize' },
+        { key: 'cartonsPerLayer', labelKey: 'columns.product.cartonsPerLayer' },
+        { key: 'duessFactor', labelKey: 'columns.product.duessFactor' },
+        { key: 'cartonsPerPallet', labelKey: 'columns.product.cartonsPerPallet' },
+        { key: 'shelfLifeAtReceiving', labelKey: 'columns.product.shelfLifeAtReceiving' },
+        { key: 'shelfLifeAtStore', labelKey: 'columns.product.shelfLifeAtStore' },
+        { key: 'customerShelfLife', labelKey: 'columns.product.customerShelfLife' },
+        { key: 'price', labelKey: 'columns.product.price' },
+        { key: 'status', labelKey: 'columns.product.status' },
+        { key: 'itemLocked', labelKey: 'columns.product.itemLocked' },
+        { key: 'slotNr', labelKey: 'columns.product.slotNr' },
+        { key: 'unprocessedDeliveryQty', labelKey: 'columns.product.unprocessedDeliveryQty' },
+        { key: 'supplierId', labelKey: 'columns.product.supplierId' },
+        { key: 'supplierName', labelKey: 'columns.product.supplierName' },
+        { key: 'stockOnHand', labelKey: 'columns.product.stockOnHand' },
+        { key: 'storeAllocationToday', labelKey: 'columns.product.storeAllocationToday' },
+        { key: 'storeAllocationTotal', labelKey: 'columns.product.storeAllocationTotal' },
+        { key: 'promoDate', labelKey: 'columns.product.promoDate' },
+        { key: 'estimatedReceivings', labelKey: 'columns.product.estimatedReceivings' },
+    ];
+    
+    const GOODS_RECEIPT_COLUMNS: { key: keyof GoodsReceipt; labelKey: string }[] = [
+        { key: 'warehouseId', labelKey: 'columns.goodsReceipt.warehouseId' },
+        { key: 'productId', labelKey: 'columns.goodsReceipt.productId' },
+        { key: 'fullProductId', labelKey: 'columns.goodsReceipt.fullProductId' },
+        { key: 'name', labelKey: 'columns.goodsReceipt.name' },
+        { key: 'deliveryUnit', labelKey: 'columns.goodsReceipt.deliveryUnit' },
+        { key: 'deliveryQtyUom', labelKey: 'columns.goodsReceipt.deliveryQtyUom' },
+        { key: 'caseSize', labelKey: 'columns.goodsReceipt.caseSize' },
+        { key: 'deliveryQtyPcs', labelKey: 'columns.goodsReceipt.deliveryQtyPcs' },
+        { key: 'poNr', labelKey: 'columns.goodsReceipt.poNr' },
+        { key: 'deliveryDate', labelKey: 'columns.goodsReceipt.deliveryDate' },
+        { key: 'bestBeforeDate', labelKey: 'columns.goodsReceipt.bestBeforeDate' },
+        { key: 'supplierId', labelKey: 'columns.goodsReceipt.supplierId' },
+        { key: 'supplierName', labelKey: 'columns.goodsReceipt.supplierName' },
+        { key: 'bolNr', labelKey: 'columns.goodsReceipt.bolNr' },
+        { key: 'deliveryNote', labelKey: 'columns.goodsReceipt.deliveryNote' },
+        { key: 'intSupplierNr', labelKey: 'columns.goodsReceipt.intSupplierNr' },
+        { key: 'intItemNr', labelKey: 'columns.goodsReceipt.intItemNr' },
+        { key: 'caseGtin', labelKey: 'columns.goodsReceipt.caseGtin' },
+        { key: 'liaReference', labelKey: 'columns.goodsReceipt.liaReference' },
+    ];
+
+    const OPEN_ORDER_COLUMNS: { key: keyof OpenOrder; labelKey: string }[] = [
+        { key: 'warehouseId', labelKey: 'columns.openOrder.warehouseId' },
+        { key: 'productId', labelKey: 'columns.openOrder.productId' },
+        { key: 'fullProductId', labelKey: 'columns.openOrder.fullProductId' },
+        { key: 'name', labelKey: 'columns.openOrder.name' },
+        { key: 'orderUnit', labelKey: 'columns.openOrder.orderUnit' },
+        { key: 'orderQtyUom', labelKey: 'columns.openOrder.orderQtyUom' },
+        { key: 'caseSize', labelKey: 'columns.openOrder.caseSize' },
+        { key: 'orderQtyPcs', labelKey: 'columns.openOrder.orderQtyPcs' },
+        { key: 'poNr', labelKey: 'columns.openOrder.poNr' },
+        { key: 'supplierId', labelKey: 'columns.openOrder.supplierId' },
+        { key: 'supplierName', labelKey: 'columns.openOrder.supplierName' },
+        { key: 'deliveryDate', labelKey: 'columns.openOrder.deliveryDate' },
+        { key: 'creationDate', labelKey: 'columns.openOrder.creationDate' },
+        { key: 'deliveryLeadTime', labelKey: 'columns.openOrder.deliveryLeadTime' },
+    ];
+
 
   const fetchDropdownData = useCallback(async () => {
     const [statuses, pWarehouses, grWarehouses, ooWarehouses] = await Promise.all([
@@ -398,24 +433,24 @@ const DataPreview = () => {
   return (
     <div class="data-preview-container" onBlur={() => setIsSuggestionsVisible(false)}>
       <div class="tabs">
-        <button class={`tab ${activeTab === 'products' ? 'active' : ''}`} onClick={() => handleTabChange('products')}>Produkty</button>
-        <button class={`tab ${activeTab === 'goodsReceipts' ? 'active' : ''}`} onClick={() => handleTabChange('goodsReceipts')}>Przyjęcie Towaru (eGIN)</button>
-        <button class={`tab ${activeTab === 'openOrders' ? 'active' : ''}`} onClick={() => handleTabChange('openOrders')}>Otwarte Zamówienia</button>
+        <button class={`tab ${activeTab === 'products' ? 'active' : ''}`} onClick={() => handleTabChange('products')}>{t('dataPreview.tabs.products')}</button>
+        <button class={`tab ${activeTab === 'goodsReceipts' ? 'active' : ''}`} onClick={() => handleTabChange('goodsReceipts')}>{t('dataPreview.tabs.goodsReceipts')}</button>
+        <button class={`tab ${activeTab === 'openOrders' ? 'active' : ''}`} onClick={() => handleTabChange('openOrders')}>{t('dataPreview.tabs.openOrders')}</button>
       </div>
 
       {activeTab === 'products' && (
         <>
         <div class="filter-bar">
           <div class="filter-group">
-            <label for="p-warehouseId">Magazyn</label>
+            <label for="p-warehouseId">{t('dataPreview.filters.warehouse')}</label>
             <select id="p-warehouseId" name="warehouseId" value={productFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'products')} onKeyDown={handleKeyDown}>
-              <option value="">Wszystkie</option>
+              <option value="">{t('dataPreview.filters.all')}</option>
               {productWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
           </div>
           <div class="filter-group">
-            <label for="p-productId">Nr artykułu</label>
-            <input type="text" id="p-productId" name="productId" value={productFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
+            <label for="p-productId">{t('dataPreview.filters.productId')}</label>
+            <input type="text" id="p-productId" name="productId" value={productFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder={t('dataPreview.filters.productIdPlaceholder')} autocomplete="off"/>
             {isSuggestionsVisible && productIdSuggestions.length > 0 && (
               <ul class="suggestions-list">
                 {productIdSuggestions.map(p => (
@@ -427,15 +462,15 @@ const DataPreview = () => {
             )}
           </div>
           <div class="filter-group">
-            <label for="p-status">Status</label>
+            <label for="p-status">{t('dataPreview.filters.status')}</label>
             <select id="p-status" name="status" value={productFilters.status} onChange={(e) => handleFilterChange(e, 'products')} onKeyDown={handleKeyDown}>
-              <option value="">Wszystkie</option>
+              <option value="">{t('dataPreview.filters.all')}</option>
               {productStatuses.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div class="filter-actions">
-            <button onClick={applyFilters} class="button-primary">Filtruj</button>
-            <button onClick={clearFilters} class="button-secondary">Wyczyść</button>
+            <button onClick={applyFilters} class="button-primary">{t('dataPreview.filters.apply')}</button>
+            <button onClick={clearFilters} class="button-secondary">{t('dataPreview.filters.clear')}</button>
           </div>
         </div>
 
@@ -444,7 +479,7 @@ const DataPreview = () => {
             <table>
               <thead>
                 <tr>
-                  {PRODUCT_COLUMNS.map(col => <th key={col.key}>{col.label}</th>)}
+                  {PRODUCT_COLUMNS.map(col => <th key={col.key}>{t(col.labelKey)}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -455,7 +490,7 @@ const DataPreview = () => {
                          {(() => {
                            const value = product[col.key];
                            if (Array.isArray(value)) {
-                               return value.length > 0 ? `${value.length} dostaw` : 'Brak';
+                               return value.length > 0 ? `${value.length} ${t('dataPreview.table.deliveries')}` : t('dataPreview.table.none');
                            }
                            return String(value ?? '');
                          })()}
@@ -469,10 +504,10 @@ const DataPreview = () => {
         </div>
 
         <div class="pagination">
-          <span>{totalItems.toLocaleString('pl-PL')} rekordów</span>
-          <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>Poprzednia</button>
-          <span>Strona {currentPage} z {totalPages}</span>
-          <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>Następna</button>
+          <span>{totalItems.toLocaleString(language)} {t('dataPreview.pagination.records')}</span>
+          <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>{t('dataPreview.pagination.previous')}</button>
+          <span>{t('dataPreview.pagination.page', { currentPage, totalPages })}</span>
+          <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>{t('dataPreview.pagination.next')}</button>
         </div>
         </>
       )}
@@ -481,15 +516,15 @@ const DataPreview = () => {
          <>
          <div class="filter-bar">
           <div class="filter-group">
-            <label for="gr-warehouseId">Magazyn</label>
+            <label for="gr-warehouseId">{t('dataPreview.filters.warehouse')}</label>
             <select id="gr-warehouseId" name="warehouseId" value={goodsReceiptsFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'goodsReceipts')} onKeyDown={handleKeyDown}>
-              <option value="">Wszystkie</option>
+              <option value="">{t('dataPreview.filters.all')}</option>
               {goodsReceiptsWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
           </div>
           <div class="filter-group">
-            <label for="gr-productId">Nr artykułu</label>
-            <input type="text" id="gr-productId" name="productId" value={goodsReceiptsFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
+            <label for="gr-productId">{t('dataPreview.filters.productId')}</label>
+            <input type="text" id="gr-productId" name="productId" value={goodsReceiptsFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder={t('dataPreview.filters.productIdPlaceholder')} autocomplete="off"/>
             {isSuggestionsVisible && productIdSuggestions.length > 0 && (
               <ul class="suggestions-list">
                 {productIdSuggestions.map(p => (
@@ -501,8 +536,8 @@ const DataPreview = () => {
             )}
           </div>
           <div class="filter-actions">
-            <button onClick={applyFilters} class="button-primary">Filtruj</button>
-            <button onClick={clearFilters} class="button-secondary">Wyczyść</button>
+            <button onClick={applyFilters} class="button-primary">{t('dataPreview.filters.apply')}</button>
+            <button onClick={clearFilters} class="button-secondary">{t('dataPreview.filters.clear')}</button>
           </div>
         </div>
          <div class="table-container">
@@ -510,7 +545,7 @@ const DataPreview = () => {
              <table>
                <thead>
                  <tr>
-                   {GOODS_RECEIPT_COLUMNS.map(col => <th key={col.key}>{col.label}</th>)}
+                   {GOODS_RECEIPT_COLUMNS.map(col => <th key={col.key}>{t(col.labelKey)}</th>)}
                  </tr>
                </thead>
                <tbody>
@@ -529,10 +564,10 @@ const DataPreview = () => {
          </div>
  
          <div class="pagination">
-           <span>{totalItems.toLocaleString('pl-PL')} rekordów</span>
-           <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>Poprzednia</button>
-           <span>Strona {currentPage} z {totalPages}</span>
-           <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>Następna</button>
+           <span>{totalItems.toLocaleString(language)} {t('dataPreview.pagination.records')}</span>
+           <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>{t('dataPreview.pagination.previous')}</button>
+           <span>{t('dataPreview.pagination.page', { currentPage, totalPages })}</span>
+           <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>{t('dataPreview.pagination.next')}</button>
          </div>
          </>
       )}
@@ -541,15 +576,15 @@ const DataPreview = () => {
          <>
          <div class="filter-bar">
           <div class="filter-group">
-            <label for="oo-warehouseId">Magazyn</label>
+            <label for="oo-warehouseId">{t('dataPreview.filters.warehouse')}</label>
             <select id="oo-warehouseId" name="warehouseId" value={openOrderFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'openOrders')} onKeyDown={handleKeyDown}>
-              <option value="">Wszystkie</option>
+              <option value="">{t('dataPreview.filters.all')}</option>
               {openOrdersWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
           </div>
           <div class="filter-group">
-            <label for="oo-productId">Nr artykułu</label>
-            <input type="text" id="oo-productId" name="productId" value={openOrderFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder="np. 40006" autocomplete="off"/>
+            <label for="oo-productId">{t('dataPreview.filters.productId')}</label>
+            <input type="text" id="oo-productId" name="productId" value={openOrderFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder={t('dataPreview.filters.productIdPlaceholder')} autocomplete="off"/>
              {isSuggestionsVisible && productIdSuggestions.length > 0 && (
               <ul class="suggestions-list">
                 {productIdSuggestions.map(p => (
@@ -561,8 +596,8 @@ const DataPreview = () => {
             )}
           </div>
           <div class="filter-actions">
-            <button onClick={applyFilters} class="button-primary">Filtruj</button>
-            <button onClick={clearFilters} class="button-secondary">Wyczyść</button>
+            <button onClick={applyFilters} class="button-primary">{t('dataPreview.filters.apply')}</button>
+            <button onClick={clearFilters} class="button-secondary">{t('dataPreview.filters.clear')}</button>
           </div>
         </div>
          <div class="table-container">
@@ -570,7 +605,7 @@ const DataPreview = () => {
              <table>
                <thead>
                  <tr>
-                   {OPEN_ORDER_COLUMNS.map(col => <th key={col.key}>{col.label}</th>)}
+                   {OPEN_ORDER_COLUMNS.map(col => <th key={col.key}>{t(col.labelKey)}</th>)}
                  </tr>
                </thead>
                <tbody>
@@ -589,10 +624,10 @@ const DataPreview = () => {
          </div>
  
          <div class="pagination">
-           <span>{totalItems.toLocaleString('pl-PL')} rekordów</span>
-           <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>Poprzednia</button>
-           <span>Strona {currentPage} z {totalPages}</span>
-           <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>Następna</button>
+           <span>{totalItems.toLocaleString(language)} {t('dataPreview.pagination.records')}</span>
+           <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>{t('dataPreview.pagination.previous')}</button>
+           <span>{t('dataPreview.pagination.page', { currentPage, totalPages })}</span>
+           <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>{t('dataPreview.pagination.next')}</button>
          </div>
          </>
       )}
@@ -602,6 +637,7 @@ const DataPreview = () => {
 
 
 const App = () => {
+  const { t, language } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<Status>({ text: 'Inicjalizacja aplikacji...', type: 'info' });
   
@@ -612,7 +648,7 @@ const App = () => {
 
   const performInitialCheck = useCallback(async () => {
     setIsLoading(true);
-    setStatusMessage({ text: 'Sprawdzanie lokalnej bazy danych...', type: 'info' });
+    setStatusMessage({ text: t('status.checkingDb'), type: 'info' });
     try {
       const [{ productsCount, goodsReceiptsCount, openOrdersCount }, metadata] = await Promise.all([
           checkDBStatus(),
@@ -622,17 +658,17 @@ const App = () => {
       setImportMetadata(metadata);
 
       if (productsCount > 0 || goodsReceiptsCount > 0 || openOrdersCount > 0) {
-        setStatusMessage({ text: 'Znaleziono dane. Możesz uruchomić analizę lub wgrać nowe pliki.', type: 'success' });
+        setStatusMessage({ text: t('status.dbOk'), type: 'success' });
       } else {
-        setStatusMessage({ text: 'Wybierz pliki z danymi, aby rozpocząć.', type: 'info' });
+        setStatusMessage({ text: t('status.dbEmpty'), type: 'info' });
       }
     } catch (error) {
       console.error("Failed to check DB status", error);
-      setStatusMessage({ text: 'Błąd podczas sprawdzania bazy danych.', type: 'error' });
+      setStatusMessage({ text: t('status.dbError'), type: 'error' });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     performInitialCheck();
@@ -820,7 +856,7 @@ const App = () => {
     rowMapperFn: (row: { [key: string]: string }) => any
   ) => {
       setIsLoading(true);
-      setStatusMessage({ text: `Przygotowywanie do importu: ${dataTypeName}...`, type: 'info', progress: 0 });
+      setStatusMessage({ text: t('status.import.preparing', { dataTypeName }), type: 'info', progress: 0 });
 
       (async () => {
         try {
@@ -828,13 +864,13 @@ const App = () => {
           setCounts(prev => ({ ...prev, [dataType]: 0 }));
           setImportMetadata(prev => ({ ...prev, [dataType]: null }));
         } catch (error) {
-          console.error(`Błąd podczas czyszczenia bazy danych (${dataTypeName}).`, error);
-          setStatusMessage({ text: 'Błąd podczas czyszczenia bazy danych.', type: 'error' });
+          console.error(`Error clearing database for ${dataTypeName}.`, error);
+          setStatusMessage({ text: t('status.import.clearError'), type: 'error' });
           setIsLoading(false);
           return;
         }
 
-        setStatusMessage({ text: `Rozpoczynanie importu pliku: ${dataTypeName}...`, type: 'info', progress: 0 });
+        setStatusMessage({ text: t('status.import.starting', { dataTypeName }), type: 'info', progress: 0 });
         
         let header1: string[] = [];
         let header2: string[] = [];
@@ -887,7 +923,7 @@ const App = () => {
                   }
                   const progress = file ? (results.meta.cursor / file.size) * 100 : 0;
                   setStatusMessage({
-                    text: `Przetwarzanie pliku... Zapisano ${processedCount.toLocaleString('pl-PL')} rekordów.`,
+                    text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }),
                     type: 'info',
                     progress: progress,
                   });
@@ -898,12 +934,12 @@ const App = () => {
             await processBatch();
             await updateImportMetadata(dataType);
             setImportMetadata(prev => ({...prev, [dataType]: { dataType, lastImported: new Date() }}));
-            setStatusMessage({ text: `Import zakończony. Zapisano ${processedCount.toLocaleString('pl-PL')} rekordów (${dataTypeName}).`, type: 'success' });
+            setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
             setIsLoading(false);
           },
           error: (error) => {
             console.error("PapaParse error:", error);
-            setStatusMessage({ text: `Błąd krytyczny podczas parsowania pliku: ${dataTypeName}.`, type: 'error' });
+            setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
             setIsLoading(false);
           }
         });
@@ -917,46 +953,37 @@ const App = () => {
     
     switch (dataType) {
         case 'products':
-            handleFileParse(file, 'products', "Dane podstawowe", clearProducts, addProducts, productRowMapper);
+            handleFileParse(file, 'products', t('dataType.products'), clearProducts, addProducts, productRowMapper);
             break;
         case 'goodsReceipts':
-            handleFileParse(file, 'goodsReceipts', "Przyjęcia towaru", clearGoodsReceipts, addGoodsReceipts, goodsReceiptRowMapper);
+            handleFileParse(file, 'goodsReceipts', t('dataType.goodsReceipts'), clearGoodsReceipts, addGoodsReceipts, goodsReceiptRowMapper);
             break;
         case 'openOrders':
-            handleFileParse(file, 'openOrders', "Otwarte zamówienia", clearOpenOrders, addOpenOrders, openOrderRowMapper);
+            handleFileParse(file, 'openOrders', t('dataType.openOrders'), clearOpenOrders, addOpenOrders, openOrderRowMapper);
             break;
     }
   };
   
   const handleClearIndividualData = async (dataType: DataType) => {
     setIsLoading(true);
+    const dataTypeName = t(`dataType.${dataType}`);
     let clearFn: () => Promise<void>;
-    let dataTypeName: string;
     
     switch (dataType) {
-        case 'products':
-            clearFn = clearProducts;
-            dataTypeName = 'Dane podstawowe';
-            break;
-        case 'goodsReceipts':
-            clearFn = clearGoodsReceipts;
-            dataTypeName = 'Przyjęcia towaru';
-            break;
-        case 'openOrders':
-            clearFn = clearOpenOrders;
-            dataTypeName = 'Otwarte zamówienia';
-            break;
+        case 'products': clearFn = clearProducts; break;
+        case 'goodsReceipts': clearFn = clearGoodsReceipts; break;
+        case 'openOrders': clearFn = clearOpenOrders; break;
     }
 
-    setStatusMessage({ text: `Usuwanie danych: ${dataTypeName}...`, type: 'info' });
+    setStatusMessage({ text: t('status.clear.clearing', { dataTypeName }), type: 'info' });
     try {
         await clearFn();
         setCounts(prev => ({...prev, [dataType]: 0}));
         setImportMetadata(prev => ({...prev, [dataType]: null}));
-        setStatusMessage({ text: `Dane "${dataTypeName}" zostały usunięte.`, type: 'success' });
+        setStatusMessage({ text: t('status.clear.cleared', { dataTypeName }), type: 'success' });
     } catch(error) {
-        console.error(`Błąd podczas usuwania danych (${dataTypeName}).`, error);
-        setStatusMessage({ text: `Błąd podczas usuwania danych: ${dataTypeName}.`, type: 'error' });
+        console.error(`Error clearing data for ${dataTypeName}.`, error);
+        setStatusMessage({ text: t('status.clear.clearError', { dataTypeName }), type: 'error' });
     } finally {
         setIsLoading(false);
     }
@@ -964,15 +991,15 @@ const App = () => {
 
   const handleClearAllData = async () => {
     setIsLoading(true);
-    setStatusMessage({ text: 'Usuwanie wszystkich danych...', type: 'info' });
+    setStatusMessage({ text: t('status.clear.clearingAll'), type: 'info' });
     try {
       await clearAllData();
       setCounts({ products: 0, goodsReceipts: 0, openOrders: 0 });
       setImportMetadata({ products: null, goodsReceipts: null, openOrders: null });
-      setStatusMessage({ text: 'Wszystkie dane zostały usunięte. Możesz załadować nowe pliki.', type: 'success' });
+      setStatusMessage({ text: t('status.clear.clearedAll'), type: 'success' });
     } catch (error) {
       console.error("Failed to clear DB", error);
-      setStatusMessage({ text: 'Błąd podczas usuwania danych.', type: 'error' });
+      setStatusMessage({ text: t('status.clear.clearAllError'), type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -995,22 +1022,22 @@ const App = () => {
       case 'report':
         return (
           <div class="placeholder-view">
-            <h2>Raport Zagrożeń</h2>
-            <p>Tutaj znajdzie się lista artykułów z potencjalnym ryzykiem strat, posortowana według pilności. Ta funkcjonalność jest w budowie.</p>
+            <h2>{t('placeholders.report.title')}</h2>
+            <p>{t('placeholders.report.description')}</p>
           </div>
         );
       case 'dashboard':
         return (
           <div class="placeholder-view">
-            <h2>Dashboard</h2>
-            <p>Główny pulpit z kluczowymi wskaźnikami (KPI), wykresami i podsumowaniem stanu magazynu. Ta funkcjonalność jest w budowie.</p>
+            <h2>{t('placeholders.dashboard.title')}</h2>
+            <p>{t('placeholders.dashboard.description')}</p>
           </div>
         );
       case 'simulations':
         return (
           <div class="placeholder-view">
-            <h2>Symulacje</h2>
-            <p>Narzędzie do przeprowadzania analiz "co-jeśli" przez modyfikację parametrów wejściowych. Ta funkcjonalność jest w budowie.</p>
+            <h2>{t('placeholders.simulations.title')}</h2>
+            <p>{t('placeholders.simulations.description')}</p>
           </div>
         );
       default:
@@ -1024,16 +1051,17 @@ const App = () => {
   return (
     <>
       <header class="top-header">
-        <h1>OMS</h1>
+        <h1>{t('header.title')}</h1>
+        <LanguageSelector />
       </header>
       <div class="app-layout">
         <nav class="sidebar">
           <ul>
-            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('import')}} class={currentView === 'import' ? 'active' : ''}>Import Danych</a></li>
-            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('data-preview')}} class={currentView === 'data-preview' ? 'active' : ''}>Przeglądanie Danych</a></li>
-            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('report')}} class={currentView === 'report' ? 'active' : ''}>Raport Zagrożeń</a></li>
-            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('dashboard')}} class={currentView === 'dashboard' ? 'active' : ''}>Dashboard</a></li>
-            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('simulations')}} class={currentView === 'simulations' ? 'active' : ''}>Symulacje</a></li>
+            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('import')}} class={currentView === 'import' ? 'active' : ''}>{t('sidebar.import')}</a></li>
+            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('data-preview')}} class={currentView === 'data-preview' ? 'active' : ''}>{t('sidebar.dataPreview')}</a></li>
+            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('report')}} class={currentView === 'report' ? 'active' : ''}>{t('sidebar.threatReport')}</a></li>
+            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('dashboard')}} class={currentView === 'dashboard' ? 'active' : ''}>{t('sidebar.dashboard')}</a></li>
+            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('simulations')}} class={currentView === 'simulations' ? 'active' : ''}>{t('sidebar.simulations')}</a></li>
           </ul>
         </nav>
         <main class="main-content">
@@ -1057,10 +1085,10 @@ const App = () => {
           </div>
           <div class="actions-container">
             <button class="button-primary" disabled={!canAnalyze || isLoading}>
-              Uruchom Analizę
+              {t('actions.runAnalysis')}
             </button>
             {hasAnyData && !isLoading && (
-              <button onClick={handleClearAllData} class="button-secondary">Wyczyść Wszystkie Dane</button>
+              <button onClick={handleClearAllData} class="button-secondary">{t('actions.clearAll')}</button>
             )}
           </div>
         </main>
@@ -1069,4 +1097,4 @@ const App = () => {
   );
 };
 
-render(<App />, document.getElementById("root")!);
+render(<LanguageProvider><App /></LanguageProvider>, document.getElementById("root")!);
