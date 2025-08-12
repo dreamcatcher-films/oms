@@ -116,7 +116,7 @@ export default {
       "locked": "Gesperrt"
     },
     "overrides": {
-        "title": "Parameterüberschreibungen"
+        "title": "RLZ (Restlaufzeit) anpassen"
     },
     "results": {
       "title": "Simulationsergebnisse",
@@ -138,7 +138,8 @@ export default {
         "title": "Manuelle Lieferung hinzufügen",
         "addedTitle": "Hinzugefügte Lieferungen",
         "date": "Lieferdatum",
-        "quantity": "Menge"
+        "quantity": "Menge",
+        "bestBeforeDate": "Mindesthaltbarkeitsdatum"
     },
     "initialStock": {
       "title": "Anfängliche Lagerzusammensetzung",
