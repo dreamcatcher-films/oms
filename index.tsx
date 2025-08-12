@@ -288,6 +288,7 @@ const DataPreview = () => {
         { key: 'resaleDate', labelKey: 'columns.sale.resaleDate' },
         { key: 'warehouseId', labelKey: 'columns.sale.warehouseId' },
         { key: 'productId', labelKey: 'columns.sale.productId' },
+        { key: 'productName', labelKey: 'columns.sale.productName' },
         { key: 'quantity', labelKey: 'columns.sale.quantity' },
     ];
 
@@ -962,27 +963,29 @@ const App = () => {
     };
   };
   
-    const saleRowMapper = (row: string[]): Sale | null => {
-        if (row.length < 6) return null;
-        
-        const resaleDate = row[0]?.trim() ?? '';
-        const warehouseId = row[1]?.trim() ?? '';
-        const productId = row[3]?.trim() ?? '';
-        const quantityStr = row[5]?.trim()?.replace(/,/g, '') ?? '0';
-        const quantity = parseFloat(quantityStr);
+  const saleRowMapper = (row: string[]): Sale | null => {
+      if (row.length < 5) return null;
+      
+      const resaleDate = row[0]?.trim() ?? '';
+      const warehouseId = row[1]?.trim() ?? '';
+      const productId = row[3]?.trim() ?? '';
+      const productName = row[4]?.trim() ?? '';
+      const quantityStr = row[5]?.trim()?.replace(/,/g, '') ?? '0';
+      const quantity = parseFloat(quantityStr);
 
-        if (!resaleDate || !warehouseId || !productId || isNaN(quantity)) {
-            return null;
-        }
+      if (!resaleDate || !warehouseId || !productId || !productName || isNaN(quantity)) {
+          return null;
+      }
 
-        return {
-            resaleDate,
-            warehouseId,
-            productId,
-            quantity,
-            resaleDateSortable: parseDateToSortableFormat(resaleDate),
-        };
-    };
+      return {
+          resaleDate,
+          warehouseId,
+          productId,
+          productName,
+          quantity,
+          resaleDateSortable: parseDateToSortableFormat(resaleDate),
+      };
+  };
 
   const handleComplexFileParse = (
     file: File,
@@ -1116,6 +1119,7 @@ const App = () => {
           Papa.parse(file, {
               worker: false,
               skipEmptyLines: true,
+              delimiter: ';',
               chunk: async (results, parser) => {
                   parser.pause();
                   
