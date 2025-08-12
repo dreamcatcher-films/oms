@@ -125,6 +125,14 @@ export default {
       "avgDailySales": "Ø tägl. Absatz",
       "firstWriteOffDate": "Erstes Abschreibungsdatum"
     },
+    "initialStock": {
+      "title": "Anfängliche Lagerzusammensetzung",
+      "warning": "Der anfängliche Lagerbestand konnte nicht vollständig mit den Wareneingängen abgeglichen werden. Die Simulation geht davon aus, dass dieser nicht zugeordnete Teil der älteste Bestand ist und möglicherweise früher abgeschrieben wird.",
+      "deliveryDate": "Lieferdatum",
+      "bestBeforeDate": "Mindesthaltbarkeitsdatum",
+      "quantity": "Menge",
+      "unknownBatch": "Unbekannte Charge"
+    },
     "log": {
       "title": "Simulationsprotokoll",
       "date": "Datum",
