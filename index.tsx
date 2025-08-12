@@ -1005,7 +1005,7 @@ const SimulationView = () => {
 const App = () => {
   const { t, language } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
-  const [statusMessage, setStatusMessage] = useState<Status>({ text: 'Inicjalizacja aplikacji...', type: 'info' });
+  const [statusMessage, setStatusMessage] = useState<Status | null>({ text: 'Inicjalizacja aplikacji...', type: 'info' });
   
   const [counts, setCounts] = useState({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0 });
   const [importMetadata, setImportMetadata] = useState<ImportMetadata>({ products: null, goodsReceipts: null, openOrders: null, sales: null });
@@ -1545,7 +1545,7 @@ const App = () => {
           </ul>
         </nav>
         <main class="main-content">
-          {statusMessage.text && (
+          {statusMessage && (
               <div class={`status-container ${statusMessage.type}`} role="status">
                 <div class="status-info">
                    {isLoading && statusMessage.type === 'info' && <div class="spinner"></div>}
@@ -1558,6 +1558,11 @@ const App = () => {
                       )}
                    </div>
                 </div>
+                 <button 
+                  class="status-close-button"
+                  onClick={() => setStatusMessage(null)}
+                  aria-label={t('status.close')}
+                 >&times;</button>
               </div>
           )}
           <div class="content-wrapper">
