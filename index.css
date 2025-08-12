@@ -886,20 +886,54 @@ tr:hover {
   height: 100vh;
   background-color: #ffffff;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   z-index: 9999;
-  animation: fadeOutSplash 0.5s 1.5s forwards; /* Fade out after the blur animation */
+}
+
+#splash-screen.splash-hidden {
+  animation: fadeOutSplash 0.5s forwards;
 }
 
 #splash-text {
   font-family: 'Inter', sans-serif;
-  font-size: 55vh;
+  font-size: 38vh;
   font-weight: 600;
   color: #333;
   margin: 0;
-  line-height: 1; /* Adjust line height to prevent potential overflow */
+  line-height: 1;
   animation: unblur 1s ease-out forwards;
+}
+
+.button-splash {
+    background: transparent;
+    border: 2px solid #333;
+    color: #333;
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-family: var(--font-family-main);
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    margin-top: 3rem;
+    opacity: 0;
+    animation: fadeInButton 0.5s 1.2s forwards, pulseButton 2s 1.7s infinite ease-in-out;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.button-splash:hover {
+    background-color: #333;
+    color: white;
+}
+
+@keyframes fadeInButton {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulseButton {
+  50% { opacity: 0.6; }
 }
 
 @keyframes unblur {
@@ -971,6 +1005,6 @@ tr:hover {
       padding-right: 1rem;
   }
   #splash-text {
-    font-size: 40vmin;
+    font-size: 28vmin;
   }
 }
