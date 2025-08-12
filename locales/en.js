@@ -3,253 +3,254 @@ export default {
     "title": "OMS"
   },
   "sidebar": {
-    "import": "Import Danych",
-    "dataPreview": "Przeglądanie Danych",
-    "threatReport": "Raport Zagrożeń",
+    "import": "Data Import",
+    "dataPreview": "Data Preview",
+    "threatReport": "Threat Report",
     "dashboard": "Dashboard",
-    "simulations": "Symulacje"
+    "simulations": "Simulations"
   },
   "actions": {
-    "runAnalysis": "Uruchom Analizę",
-    "clearAll": "Wyczyść Wszystkie Dane"
+    "runAnalysis": "Run Analysis",
+    "clearAll": "Clear All Data"
   },
   "status": {
-    "checkingDb": "Sprawdzanie lokalnej bazy danych...",
-    "dbOk": "Dane gotowe do analizy.",
-    "dbEmpty": "Wybierz pliki z danymi, aby rozpocząć.",
-    "dbError": "Błąd podczas sprawdzania bazy danych.",
-    "close": "Zamknij powiadomienie",
+    "checkingDb": "Checking local database...",
+    "dbOk": "Data found. Ready for analysis.",
+    "dbEmpty": "Select data files to begin.",
+    "dbError": "Error while checking the database.",
+    "close": "Close notification",
     "import": {
-        "preparing": "Przygotowywanie do importu: {{dataTypeName}}...",
-        "clearError": "Błąd podczas czyszczenia bazy danych.",
-        "starting": "Rozpoczynanie importu pliku: {{dataTypeName}}...",
-        "processing": "Przetwarzanie pliku... Zapisano {{processedCount}} rekordów.",
-        "complete": "Import zakończony. Zapisano {{processedCount}} rekordów ({{dataTypeName}}).",
-        "parseError": "Błąd krytyczny podczas parsowania pliku: {{dataTypeName}}."
+        "preparing": "Preparing for import: {{dataTypeName}}...",
+        "clearError": "Error clearing the database.",
+        "starting": "Starting file import: {{dataTypeName}}...",
+        "processing": "Processing file... Saved {{processedCount}} records.",
+        "complete": "Import complete. Saved {{processedCount}} records ({{dataTypeName}}).",
+        "parseError": "Critical error while parsing file: {{dataTypeName}}."
     },
     "clear": {
-        "clearing": "Usuwanie danych: {{dataTypeName}}...",
-        "cleared": "Dane '{{dataTypeName}}' zostały usunięte.",
-        "clearError": "Błąd podczas usuwania danych: {{dataTypeName}}.",
-        "clearingAll": "Usuwanie wszystkich danych...",
-        "clearedAll": "Wszystkie dane zostały usunięte. Możesz załadować nowe pliki.",
-        "clearAllError": "Błąd podczas usuwania danych."
+        "clearing": "Clearing data: {{dataTypeName}}...",
+        "cleared": "Data '{{dataTypeName}}' has been cleared.",
+        "clearError": "Error while clearing data: {{dataTypeName}}.",
+        "clearingAll": "Clearing all data...",
+        "clearedAll": "All data has been cleared. You can now load new files.",
+        "clearAllError": "Error while clearing data."
     }
   },
   "import": {
     "products": {
-        "title": "1. Dane Podstawowe Artykułów",
-        "description": "Plik z informacjami o produktach. Wymaga dwóch wierszy nagłówka."
+        "title": "1. Master Data for Products",
+        "description": "File with product information. Requires two header rows."
     },
     "goodsReceipts": {
-        "title": "2. Przyjęcie Towaru (eGIN)",
-        "description": "Plik z informacjami o przyjęciach towaru. Wymaga dwóch wierszy nagłówka."
+        "title": "2. Goods Receipt (eGIN)",
+        "description": "File with goods receipt information. Requires two header rows."
     },
     "openOrders": {
-        "title": "3. Otwarte Zamówienia",
-        "description": "Plik z otwartymi zamówieniami, które nie dotarły jeszcze do magazynu."
+        "title": "3. Open Orders",
+        "description": "File with open orders that have not yet arrived at the warehouse."
     },
     "sales": {
-        "title": "4. Dane o Odsprzedaży",
-        "description": "Plik z historycznymi danymi o odsprzedaży. Akceptuje .csv lub .txt."
+        "title": "4. Sales Data",
+        "description": "File with historical sales data. Accepts .csv or .txt."
     },
     "status": {
-        "updated": "Zaktualizowano",
-        "todayAt": "dzisiaj o",
-        "noData": "Brak danych",
-        "records": "rekordów"
+        "updated": "Updated",
+        "todayAt": "today at",
+        "noData": "No data",
+        "records": "records"
     },
     "buttons": {
-        "selectFile": "Wybierz plik",
-        "clear": "Wyczyść"
+        "selectFile": "Select file",
+        "clear": "Clear"
     }
   },
   "dataPreview": {
       "tabs": {
-          "products": "Produkty",
-          "goodsReceipts": "Przyjęcie Towaru (eGIN)",
-          "openOrders": "Otwarte Zamówienia",
-          "sales": "Odsprzedaże"
+          "products": "Products",
+          "goodsReceipts": "Goods Receipt (eGIN)",
+          "openOrders": "Open Orders",
+          "sales": "Sales"
       },
       "filters": {
-          "warehouse": "Magazyn",
-          "all": "Wszystkie",
-          "productId": "Nr artykułu",
-          "productIdPlaceholder": "np. 40006",
+          "warehouse": "Warehouse",
+          "all": "All",
+          "productId": "Product No.",
+          "productIdPlaceholder": "e.g. 40006",
           "status": "Status",
-          "apply": "Filtruj",
-          "clear": "Wyczyść"
+          "apply": "Filter",
+          "clear": "Clear"
       },
       "table": {
-          "deliveries": "dostaw",
-          "none": "Brak"
+          "deliveries": "deliveries",
+          "none": "None"
       },
       "pagination": {
-          "records": "rekordów",
-          "previous": "Poprzednia",
-          "next": "Następna",
-          "page": "Strona {{currentPage}} z {{totalPages}}"
+          "records": "records",
+          "previous": "Previous",
+          "next": "Next",
+          "page": "Page {{currentPage}} of {{totalPages}}"
       }
   },
   "placeholders": {
     "report": {
-        "title": "Raport Zagrożeń",
-        "description": "Tutaj znajdzie się lista artykułów z potencjalnym ryzykiem strat, posortowana według pilności. Ta funkcjonalność jest w budowie."
+        "title": "Threat Report",
+        "description": "A list of products with potential risk of loss will be here, sorted by urgency. This feature is under construction."
     },
     "dashboard": {
         "title": "Dashboard",
-        "description": "Główny pulpit z kluczowymi wskaźnikami (KPI), wykresami i podsumowaniem stanu magazynu. Ta funkcjonalność jest w budowie."
+        "description": "The main dashboard with key performance indicators (KPIs), charts, and a summary of the warehouse status. This feature is under construction."
     }
   },
-   "simulations": {
+  "simulations": {
     "controls": {
-      "title": "Panel Sterowania Symulacją",
-      "warehouse": "Magazyn",
-      "selectWarehouse": "Wybierz magazyn",
-      "productId": "Nr artykułu",
-      "productIdPlaceholder": "Wpisz, aby wyszukać produkt...",
-      "run": "Uruchom Symulację"
+      "title": "Simulation Controls",
+      "warehouse": "Warehouse",
+      "selectWarehouse": "Select a warehouse",
+      "productId": "Product No.",
+      "productIdPlaceholder": "Type to search for product...",
+      "run": "Run Simulation"
     },
     "details": {
-      "title": "Szczegóły Produktu",
-      "days": "dni",
-      "locked": "Zablokowany"
+      "title": "Product Details",
+      "days": "days",
+      "locked": "Locked"
     },
     "overrides": {
-        "title": "Modyfikacja Parametrów"
+        "title": "RLZ (Shelf Life) Overrides"
     },
     "results": {
-      "title": "Wyniki Symulacji",
-      "calculating": "Obliczanie symulacji, to może chwilę potrwać...",
-      "none": "Brak"
+      "title": "Simulation Results",
+      "calculating": "Calculating simulation, this may take a moment...",
+      "none": "None"
     },
     "kpi": {
-      "totalWriteOffValue": "Łączna Wartość Odpisu",
-      "daysOfStock": "Dni Zapasu",
-      "avgDailySales": "Śr. Sprzedaż Dzienna",
-      "nonCompliantReceipts": "Niezgodne Przyjęcia",
-      "firstWriteOffDate": "Data Pierwszego Odpisu",
-      "salesAdjustUp": "Zwiększ sprzedaż o 10%",
-      "salesAdjustDown": "Zmniejsz sprzedaż o 10%",
-      "original": "Oryginalna",
-      "salesResetTooltip": "Kliknij, aby przywrócić oryginalną wartość"
+      "totalWriteOffValue": "Total Write-Off Value",
+      "daysOfStock": "Days of Stock",
+      "avgDailySales": "Avg. Daily Sales",
+      "nonCompliantReceipts": "Non-Compliant Receipts",
+      "firstWriteOffDate": "First Write-Off Date",
+      "salesAdjustUp": "Increase sales by 10%",
+      "salesAdjustDown": "Decrease sales by 10%",
+      "original": "Original",
+      "salesResetTooltip": "Click to restore original value"
     },
     "manualDelivery": {
-        "title": "Dodaj Ręczną Dostawę",
-        "addedTitle": "Dodane Dostawy",
-        "date": "Data Dostawy",
-        "quantity": "Ilość"
+        "title": "Add Manual Delivery",
+        "addedTitle": "Added Deliveries",
+        "date": "Delivery Date",
+        "quantity": "Quantity",
+        "bestBeforeDate": "Best Before Date"
     },
     "initialStock": {
-      "title": "Skład Początkowego Stanu Magazynowego",
-      "warning": "Początkowy stan magazynowy nie mógł być w pełni dopasowany do przyjęć towaru. Symulacja zakłada, że ta niedopasowana część jest najstarszym towarem i może podlegać wcześniejszym odpisom.",
-      "deliveryDate": "Data Dostawy",
-      "bestBeforeDate": "Data Przydatności",
-      "daysForSale": "Dni na Sprzedaż",
-      "regulationBreached": "Przekroczone (T/N)",
-      "quantity": "Ilość",
-      "unknownBatch": "Nieznana Partia"
+      "title": "Initial Stock Composition",
+      "warning": "Initial stock on hand could not be fully matched with goods receipts. The simulation assumes this unmatched portion is the oldest stock and may be subject to earlier write-offs.",
+      "deliveryDate": "Delivery Date",
+      "bestBeforeDate": "Best Before Date",
+      "daysForSale": "Days For Sale",
+      "regulationBreached": "Breached (Y/N)",
+      "quantity": "Quantity",
+      "unknownBatch": "Unknown Batch"
     },
     "log": {
-      "title": "Dziennik Symulacji",
-      "date": "Data",
-      "stockStart": "Stan Początkowy",
-      "sales": "Sprzedaż",
-      "receipts": "Przyjęcia",
-      "writeOffs": "Odpisy",
-      "stockEnd": "Stan Końcowy",
-      "notes": "Notatki"
+      "title": "Simulation Log",
+      "date": "Date",
+      "stockStart": "Stock Start",
+      "sales": "Sales",
+      "receipts": "Receipts",
+      "writeOffs": "Write-Offs",
+      "stockEnd": "Stock End",
+      "notes": "Notes"
     },
     "buttons": {
-        "add": "Dodaj",
-        "resetDefaults": "Resetuj",
-        "showMore": "Pokaż więcej",
-        "showLess": "Pokaż mniej",
-        "rerun": "Uruchom Ponownie"
+        "add": "Add",
+        "resetDefaults": "Reset to Defaults",
+        "showMore": "Show More",
+        "showLess": "Show Less",
+        "rerun": "Rerun Simulation"
     }
   },
   "common": {
-    "yesShort": "T",
-    "noShort": "N"
+      "yesShort": "Y",
+      "noShort": "N"
   },
   "dataType": {
-    "products": "Dane podstawowe",
-    "goodsReceipts": "Przyjęcia towaru",
-    "openOrders": "Otwarte zamówienia",
-    "sales": "Dane o odsprzedaży"
+    "products": "Master Data",
+    "goodsReceipts": "Goods Receipts",
+    "openOrders": "Open Orders",
+    "sales": "Sales Data"
   },
   "columns": {
     "product": {
-      "warehouseId": "Magazyn",
-      "dispoGroup": "Grupa Dispo",
-      "itemGroup": "Grupa Tow.",
-      "orderArea": "Obszar Zam.",
-      "productId": "Nr art. krótki",
-      "fullProductId": "Nr art. pełny",
-      "name": "Nazwa",
-      "caseSize": "Szt. w kart.",
-      "cartonsPerLayer": "Kart. na war.",
+      "warehouseId": "Warehouse",
+      "dispoGroup": "Dispo Group",
+      "itemGroup": "Item Group",
+      "orderArea": "Order Area",
+      "productId": "Product No. (Short)",
+      "fullProductId": "Product No. (Full)",
+      "name": "Name",
+      "caseSize": "Pcs/Case",
+      "cartonsPerLayer": "Cases/Layer",
       "duessFactor": "DD",
-      "cartonsPerPallet": "Kart. na pal.",
-      "shelfLifeAtReceiving": "W-DATE dni",
-      "shelfLifeAtStore": "S-DATE dni",
-      "customerShelfLife": "C-DATE dni",
-      "price": "Cena",
+      "cartonsPerPallet": "Cases/Pallet",
+      "shelfLifeAtReceiving": "W-DATE days",
+      "shelfLifeAtStore": "S-DATE days",
+      "customerShelfLife": "C-DATE days",
+      "price": "Price",
       "status": "Status",
-      "itemLocked": "Zablokowany",
+      "itemLocked": "Locked",
       "slotNr": "Slot",
-      "unprocessedDeliveryQty": "Nieroz. dost.",
-      "supplierId": "ID Dostawcy",
-      "supplierName": "Nazwa Dostawcy",
-      "stockOnHand": "Stan mag.",
-      "storeAllocationToday": "Alok. dzisiaj",
-      "storeAllocationTotal": "Alok. łączna",
-      "promoDate": "Data promo",
-      "estimatedReceivings": "Szac. dostawy"
+      "unprocessedDeliveryQty": "Unproc. Qty",
+      "supplierId": "Supplier ID",
+      "supplierName": "Supplier Name",
+      "stockOnHand": "Stock on Hand",
+      "storeAllocationToday": "Alloc. Today",
+      "storeAllocationTotal": "Alloc. Total",
+      "promoDate": "Promo Date",
+      "estimatedReceivings": "Est. Receipts"
     },
     "goodsReceipt": {
-      "warehouseId": "Magazyn",
-      "productId": "Nr art. krótki",
-      "fullProductId": "Nr art. pełny",
-      "name": "Nazwa",
-      "deliveryUnit": "Jedn. dostawy",
-      "deliveryQtyUom": "Ilość (J.m.)",
-      "caseSize": "Szt. w kart.",
-      "deliveryQtyPcs": "Ilość (szt.)",
-      "poNr": "Nr zamówienia",
-      "deliveryDate": "Data dostawy",
-      "bestBeforeDate": "Data przydatności",
-      "supplierId": "ID Dostawcy",
-      "supplierName": "Nazwa Dostawcy",
-      "bolNr": "BOL Nr",
-      "deliveryNote": "Nota dostawy",
-      "intSupplierNr": "Międz. ID Dostawcy",
-      "intItemNr": "Międz. nr art.",
-      "caseGtin": "GTIN kartonu",
+      "warehouseId": "Warehouse",
+      "productId": "Product No. (Short)",
+      "fullProductId": "Product No. (Full)",
+      "name": "Name",
+      "deliveryUnit": "Delivery Unit",
+      "deliveryQtyUom": "Qty (UoM)",
+      "caseSize": "Pcs/Case",
+      "deliveryQtyPcs": "Qty (Pcs)",
+      "poNr": "PO No.",
+      "deliveryDate": "Delivery Date",
+      "bestBeforeDate": "Best Before Date",
+      "supplierId": "Supplier ID",
+      "supplierName": "Supplier Name",
+      "bolNr": "BOL No.",
+      "deliveryNote": "Delivery Note",
+      "intSupplierNr": "Int. Supplier No.",
+      "intItemNr": "Int. Item No.",
+      "caseGtin": "Case GTIN",
       "liaReference": "LIA Ref"
     },
     "openOrder": {
-      "warehouseId": "Magazyn",
-      "productId": "Nr art. krótki",
-      "fullProductId": "Nr art. pełny",
-      "name": "Nazwa",
-      "orderUnit": "Jedn. zamówienia",
-      "orderQtyUom": "Ilość (J.m.)",
-      "caseSize": "Szt. w kart.",
-      "orderQtyPcs": "Ilość (szt.)",
-      "poNr": "Nr zamówienia",
-      "supplierId": "ID Dostawcy",
-      "supplierName": "Nazwa Dostawcy",
-      "deliveryDate": "Plan. data dostawy",
-      "creationDate": "Data utworzenia",
-      "deliveryLeadTime": "Czas realizacji (dni)"
+      "warehouseId": "Warehouse",
+      "productId": "Product No. (Short)",
+      "fullProductId": "Product No. (Full)",
+      "name": "Name",
+      "orderUnit": "Order Unit",
+      "orderQtyUom": "Qty (UoM)",
+      "caseSize": "Pcs/Case",
+      "orderQtyPcs": "Qty (Pcs)",
+      "poNr": "PO No.",
+      "supplierId": "Supplier ID",
+      "supplierName": "Supplier Name",
+      "deliveryDate": "Est. Delivery Date",
+      "creationDate": "Creation Date",
+      "deliveryLeadTime": "Lead Time (days)"
     },
     "sale": {
-      "resaleDate": "Data odsprzedaży",
-      "warehouseId": "Magazyn",
-      "productId": "Nr artykułu",
-      "productName": "Nazwa produktu",
-      "quantity": "Sprzedana ilość"
+      "resaleDate": "Resale Date",
+      "warehouseId": "Warehouse",
+      "productId": "Product No.",
+      "productName": "Product Name",
+      "quantity": "Quantity Sold"
     }
   }
 }
