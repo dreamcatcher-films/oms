@@ -20,12 +20,21 @@ export type SimulationLogEntry = {
   notes: string;
 };
 
+export type InitialStockBatch = {
+    deliveryDate: string;
+    bestBeforeDate: string;
+    quantity: number;
+    isUnknown: boolean;
+};
+
 export type SimulationResult = {
   totalWriteOffValue: number;
   daysOfStock: number;
   avgDailySales: number;
   firstWriteOffDate: string | null;
   log: SimulationLogEntry[];
+  initialStockComposition: InitialStockBatch[];
+  isStockDataComplete: boolean;
 };
 
 const formatDate = (date: Date): string => {
@@ -63,6 +72,7 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
     // 3. Determine initial stock on hand (FIFO)
     let effectiveStockOnHand = productDetails.stockOnHand + productDetails.unprocessedDeliveryQty;
     let stock: { quantity: number; bestBefore: Date; sDateHorizon: Date }[] = [];
+    let initialStockComposition: InitialStockBatch[] = [];
     
     // Sort receipts by delivery date to apply FIFO
     allReceipts.sort((a, b) => a.deliveryDateSortable.localeCompare(b.deliveryDateSortable));
@@ -76,11 +86,36 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
 
         const qtyToTake = Math.min(tempStock, receipt.deliveryQtyPcs);
         stock.push({ quantity: qtyToTake, bestBefore, sDateHorizon });
+        initialStockComposition.push({
+            deliveryDate: formatDate(parseSortableDate(receipt.deliveryDateSortable)),
+            bestBeforeDate: formatDate(bestBefore),
+            quantity: qtyToTake,
+            isUnknown: false,
+        });
         tempStock -= qtyToTake;
+    }
+
+    const isStockDataComplete = tempStock <= 0;
+    if (!isStockDataComplete) {
+        // This is stock that couldn't be matched to a receipt, assume it's the oldest.
+        const pessimisticBestBefore = new Date(); // Expires now
+        pessimisticBestBefore.setHours(0,0,0,0);
+        const pessimisticSDateHorizon = new Date(pessimisticBestBefore);
+        pessimisticSDateHorizon.setDate(pessimisticSDateHorizon.getDate() - productDetails.shelfLifeAtStore);
+        
+        // Add to front of stock array to mark as oldest
+        stock.unshift({ quantity: tempStock, bestBefore: pessimisticBestBefore, sDateHorizon: pessimisticSDateHorizon });
+        initialStockComposition.unshift({
+            deliveryDate: `unknown-${Date.now()}`, // unique key for react
+            bestBeforeDate: 'Unknown',
+            quantity: tempStock,
+            isUnknown: true
+        });
     }
     
     // Reverse the stock to have the oldest items (to be sold first) at the end
     stock.reverse();
+    initialStockComposition.reverse();
     
     // 4. Prepare future receipts calendar
     const receiptsCalendar: Map<string, number> = new Map();
@@ -184,6 +219,8 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
       avgDailySales: avgDailySales,
       firstWriteOffDate: firstWriteOffDate,
       log: log,
+      initialStockComposition,
+      isStockDataComplete,
     };
 
     postMessage(result);
