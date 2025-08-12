@@ -38,6 +38,22 @@ const App = () => {
   
   const [currentView, setCurrentView] = useState<View>('import');
 
+  useEffect(() => {
+    const splashScreen = document.getElementById('splash-screen');
+    const continueButton = document.getElementById('continue-button');
+
+    if (splashScreen && continueButton) {
+        const hideSplash = () => {
+            splashScreen.classList.add('splash-hidden');
+            splashScreen.addEventListener('animationend', () => {
+                splashScreen.remove();
+            }, { once: true });
+        };
+        
+        continueButton.addEventListener('click', hideSplash, { once: true });
+    }
+  }, []);
+
   const performInitialCheck = useCallback(async () => {
     setIsLoading(true);
     setStatusMessage({ text: t('status.checkingDb'), type: 'info' });
