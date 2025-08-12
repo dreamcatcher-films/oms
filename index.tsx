@@ -1563,18 +1563,20 @@ const App = () => {
           <div class="content-wrapper">
             {renderContent()}
           </div>
-          <div class="actions-container">
-            <button 
-                class="button-primary" 
-                disabled={!canAnalyze || isLoading}
-                onClick={() => setCurrentView('simulations')}
-            >
-              {t('actions.runAnalysis')}
-            </button>
-            {hasAnyData && !isLoading && (
-              <button onClick={handleClearAllData} class="button-secondary">{t('actions.clearAll')}</button>
-            )}
-          </div>
+          {currentView === 'import' && (
+            <div class="actions-container">
+              <button 
+                  class="button-primary" 
+                  disabled={!canAnalyze || isLoading}
+                  onClick={() => setCurrentView('simulations')}
+              >
+                {t('actions.runAnalysis')}
+              </button>
+              {hasAnyData && !isLoading && (
+                <button onClick={handleClearAllData} class="button-secondary">{t('actions.clearAll')}</button>
+              )}
+            </div>
+          )}
         </main>
       </div>
     </>
