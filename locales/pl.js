@@ -169,7 +169,9 @@ export default {
         "resetDefaults": "Resetuj",
         "showMore": "Pokaż więcej",
         "showLess": "Pokaż mniej",
-        "rerun": "Uruchom Ponownie"
+        "rerun": "Uruchom Ponownie",
+        "showChart": "Pokaż Wykres",
+        "hideChart": "Ukryj Wykres"
     }
   },
   "common": {
