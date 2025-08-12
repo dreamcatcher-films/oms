@@ -115,6 +115,9 @@ export default {
       "days": "dni",
       "locked": "Zablokowany"
     },
+    "overrides": {
+        "title": "Modyfikacja RLZ (Restlaufzeit)"
+    },
     "results": {
       "title": "Wyniki Symulacji",
       "calculating": "Obliczanie symulacji, to może chwilę potrwać...",
@@ -127,12 +130,16 @@ export default {
       "nonCompliantReceipts": "Niezgodne Przyjęcia",
       "firstWriteOffDate": "Data Pierwszego Odpisu",
       "salesAdjustUp": "Zwiększ sprzedaż o 10%",
-      "salesAdjustDown": "Zmniejsz sprzedaż o 10%"
+      "salesAdjustDown": "Zmniejsz sprzedaż o 10%",
+      "original": "Oryginalna",
+      "salesResetTooltip": "Kliknij, aby przywrócić oryginalną wartość"
     },
     "manualDelivery": {
         "title": "Dodaj Ręczną Dostawę",
+        "addedTitle": "Dodane Dostawy",
         "date": "Data Dostawy",
-        "quantity": "Ilość"
+        "quantity": "Ilość",
+        "bestBeforeDate": "Data Przydatności"
     },
     "initialStock": {
       "title": "Skład Początkowego Stanu Magazynowego",
@@ -153,6 +160,13 @@ export default {
       "writeOffs": "Odpisy",
       "stockEnd": "Stan Końcowy",
       "notes": "Notatki"
+    },
+    "buttons": {
+        "add": "Dodaj",
+        "resetDefaults": "Resetuj",
+        "showMore": "Pokaż więcej",
+        "showLess": "Pokaż mniej",
+        "rerun": "Uruchom Ponownie"
     }
   },
   "common": {
