@@ -314,10 +314,21 @@ p {
 
 .status-text {
   margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   font-weight: 500;
+  word-break: break-word;
+}
+
+.status-close-button {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+    padding: 0 0.5rem;
+}
+.status-close-button:hover {
+    opacity: 1;
 }
 
 .progress-bar-container {
