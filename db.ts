@@ -139,6 +139,7 @@ export type Sale = {
     productId: string;      // Column 4
 
     // Data
+    productName: string;    // Column 5
     quantity: number;       // Column 6
     
     // Sortable fields
