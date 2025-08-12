@@ -878,11 +878,61 @@ tr:hover {
     background-color: #f0f4f8;
 }
 
+/* Expandable Chart Section */
+.expandable-section {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-top: 2rem;
+    background-color: #fdfdfd;
+    overflow: hidden;
+}
+
+.expandable-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+}
+
+.expandable-header h4 {
+    margin: 0;
+    color: var(--text-color);
+}
+
+.expandable-header button {
+    background: none;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.expandable-header button:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.expandable-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
+    padding: 0 1.5rem;
+}
+
+.expandable-content.expanded {
+    max-height: 500px;
+    padding: 1rem 1.5rem;
+}
+
 /* Stock Chart Styles */
 .stock-chart-container {
     position: relative;
     width: 100%;
-    margin-bottom: 2rem;
 }
 
 .stock-chart-svg {
