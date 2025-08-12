@@ -125,15 +125,22 @@ export default {
       "daysOfStock": "Lagerreichweite",
       "avgDailySales": "Ø tägl. Absatz",
       "nonCompliantReceipts": "Regelwidrige Eingänge",
-      "firstWriteOffDate": "Erstes Abschreibungsdatum"
+      "firstWriteOffDate": "Erstes Abschreibungsdatum",
+      "salesAdjustUp": "Absatz um 10% erhöhen",
+      "salesAdjustDown": "Absatz um 10% verringern"
+    },
+     "manualDelivery": {
+        "title": "Manuelle Lieferung hinzufügen",
+        "date": "Lieferdatum",
+        "quantity": "Menge"
     },
     "initialStock": {
       "title": "Anfängliche Lagerzusammensetzung",
       "warning": "Der anfängliche Lagerbestand konnte nicht vollständig mit den Wareneingängen abgeglichen werden. Die Simulation geht davon aus, dass dieser nicht zugeordnete Teil der älteste Bestand ist und möglicherweise früher abgeschrieben wird.",
       "deliveryDate": "Lieferdatum",
       "bestBeforeDate": "Mindesthaltbarkeitsdatum",
-      "daysForSale": "Verkaufstage",
-      "regulationBreached": "Regelverstoß",
+      "daysForSale": "Tage zum Verkauf",
+      "regulationBreached": "Verstoß (J/N)",
       "quantity": "Menge",
       "unknownBatch": "Unbekannte Charge"
     },
