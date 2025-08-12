@@ -1,4 +1,5 @@
 
+
 import {
   getProductDetails,
   getAllGoodsReceiptsForProduct,
@@ -25,12 +26,15 @@ export type InitialStockBatch = {
     bestBeforeDate: string;
     quantity: number;
     isUnknown: boolean;
+    isNonCompliant: boolean;
+    daysToSell: number;
 };
 
 export type SimulationResult = {
   totalWriteOffValue: number;
   daysOfStock: number;
   avgDailySales: number;
+  nonCompliantReceiptsCount: number;
   firstWriteOffDate: string | null;
   log: SimulationLogEntry[];
   initialStockComposition: InitialStockBatch[];
@@ -69,9 +73,12 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
     const uniqueSaleDays = new Set(allSales.map(s => s.resaleDate)).size;
     const avgDailySales = uniqueSaleDays > 0 ? totalSales / uniqueSaleDays : 0;
     
-    // 3. Determine initial stock on hand (Corrected "FIFO Rollback" logic)
+    // 3. Determine initial stock on hand & non-compliant receipts
     const effectiveStockOnHand = productDetails.stockOnHand + productDetails.unprocessedDeliveryQty;
     let initialStockBatches: InitialStockBatch[] = [];
+    let nonCompliantReceiptsCount = 0;
+    const today = new Date();
+    today.setHours(0,0,0,0);
     
     // Sort receipts by delivery date DESCENDING (newest first) to find the batches that make up current stock
     allReceipts.sort((a, b) => b.deliveryDateSortable.localeCompare(a.deliveryDateSortable));
@@ -79,18 +86,35 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
     let remainingStockToAllocate = effectiveStockOnHand;
 
     for (const receipt of allReceipts) {
-        if (remainingStockToAllocate <= 0) break;
+        const deliveryDate = parseSortableDate(receipt.deliveryDateSortable);
+        const bestBeforeDate = parseSortableDate(receipt.bestBeforeDateSortable);
 
-        const quantityFromThisBatch = Math.min(remainingStockToAllocate, receipt.deliveryQtyPcs);
+        const shelfLifeAtReceipt = (bestBeforeDate.getTime() - deliveryDate.getTime()) / (1000 * 3600 * 24);
+        const isNonCompliant = shelfLifeAtReceipt < productDetails.shelfLifeAtReceiving;
         
-        initialStockBatches.push({
-            deliveryDate: formatDate(parseSortableDate(receipt.deliveryDateSortable)),
-            bestBeforeDate: formatDate(parseSortableDate(receipt.bestBeforeDateSortable)),
-            quantity: quantityFromThisBatch,
-            isUnknown: false,
-        });
-        
-        remainingStockToAllocate -= quantityFromThisBatch;
+        if (isNonCompliant) {
+            nonCompliantReceiptsCount++;
+        }
+
+        if (remainingStockToAllocate > 0) {
+            const quantityFromThisBatch = Math.min(remainingStockToAllocate, receipt.deliveryQtyPcs);
+            
+            const sDateHorizon = new Date(bestBeforeDate);
+            sDateHorizon.setDate(sDateHorizon.getDate() - productDetails.shelfLifeAtStore);
+            
+            const daysToSell = Math.max(0, Math.floor((sDateHorizon.getTime() - today.getTime()) / (1000 * 3600 * 24)));
+
+            initialStockBatches.push({
+                deliveryDate: formatDate(deliveryDate),
+                bestBeforeDate: formatDate(bestBeforeDate),
+                quantity: quantityFromThisBatch,
+                isUnknown: false,
+                isNonCompliant: isNonCompliant,
+                daysToSell: daysToSell,
+            });
+            
+            remainingStockToAllocate -= quantityFromThisBatch;
+        }
     }
 
     const isStockDataComplete = remainingStockToAllocate <= 0;
@@ -99,7 +123,9 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
             deliveryDate: 'Unknown',
             bestBeforeDate: 'Unknown',
             quantity: remainingStockToAllocate,
-            isUnknown: true
+            isUnknown: true,
+            isNonCompliant: true, // Pessimistic assumption
+            daysToSell: 0,
         });
     }
 
@@ -235,6 +261,7 @@ onmessage = async (event: MessageEvent<{ warehouseId: string; fullProductId: str
       log: log,
       initialStockComposition: initialStockBatches,
       isStockDataComplete,
+      nonCompliantReceiptsCount,
     };
 
     postMessage(result);
