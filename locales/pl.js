@@ -124,6 +124,7 @@ export default {
       "totalWriteOffValue": "Łączna Wartość Odpisu",
       "daysOfStock": "Dni Zapasu",
       "avgDailySales": "Śr. Sprzedaż Dzienna",
+      "nonCompliantReceipts": "Niezgodne Przyjęcia",
       "firstWriteOffDate": "Data Pierwszego Odpisu"
     },
     "initialStock": {
@@ -131,6 +132,8 @@ export default {
       "warning": "Początkowy stan magazynowy nie mógł być w pełni dopasowany do przyjęć towaru. Symulacja zakłada, że ta niedopasowana część jest najstarszym towarem i może podlegać wcześniejszym odpisom.",
       "deliveryDate": "Data Dostawy",
       "bestBeforeDate": "Data Przydatności",
+      "daysForSale": "Dni na Sprzedaż",
+      "regulationBreached": "Naruszenie Regulacji",
       "quantity": "Ilość",
       "unknownBatch": "Nieznana Partia"
     },
@@ -144,6 +147,10 @@ export default {
       "stockEnd": "Stan Końcowy",
       "notes": "Notatki"
     }
+  },
+  "common": {
+    "yesShort": "T",
+    "noShort": "N"
   },
   "dataType": {
     "products": "Dane podstawowe",
