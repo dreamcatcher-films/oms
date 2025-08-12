@@ -3,6 +3,7 @@ import { useTranslation } from '../i18n';
 import { getUniqueWarehouseIds, findProductsByPartialId, getProductDetails, Product } from '../db';
 import { SimulationResult, InitialStockBatch } from "../simulation.worker";
 import { ManualDelivery } from '../utils/types';
+import { StockChart } from '../components/StockChart';
 
 export const SimulationView = () => {
     const { t, language } = useTranslation();
@@ -334,6 +335,13 @@ export const SimulationView = () => {
                             <p>{simulationResult.firstWriteOffDate || t('simulations.results.none')}</p>
                         </div>
                     </div>
+
+                    {simulationResult.log && simulationResult.log.length > 0 && (
+                        <div class="stock-chart-section">
+                            <h4>{t('simulations.chart.title')}</h4>
+                            <StockChart data={simulationResult.log.slice(0, 14)} />
+                        </div>
+                    )}
 
                     <div class="initial-stock-composition">
                         <h4>{t('simulations.initialStock.title')}</h4>
