@@ -15,9 +15,10 @@ export default {
   },
   "status": {
     "checkingDb": "Checking local database...",
-    "dbOk": "Data found. You can run analysis or upload new files.",
+    "dbOk": "Data found. Ready for analysis.",
     "dbEmpty": "Select data files to begin.",
     "dbError": "Error while checking the database.",
+    "close": "Close notification",
     "import": {
         "preparing": "Preparing for import: {{dataTypeName}}...",
         "clearError": "Error clearing the database.",
