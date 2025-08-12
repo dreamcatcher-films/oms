@@ -98,10 +98,42 @@ export default {
     "dashboard": {
         "title": "Dashboard",
         "description": "The main dashboard with key performance indicators (KPIs), charts, and a summary of the warehouse status. This feature is under construction."
+    }
+  },
+  "simulations": {
+    "controls": {
+      "title": "Simulation Controls",
+      "warehouse": "Warehouse",
+      "selectWarehouse": "Select a warehouse",
+      "productId": "Product No.",
+      "productIdPlaceholder": "Type to search for product...",
+      "run": "Run Simulation"
     },
-    "simulations": {
-        "title": "Simulations",
-        "description": "A tool for conducting 'what-if' analyses by modifying input parameters. This feature is under construction."
+    "details": {
+      "title": "Product Details",
+      "days": "days",
+      "locked": "Locked"
+    },
+    "results": {
+      "title": "Simulation Results",
+      "calculating": "Calculating simulation, this may take a moment...",
+      "none": "None"
+    },
+    "kpi": {
+      "totalWriteOffValue": "Total Write-Off Value",
+      "daysOfStock": "Days of Stock",
+      "avgDailySales": "Avg. Daily Sales",
+      "firstWriteOffDate": "First Write-Off Date"
+    },
+    "log": {
+      "title": "Simulation Log",
+      "date": "Date",
+      "stockStart": "Stock Start",
+      "sales": "Sales",
+      "receipts": "Receipts",
+      "writeOffs": "Write-Offs",
+      "stockEnd": "Stock End",
+      "notes": "Notes"
     }
   },
   "dataType": {
