@@ -125,6 +125,14 @@ export default {
       "avgDailySales": "Śr. Sprzedaż Dzienna",
       "firstWriteOffDate": "Data Pierwszego Odpisu"
     },
+    "initialStock": {
+      "title": "Skład Początkowego Stanu Magazynowego",
+      "warning": "Początkowy stan magazynowy nie mógł być w pełni dopasowany do przyjęć towaru. Symulacja zakłada, że ta niedopasowana część jest najstarszym towarem i może podlegać wcześniejszym odpisom.",
+      "deliveryDate": "Data Dostawy",
+      "bestBeforeDate": "Data Przydatności",
+      "quantity": "Ilość",
+      "unknownBatch": "Nieznana Partia"
+    },
     "log": {
       "title": "Dziennik Symulacji",
       "date": "Data",
