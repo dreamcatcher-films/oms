@@ -34,6 +34,7 @@ export const SimulationView = () => {
 
     const [isDirty, setIsDirty] = useState(false);
     const [isLogExpanded, setIsLogExpanded] = useState(false);
+    const [isChartVisible, setIsChartVisible] = useState(false);
 
     const debounceTimeoutRef = useRef<number | null>(null);
     const workerRef = useRef<Worker | null>(null);
@@ -112,6 +113,7 @@ export const SimulationView = () => {
         setSelectedProduct(null); // Clear selected product on new input
         setSimulationResult(null);
         setOriginalSimParams(null);
+        setIsChartVisible(false);
 
         if (debounceTimeoutRef.current) {
             clearTimeout(debounceTimeoutRef.current);
@@ -138,11 +140,13 @@ export const SimulationView = () => {
         setSelectedProduct(fullProductDetails);
         setSimulationResult(null);
         setOriginalSimParams(null);
+        setIsChartVisible(false);
     };
 
     const handleRunSimulation = () => {
         if (!selectedProduct || !workerRef.current) return;
         setIsSimulating(true);
+        setIsChartVisible(false);
         
         workerRef.current.postMessage({
             warehouseId: selectedProduct.warehouseId,
@@ -213,6 +217,7 @@ export const SimulationView = () => {
                             setProductId('');
                             setSimulationResult(null);
                             setOriginalSimParams(null);
+                            setIsChartVisible(false);
                         }}>
                             <option value="">{t('simulations.controls.selectWarehouse')}</option>
                             {warehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
@@ -337,9 +342,16 @@ export const SimulationView = () => {
                     </div>
 
                     {simulationResult.log && simulationResult.log.length > 0 && (
-                        <div class="stock-chart-section">
-                            <h4>{t('simulations.chart.title')}</h4>
-                            <StockChart data={simulationResult.log.slice(0, 14)} />
+                        <div class="expandable-section">
+                            <div class="expandable-header" onClick={() => setIsChartVisible(!isChartVisible)}>
+                                <h4>{t('simulations.chart.title')}</h4>
+                                <button>
+                                    {isChartVisible ? t('simulations.buttons.hideChart') : t('simulations.buttons.showChart')}
+                                </button>
+                            </div>
+                            <div class={`expandable-content ${isChartVisible ? 'expanded' : ''}`}>
+                                <StockChart data={simulationResult.log.slice(0, 14)} />
+                            </div>
                         </div>
                     )}
 
