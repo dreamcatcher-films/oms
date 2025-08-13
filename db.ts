@@ -7,7 +7,7 @@ const OPEN_ORDERS_STORE_NAME = 'openOrders';
 const SALES_STORE_NAME = 'sales';
 const METADATA_STORE_NAME = 'importMetadata';
 const SETTINGS_STORE_NAME = 'settings';
-const DB_VERSION = 11; 
+const DB_VERSION = 10; 
 
 const RDC_LIST_KEY = 'rdcList';
 const DEFAULT_RDC_LIST: RDC[] = [
@@ -129,13 +129,6 @@ const openDB = (): Promise<IDBDatabase> => {
                 cursor.continue();
             }
         };
-      }
-
-      if (oldVersion < 11) {
-        const productsStore = transaction.objectStore(PRODUCTS_STORE_NAME);
-        if (!productsStore.indexNames.contains('shortIdIndex')) {
-            productsStore.createIndex('shortIdIndex', ['warehouseId', 'productId']);
-        }
       }
     };
 
@@ -532,7 +525,7 @@ export const getUniqueWarehouseIdsForSales = async (): Promise<string[]> => {
 };
 
 
-export const findProductsByPartialId = async (partialId: string, limit: number = 5, warehouseId?: string): Promise<Product[]> => {
+export const findProductsByPartialId = async (partialId: string, limit: number = 10, warehouseId?: string): Promise<Product[]> => {
     if (!partialId) return [];
     const db = await openDB();
     const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
@@ -548,7 +541,7 @@ export const findProductsByPartialId = async (partialId: string, limit: number =
     return new Promise((resolve, reject) => {
         request.onsuccess = (event) => {
             const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-            if (cursor && products.length < limit) {
+            if (cursor && products.length < limit * 2) { // Fetch more to allow for filtering
                 const product: Product = cursor.value;
                 if (!warehouseId || product.warehouseId === warehouseId) {
                     products.push(product);
@@ -584,25 +577,6 @@ const getAllFromIndex = async <T>(storeName: string, indexName: string, key: IDB
     const store = transaction.objectStore(storeName);
     const index = store.index(indexName);
     const request = index.getAll(key);
-
-    return new Promise((resolve, reject) => {
-        request.onsuccess = () => {
-            resolve(request.result ?? []);
-        };
-        request.onerror = () => {
-            reject(request.error);
-        };
-    });
-};
-
-export const findAllProductsByShortId = async (warehouseId: string, shortProductId: string): Promise<Product[]> => {
-    const db = await openDB();
-    const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
-    const store = transaction.objectStore(PRODUCTS_STORE_NAME);
-    const index = store.index('shortIdIndex');
-    
-    const keyRange = IDBKeyRange.only([warehouseId, shortProductId]);
-    const request = index.getAll(keyRange);
 
     return new Promise((resolve, reject) => {
         request.onsuccess = () => {
