@@ -256,11 +256,13 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
                              <ul class="suggestions-list">
                                 {productSuggestions.map(p => (
                                     <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
-                                        <div>
+                                        <div class="suggestion-main">
                                             <strong>{p.productId}</strong> - {p.name}
                                         </div>
                                         <div class="suggestion-details">
-                                            ({p.status}) / CS: {p.caseSize} / Stock: {p.stockOnHand.toLocaleString(language)}
+                                            <span>{`(${p.status})`}</span>
+                                            <span>{`CS: ${p.caseSize}`}</span>
+                                            <span>{`Stock: ${p.stockOnHand.toLocaleString(language)}`}</span>
                                         </div>
                                     </li>
                                 ))}
