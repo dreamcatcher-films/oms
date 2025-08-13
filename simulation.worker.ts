@@ -48,7 +48,7 @@ export type SimulationResult = {
 type StockBatch = {
     quantity: number;
     bestBefore: Date;
-    sDateHorizon: Date;
+    writeOffHorizon: Date;
     aldDate: Date;
     deliveryDate: string;
     bestBeforeDate: string;
@@ -208,14 +208,14 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         .filter(b => !b.isUnknown)
         .map(batch => {
             const bestBefore = new Date(batch.bestBeforeDate);
-            const sDateHorizon = new Date(bestBefore);
-            sDateHorizon.setDate(sDateHorizon.getDate() - sDate);
+            const writeOffHorizon = new Date(bestBefore);
+            writeOffHorizon.setDate(writeOffHorizon.getDate() - cDate);
             const aldDate = new Date(bestBefore);
             aldDate.setDate(aldDate.getDate() - sDate);
             return {
                 quantity: batch.quantity,
                 bestBefore,
-                sDateHorizon,
+                writeOffHorizon,
                 aldDate,
                 deliveryDate: batch.deliveryDate,
                 bestBeforeDate: batch.bestBeforeDate,
@@ -225,15 +225,15 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
     if (remainingStockToAllocate > 0) {
         const pessimisticBestBefore = new Date();
         pessimisticBestBefore.setHours(0,0,0,0);
-        const pessimisticSDateHorizon = new Date(pessimisticBestBefore);
-        pessimisticSDateHorizon.setDate(pessimisticSDateHorizon.getDate() - sDate);
+        const pessimisticWriteOffHorizon = new Date(pessimisticBestBefore);
+        pessimisticWriteOffHorizon.setDate(pessimisticWriteOffHorizon.getDate() - cDate);
         const pessimisticAldDate = new Date(pessimisticBestBefore);
         pessimisticAldDate.setDate(pessimisticAldDate.getDate() - sDate);
 
         stock.push({
             quantity: remainingStockToAllocate,
             bestBefore: pessimisticBestBefore,
-            sDateHorizon: pessimisticSDateHorizon,
+            writeOffHorizon: pessimisticWriteOffHorizon,
             aldDate: pessimisticAldDate,
             deliveryDate: 'Unknown',
             bestBeforeDate: 'Unknown'
@@ -290,15 +290,17 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             const deliveryDate = new Date(currentDate);
             const bestBefore = new Date(deliveryDate);
             bestBefore.setDate(deliveryDate.getDate() + wDate);
-            const sDateHorizon = new Date(bestBefore);
-            sDateHorizon.setDate(bestBefore.getDate() - sDate);
+            
+            const writeOffHorizon = new Date(bestBefore);
+            writeOffHorizon.setDate(bestBefore.getDate() - cDate);
+            
             const aldDate = new Date(bestBefore);
             aldDate.setDate(aldDate.getDate() - sDate);
 
             stock.push({
                 quantity: newReceiptQty,
                 bestBefore,
-                sDateHorizon,
+                writeOffHorizon,
                 aldDate,
                 deliveryDate: formatDate(deliveryDate),
                 bestBeforeDate: formatDate(bestBefore),
@@ -326,7 +328,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         let writeOffsToday = 0;
         const remainingStock: StockBatch[] = [];
         for (const batch of stock) {
-            if (currentDate >= batch.sDateHorizon) {
+            if (currentDate >= batch.writeOffHorizon) {
                 writeOffsToday += batch.quantity;
                 if (!firstWriteOffDate) {
                     firstWriteOffDate = dateStr;
