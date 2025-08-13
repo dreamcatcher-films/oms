@@ -242,18 +242,6 @@ export default {
       "loginButton": "Anmelden",
       "invalidPassword": "Passwort ist falsch."
   },
-  "productSelection": {
-    "title": "Produktvariante auswählen",
-    "description": "Mehrere Produkte entsprechen dieser ID. Bitte wählen Sie das richtige aus, um fortzufahren.",
-    "selectButton": "Auswählen",
-    "headers": {
-      "fullProductId": "Vollst. Artikel-Nr.",
-      "name": "Name",
-      "status": "Status",
-      "caseSize": "Stk./Karton",
-      "stockOnHand": "Lagerbestand"
-    }
-  },
   "common": {
       "yesShort": "J",
       "noShort": "N"
