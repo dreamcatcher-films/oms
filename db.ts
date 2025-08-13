@@ -436,6 +436,67 @@ export const getUniqueProductStatuses = async (): Promise<string[]> => {
     });
 };
 
+export const getUniqueItemGroups = async (): Promise<string[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(PRODUCTS_STORE_NAME);
+    const request = store.openCursor();
+    const itemGroups = new Set<string>();
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const product: Product = cursor.value;
+                if(product.itemGroup) {
+                    itemGroups.add(product.itemGroup);
+                }
+                cursor.continue();
+            } else {
+                resolve(Array.from(itemGroups).sort());
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const getProductsByCriteria = async (filters: {
+  warehouseIds?: string[];
+  itemGroupIds?: string[];
+  statusIds?: string[];
+}): Promise<Product[]> => {
+  const db = await openDB();
+  const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
+  const store = transaction.objectStore(PRODUCTS_STORE_NAME);
+  const request = store.openCursor();
+  const products: Product[] = [];
+
+  const hasWarehouseFilter = filters.warehouseIds && filters.warehouseIds.length > 0;
+  const hasItemGroupFilter = filters.itemGroupIds && filters.itemGroupIds.length > 0;
+  const hasStatusFilter = filters.statusIds && filters.statusIds.length > 0;
+
+  return new Promise((resolve, reject) => {
+    request.onsuccess = (event) => {
+      const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+      if (cursor) {
+        const product: Product = cursor.value;
+
+        const matchesWarehouse = !hasWarehouseFilter || filters.warehouseIds!.includes(product.warehouseId);
+        const matchesItemGroup = !hasItemGroupFilter || filters.itemGroupIds!.includes(product.itemGroup);
+        const matchesStatus = !hasStatusFilter || filters.statusIds!.includes(product.status);
+        
+        if (matchesWarehouse && matchesItemGroup && matchesStatus) {
+          products.push(product);
+        }
+        cursor.continue();
+      } else {
+        resolve(products);
+      }
+    };
+    request.onerror = () => reject(request.error);
+  });
+};
+
 export const getUniqueWarehouseIds = async (): Promise<string[]> => {
     const db = await openDB();
     const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
