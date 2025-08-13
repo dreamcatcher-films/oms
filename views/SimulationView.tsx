@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
-import { getUniqueWarehouseIds, findProductsByPartialId, getProductDetails, Product } from '../db';
+import { getUniqueWarehouseIds, findProductsByPartialId, Product } from '../db';
 import { SimulationResult, InitialStockBatch } from "../simulation.worker";
 import { ManualDelivery, UserSession } from '../utils/types';
 import { StockChart } from '../components/StockChart';
@@ -132,19 +132,26 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
 
         debounceTimeoutRef.current = window.setTimeout(async () => {
             const suggestions = await findProductsByPartialId(value, 10, warehouseId);
-            setProductSuggestions(suggestions);
-            setIsSuggestionsVisible(suggestions.length > 0);
+            const sortedSuggestions = suggestions.sort((a, b) => {
+                const statusA = a.status === '8' ? 0 : 1;
+                const statusB = b.status === '8' ? 0 : 1;
+                if (statusA !== statusB) {
+                    return statusA - statusB;
+                }
+                return a.productId.localeCompare(b.productId);
+            });
+            setProductSuggestions(sortedSuggestions);
+            setIsSuggestionsVisible(sortedSuggestions.length > 0);
         }, 300);
     };
 
-    const handleSuggestionClick = async (product: Product) => {
+    const handleSuggestionClick = (product: Product) => {
+        setIsSuggestionsVisible(false);
         setProductId(product.productId);
         if (!isRdcMode) {
             setWarehouseId(product.warehouseId);
         }
-        setIsSuggestionsVisible(false);
-        const fullProductDetails = await getProductDetails(product.warehouseId, product.fullProductId);
-        setSelectedProduct(fullProductDetails);
+        setSelectedProduct(product);
         setSimulationResult(null);
         setOriginalSimParams(null);
         setIsChartVisible(false);
@@ -205,7 +212,7 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
     };
     
     const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat(language, { style: 'currency', currency: 'EUR' }).format(value);
+        return new Intl.NumberFormat(language, { style: 'currency', currency: 'GBP' }).format(value);
     }
 
     return (
@@ -246,11 +253,15 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
                             autocomplete="off"
                         />
                         {isSuggestionsVisible && productSuggestions.length > 0 && (
-                            <ul class="suggestions-list">
-                                {productSuggestions
-                                .map(p => (
+                             <ul class="suggestions-list">
+                                {productSuggestions.map(p => (
                                     <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
-                                        <strong>{p.productId}</strong> - {p.name}
+                                        <div>
+                                            <strong>{p.productId}</strong> - {p.name}
+                                        </div>
+                                        <div class="suggestion-details">
+                                            ({p.status}) / CS: {p.caseSize} / Stock: {p.stockOnHand.toLocaleString(language)}
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
