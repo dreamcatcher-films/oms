@@ -15,6 +15,9 @@ import {
   getImportMetadata,
   updateImportMetadata,
   ImportMetadata,
+  saveSetting,
+  loadAllSettings,
+  deleteSetting,
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
@@ -25,6 +28,7 @@ import { LanguageSelector } from './components/LanguageSelector';
 import { ImportView } from './views/ImportView';
 import { DataPreview } from './views/DataPreview';
 import { SimulationView } from './views/SimulationView';
+import { SettingsView } from './views/SettingsView';
 
 const BATCH_SIZE = 5000;
 
@@ -35,6 +39,7 @@ const App = () => {
   
   const [counts, setCounts] = useState({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0 });
   const [importMetadata, setImportMetadata] = useState<ImportMetadata>({ products: null, goodsReceipts: null, openOrders: null, sales: null });
+  const [linkedFiles, setLinkedFiles] = useState<Map<DataType, FileSystemFileHandle>>(new Map());
   
   const [currentView, setCurrentView] = useState<View>('import');
 
@@ -51,6 +56,28 @@ const App = () => {
         };
         
         continueButton.addEventListener('click', hideSplash, { once: true });
+    }
+  }, []);
+
+  const loadSettings = useCallback(async () => {
+    if ('showOpenFilePicker' in window) { // Check for browser support
+        try {
+            const settings = await loadAllSettings();
+            const fileHandles = new Map<DataType, FileSystemFileHandle>();
+            for (const [key, value] of settings.entries()) {
+                if (key.startsWith('linkedFile:')) {
+                    const dataType = key.split(':')[1] as DataType;
+                    // It's a good practice to verify the handle is still valid
+                    const permission = await (value as any).queryPermission({ mode: 'read' });
+                    if (permission === 'granted') {
+                      fileHandles.set(dataType, value as FileSystemFileHandle);
+                    }
+                }
+            }
+            setLinkedFiles(fileHandles);
+        } catch(e) {
+            console.error("Error loading settings:", e);
+        }
     }
   }, []);
 
@@ -80,7 +107,25 @@ const App = () => {
 
   useEffect(() => {
     performInitialCheck();
-  }, [performInitialCheck]);
+    loadSettings();
+  }, [performInitialCheck, loadSettings]);
+  
+  const processFile = (dataType: DataType, file: File) => {
+    switch (dataType) {
+      case 'products':
+          handleComplexFileParse(file, 'products', t('dataType.products'), clearProducts, addProducts, productRowMapper);
+          break;
+      case 'goodsReceipts':
+          handleComplexFileParse(file, 'goodsReceipts', t('dataType.goodsReceipts'), clearGoodsReceipts, addGoodsReceipts, goodsReceiptRowMapper);
+          break;
+      case 'openOrders':
+          handleComplexFileParse(file, 'openOrders', t('dataType.openOrders'), clearOpenOrders, addOpenOrders, openOrderRowMapper);
+          break;
+      case 'sales':
+          handleSalesFileParse(file);
+          break;
+    }
+  };
   
   const handleComplexFileParse = (
     file: File,
@@ -168,7 +213,8 @@ const App = () => {
           complete: async () => {
             await processBatch();
             await updateImportMetadata(dataType);
-            setImportMetadata(prev => ({...prev, [dataType]: { dataType, lastImported: new Date() }}));
+            const metadata = await getImportMetadata();
+            setImportMetadata(metadata);
             setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
             setIsLoading(false);
           },
@@ -246,7 +292,8 @@ const App = () => {
               complete: async () => {
                   await processBatch();
                   await updateImportMetadata('sales');
-                  setImportMetadata(prev => ({ ...prev, sales: { dataType: 'sales', lastImported: new Date() } }));
+                  const metadata = await getImportMetadata();
+                  setImportMetadata(metadata);
                   setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
                   setIsLoading(false);
               },
@@ -262,24 +309,67 @@ const App = () => {
   const handleFileSelect = (dataType: DataType, event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
+    processFile(dataType, file);
     (event.target as HTMLInputElement).value = ''; 
-    
-    switch (dataType) {
-        case 'products':
-            handleComplexFileParse(file, 'products', t('dataType.products'), clearProducts, addProducts, productRowMapper);
-            break;
-        case 'goodsReceipts':
-            handleComplexFileParse(file, 'goodsReceipts', t('dataType.goodsReceipts'), clearGoodsReceipts, addGoodsReceipts, goodsReceiptRowMapper);
-            break;
-        case 'openOrders':
-            handleComplexFileParse(file, 'openOrders', t('dataType.openOrders'), clearOpenOrders, addOpenOrders, openOrderRowMapper);
-            break;
-        case 'sales':
-            handleSalesFileParse(file);
-            break;
-    }
   };
   
+  const handleLinkFile = async (dataType: DataType) => {
+      if (!('showOpenFilePicker' in window)) {
+          alert("Your browser does not support this feature.");
+          return;
+      }
+      try {
+          const [handle] = await (window as any).showOpenFilePicker();
+          await saveSetting(`linkedFile:${dataType}`, handle);
+          setLinkedFiles(prev => new Map(prev).set(dataType, handle as FileSystemFileHandle));
+          setStatusMessage({ text: t('settings.dataSources.linkSuccess'), type: 'success' });
+          const file = await (handle as any).getFile();
+          processFile(dataType, file); // Optionally process the file immediately after linking
+      } catch (err) {
+          // User probably cancelled the picker, so no error message is needed
+          if ((err as Error).name !== 'AbortError') {
+            console.error('Error linking file:', err);
+            setStatusMessage({ text: t('settings.dataSources.linkError'), type: 'error' });
+          }
+      }
+  };
+
+  const handleReloadFile = async (dataType: DataType) => {
+      const handle = linkedFiles.get(dataType);
+      if (!handle) return;
+      setIsLoading(true);
+      try {
+          const permission = await (handle as any).queryPermission({ mode: 'read' });
+          if (permission === 'denied') {
+              setStatusMessage({ text: t('settings.dataSources.permissionDenied'), type: 'error' });
+              setIsLoading(false);
+              return;
+          }
+          if (permission === 'prompt') {
+              if ((await (handle as any).requestPermission({ mode: 'read' })) !== 'granted') {
+                  setStatusMessage({ text: t('settings.dataSources.permissionNeeded'), type: 'error' });
+                  setIsLoading(false);
+                  return;
+              }
+          }
+          const file = await handle.getFile();
+          processFile(dataType, file);
+      } catch (err) {
+           console.error('Error reloading file:', err);
+           setStatusMessage({ text: t('settings.dataSources.reloadError'), type: 'error' });
+           setIsLoading(false);
+      }
+  };
+  
+  const handleClearLink = async (dataType: DataType) => {
+      await deleteSetting(`linkedFile:${dataType}`);
+      setLinkedFiles(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(dataType);
+          return newMap;
+      });
+  };
+
   const handleClearIndividualData = async (dataType: DataType) => {
     setIsLoading(true);
     const dataTypeName = t(`dataType.${dataType}`);
@@ -296,7 +386,8 @@ const App = () => {
     try {
         await clearFn();
         setCounts(prev => ({...prev, [dataType]: 0}));
-        setImportMetadata(prev => ({...prev, [dataType]: null}));
+        const metadata = await getImportMetadata();
+        setImportMetadata(metadata);
         setStatusMessage({ text: t('status.clear.cleared', { dataTypeName }), type: 'success' });
     } catch(error) {
         console.error(`Error clearing data for ${dataTypeName}.`, error);
@@ -313,6 +404,7 @@ const App = () => {
       await clearAllData();
       setCounts({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0 });
       setImportMetadata({ products: null, goodsReceipts: null, openOrders: null, sales: null });
+      setLinkedFiles(new Map());
       setStatusMessage({ text: t('status.clear.clearedAll'), type: 'success' });
     } catch (error) {
       console.error("Failed to clear DB", error);
@@ -332,6 +424,8 @@ const App = () => {
             counts={counts}
             onFileSelect={handleFileSelect}
             onClear={handleClearIndividualData}
+            linkedFiles={linkedFiles}
+            onReload={handleReloadFile}
           />
         );
       case 'data-preview':
@@ -352,6 +446,16 @@ const App = () => {
         );
       case 'simulations':
         return <SimulationView />;
+      case 'settings':
+        return (
+            <SettingsView 
+                linkedFiles={linkedFiles}
+                onLinkFile={handleLinkFile}
+                onReloadFile={handleReloadFile}
+                onClearLink={handleClearLink}
+                isLoading={isLoading}
+            />
+        );
       default:
         return null;
     }
@@ -374,6 +478,7 @@ const App = () => {
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('report')}} class={currentView === 'report' ? 'active' : ''}>{t('sidebar.threatReport')}</a></li>
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('dashboard')}} class={currentView === 'dashboard' ? 'active' : ''}>{t('sidebar.dashboard')}</a></li>
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('simulations')}} class={currentView === 'simulations' ? 'active' : ''}>{t('sidebar.simulations')}</a></li>
+            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('settings')}} class={currentView === 'settings' ? 'active' : ''}>{t('sidebar.settings')}</a></li>
           </ul>
           <div class="sidebar-footer">
               <p>Proof of Concept Supply Chain UK</p>
