@@ -1,8 +1,3 @@
-
-
-
-
-
 import { RDC, DataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale } from './utils/types';
 
 const DB_NAME = 'OMSDatabase';
@@ -12,7 +7,7 @@ const OPEN_ORDERS_STORE_NAME = 'openOrders';
 const SALES_STORE_NAME = 'sales';
 const METADATA_STORE_NAME = 'importMetadata';
 const SETTINGS_STORE_NAME = 'settings';
-const DB_VERSION = 9; 
+const DB_VERSION = 10; 
 
 const RDC_LIST_KEY = 'rdcList';
 const DEFAULT_RDC_LIST: RDC[] = [
@@ -114,6 +109,26 @@ const openDB = (): Promise<IDBDatabase> => {
             const store = db.createObjectStore(SETTINGS_STORE_NAME, { keyPath: 'key' });
             store.put({ key: RDC_LIST_KEY, value: DEFAULT_RDC_LIST });
         }
+      }
+
+      if (oldVersion < 10) {
+        const productsStore = transaction.objectStore(PRODUCTS_STORE_NAME);
+        if (!productsStore.indexNames.contains('productId_lower_idx')) {
+            productsStore.createIndex('productId_lower_idx', 'productId_lower');
+        }
+        
+        // Backfill existing data
+        productsStore.openCursor().onsuccess = (e) => {
+            const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const product = cursor.value;
+                if (typeof product.productId_lower === 'undefined') {
+                    product.productId_lower = product.productId.toLowerCase();
+                    cursor.update(product);
+                }
+                cursor.continue();
+            }
+        };
       }
     };
 
@@ -510,20 +525,25 @@ export const getUniqueWarehouseIdsForSales = async (): Promise<string[]> => {
 };
 
 
-export const findProductsByPartialId = async (partialId: string, limit: number = 5): Promise<Product[]> => {
+export const findProductsByPartialId = async (partialId: string, limit: number = 5, warehouseId?: string): Promise<Product[]> => {
+    if (!partialId) return [];
     const db = await openDB();
     const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
     const store = transaction.objectStore(PRODUCTS_STORE_NAME);
-    const request = store.openCursor();
-    const products: Product[] = [];
+    const index = store.index('productId_lower_idx');
+
     const lowerCasePartialId = partialId.toLowerCase();
+    const range = IDBKeyRange.bound(lowerCasePartialId, lowerCasePartialId + '\uffff');
+    const request = index.openCursor(range);
+
+    const products: Product[] = [];
 
     return new Promise((resolve, reject) => {
         request.onsuccess = (event) => {
             const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
             if (cursor && products.length < limit) {
                 const product: Product = cursor.value;
-                if (product.productId.toLowerCase().startsWith(lowerCasePartialId)) {
+                if (!warehouseId || product.warehouseId === warehouseId) {
                     products.push(product);
                 }
                 cursor.continue();
@@ -676,4 +696,4 @@ export const loadRdcList = async (): Promise<RDC[]> => {
     const list = await loadSetting<RDC[]>(RDC_LIST_KEY);
     return list ?? DEFAULT_RDC_LIST;
 };
-export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType } from './utils/types';
+export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType };
