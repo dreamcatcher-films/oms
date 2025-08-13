@@ -24,7 +24,7 @@ import {
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
 import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper } from './utils/parsing';
-import { Status, View, DataType, RDC, UserSession } from './utils/types';
+import { Status, View, DataType, RDC, UserSession, ReportResultItem } from './utils/types';
 
 import { LanguageSelector } from './components/LanguageSelector';
 import { LoginModal } from './components/LoginModal';
@@ -32,6 +32,8 @@ import { ImportView } from './views/ImportView';
 import { DataPreview } from './views/DataPreview';
 import { SimulationView } from './views/SimulationView';
 import { SettingsView } from './views/SettingsView';
+import { ThreatReportView } from './views/ThreatReportView';
+
 
 const BATCH_SIZE = 5000;
 
@@ -48,6 +50,10 @@ const App = () => {
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [rdcList, setRdcList] = useState<RDC[]>([]);
   
+  const [simulationContext, setSimulationContext] = useState<{ warehouseId: string; fullProductId: string; } | null>(null);
+  const [watchlist, setWatchlist] = useState<ReportResultItem[]>([]);
+  const [watchlistIndex, setWatchlistIndex] = useState<number | null>(null);
+
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -441,6 +447,7 @@ const App = () => {
   const handleLogout = () => {
     setUserSession(null);
     localStorage.removeItem('oms-session');
+    setCurrentView('import');
   };
 
   const handleAddRdc = async (rdc: RDC) => {
@@ -501,6 +508,35 @@ const App = () => {
     }
   };
 
+  const handleNavigateToSimulation = (warehouseId: string, fullProductId: string) => {
+    setSimulationContext({ warehouseId, fullProductId });
+    setCurrentView('simulations');
+  };
+  
+  const handleStartWatchlist = (items: ReportResultItem[]) => {
+      if (items.length === 0) return;
+      setWatchlist(items);
+      setWatchlistIndex(0);
+      const firstItem = items[0];
+      handleNavigateToSimulation(firstItem.warehouseId, firstItem.fullProductId);
+  };
+  
+  const handleClearWatchlist = () => {
+      setWatchlist([]);
+      setWatchlistIndex(null);
+  }
+
+  const handleNavigateWatchlist = (direction: 1 | -1) => {
+      if (watchlistIndex === null) return;
+      
+      const newIndex = watchlistIndex + direction;
+      if (newIndex >= 0 && newIndex < watchlist.length) {
+          setWatchlistIndex(newIndex);
+          const nextItem = watchlist[newIndex];
+          handleNavigateToSimulation(nextItem.warehouseId, nextItem.fullProductId);
+      }
+  };
+
   const renderContent = () => {
     switch (currentView) {
       case 'import':
@@ -519,12 +555,11 @@ const App = () => {
       case 'data-preview':
         return <DataPreview userSession={userSession} />;
       case 'report':
-        return (
-          <div class="placeholder-view">
-            <h2>{t('placeholders.report.title')}</h2>
-            <p>{t('placeholders.report.description')}</p>
-          </div>
-        );
+        return <ThreatReportView 
+            userSession={userSession}
+            onNavigateToSimulation={handleNavigateToSimulation}
+            onStartWatchlist={handleStartWatchlist}
+        />;
       case 'dashboard':
         return (
           <div class="placeholder-view">
@@ -533,7 +568,15 @@ const App = () => {
           </div>
         );
       case 'simulations':
-        return <SimulationView userSession={userSession} />;
+        return <SimulationView 
+          userSession={userSession}
+          initialParams={simulationContext}
+          onSimulationStart={() => setSimulationContext(null)}
+          watchlist={watchlist}
+          watchlistIndex={watchlistIndex}
+          onNavigateWatchlist={handleNavigateWatchlist}
+          onClearWatchlist={handleClearWatchlist}
+        />;
       case 'settings':
         return (
             <SettingsView 
