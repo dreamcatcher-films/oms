@@ -157,7 +157,12 @@ export default {
       "regulationBreached": "Verstoß (J/N)",
       "quantity": "Menge",
       "unknownBatch": "Unbekannte Charge",
-      "aldLegend": "Wenn die Lieferung ALD-gefährdet ist, wird sie orange markiert."
+      "legend": {
+        "ald": "ALD-Risiko",
+        "writeOff": "Abschreibungsrisiko",
+        "nonCompliant": "Regelwidriger Eingang",
+        "manual": "Manuelle Lieferung"
+      }
     },
     "log": {
       "title": "Simulationsprotokoll",
