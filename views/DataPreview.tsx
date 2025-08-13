@@ -260,7 +260,7 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
       }
 
       debounceTimeoutRef.current = window.setTimeout(async () => {
-          const suggestions = await findProductsByPartialId(value, 5);
+          const suggestions = await findProductsByPartialId(value, 5, productFilters.warehouseId);
           setProductIdSuggestions(suggestions);
           setIsSuggestionsVisible(suggestions.length > 0);
       }, 300);
