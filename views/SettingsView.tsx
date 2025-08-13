@@ -1,5 +1,6 @@
+import { useState } from 'preact/hooks';
 import { useTranslation } from '../i18n';
-import { DataType } from '../utils/types';
+import { DataType, RDC, UserSession } from '../utils/types';
 
 type SettingsViewProps = {
     linkedFiles: Map<DataType, FileSystemFileHandle>;
@@ -7,14 +8,42 @@ type SettingsViewProps = {
     onReloadFile: (dataType: DataType) => void;
     onClearLink: (dataType: DataType) => void;
     isLoading: boolean;
+    userSession: UserSession | null;
+    rdcList: RDC[];
+    onAddRdc: (rdc: RDC) => void;
+    onDeleteRdc: (rdcId: string) => void;
+    onExportConfig: () => void;
+    onImportClick: () => void;
 };
 
-export const SettingsView = ({ linkedFiles, onLinkFile, onReloadFile, onClearLink, isLoading }: SettingsViewProps) => {
+export const SettingsView = (props: SettingsViewProps) => {
+    const { 
+        linkedFiles, 
+        onLinkFile, 
+        onReloadFile, 
+        onClearLink, 
+        isLoading,
+        userSession,
+        rdcList,
+        onAddRdc,
+        onDeleteRdc,
+        onExportConfig,
+        onImportClick
+    } = props;
     const { t } = useTranslation();
+    const [newRdc, setNewRdc] = useState({ id: '', name: '' });
 
     const dataTypes: DataType[] = ['products', 'goodsReceipts', 'openOrders', 'sales'];
-
     const isApiSupported = 'showOpenFilePicker' in window;
+    const isHq = userSession?.mode === 'hq';
+
+    const handleAddRdc = (e: Event) => {
+        e.preventDefault();
+        if (newRdc.id && newRdc.name) {
+            onAddRdc(newRdc);
+            setNewRdc({ id: '', name: '' });
+        }
+    };
 
     return (
         <div class="settings-view">
@@ -94,10 +123,71 @@ export const SettingsView = ({ linkedFiles, onLinkFile, onReloadFile, onClearLin
                 <h3>{t('settings.configManagement.title')}</h3>
                 <p>{t('settings.configManagement.description')}</p>
                 <div class="filter-actions">
-                    <button class="button-primary" disabled>{t('settings.configManagement.exportButton')}</button>
-                    <button class="button-primary" disabled>{t('settings.configManagement.importButton')}</button>
+                    <button class="button-primary" onClick={onExportConfig}>{t('settings.configManagement.exportButton')}</button>
+                    <button class="button-primary" onClick={onImportClick}>{t('settings.configManagement.importButton')}</button>
                 </div>
             </div>
+
+            {isHq && (
+                <div class="settings-section">
+                    <h3>{t('settings.rdcManagement.title')}</h3>
+                    <p>{t('settings.rdcManagement.description')}</p>
+                    <div class="table-container">
+                        <table class="rdc-management-table">
+                            <thead>
+                                <tr>
+                                    <th>{t('settings.rdcManagement.rdcId')}</th>
+                                    <th>{t('settings.rdcManagement.rdcName')}</th>
+                                    <th>{t('settings.dataSources.actions')}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rdcList.map(rdc => (
+                                    <tr key={rdc.id}>
+                                        <td>{rdc.id}</td>
+                                        <td>{rdc.name}</td>
+                                        <td class="rdc-actions">
+                                            <button 
+                                                onClick={() => {
+                                                    if(confirm(t('settings.rdcManagement.deleteConfirm'))) {
+                                                        onDeleteRdc(rdc.id)
+                                                    }
+                                                }}
+                                                title={t('settings.rdcManagement.deleteRdc')}
+                                            >&times;</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <form class="add-rdc-form" onSubmit={handleAddRdc}>
+                        <div class="filter-group">
+                            <label for="new-rdc-id">{t('settings.rdcManagement.rdcId')}</label>
+                            <input 
+                                id="new-rdc-id" 
+                                type="text" 
+                                value={newRdc.id}
+                                onInput={(e) => setNewRdc({...newRdc, id: (e.target as HTMLInputElement).value})}
+                                required
+                            />
+                        </div>
+                        <div class="filter-group">
+                            <label for="new-rdc-name">{t('settings.rdcManagement.rdcName')}</label>
+                            <input 
+                                id="new-rdc-name" 
+                                type="text" 
+                                value={newRdc.name}
+                                onInput={(e) => setNewRdc({...newRdc, name: (e.target as HTMLInputElement).value})}
+                                required
+                            />
+                        </div>
+                        <div class="filter-actions">
+                             <button type="submit" class="button-primary">{t('settings.rdcManagement.addRdc')}</button>
+                        </div>
+                    </form>
+                </div>
+            )}
 
             <div class="settings-section">
                 <h3>{t('settings.watchlists.title')}</h3>
