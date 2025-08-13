@@ -1,7 +1,11 @@
 
 export default {
   "header": {
-    "title": "OMS"
+    "title": "OMS",
+    "session": {
+        "mode": "Mode",
+        "logout": "Logout"
+    }
   },
   "sidebar": {
     "import": "Data Import",
@@ -207,14 +211,37 @@ export default {
     },
     "configManagement": {
         "title": "Configuration Management",
-        "description": "Export your settings to a file, or import them on another device. (Feature under construction)",
+        "description": "Export your settings (like the RDC list) to a file, or import them on another device. This does not include linked files.",
         "exportButton": "Export Configuration",
-        "importButton": "Import Configuration"
+        "importButton": "Import Configuration",
+        "exportSuccess": "Configuration exported successfully.",
+        "importSuccess": "Configuration imported successfully.",
+        "importError": "Failed to import configuration file."
+    },
+    "rdcManagement": {
+        "title": "RDC Management",
+        "description": "Add or remove Regional Distribution Centers (RDCs) from the list available at login.",
+        "rdcId": "RDC ID",
+        "rdcName": "RDC Name",
+        "addRdc": "Add RDC",
+        "deleteRdc": "Delete",
+        "addSuccess": "RDC added successfully.",
+        "deleteSuccess": "RDC deleted successfully.",
+        "deleteConfirm": "Are you sure you want to delete this RDC?"
     },
     "watchlists": {
         "title": "Watchlists",
         "description": "Create and manage lists of products to monitor. (Feature under construction)"
     }
+  },
+  "loginModal": {
+      "title": "Select Operating Mode",
+      "hqButton": "Central (HQ)",
+      "rdcButton": "Warehouse (RDC)",
+      "password": "Password",
+      "selectRdc": "Select Warehouse",
+      "loginButton": "Login",
+      "invalidPassword": "Password is incorrect."
   },
   "common": {
       "yesShort": "Y",
