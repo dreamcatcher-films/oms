@@ -157,7 +157,12 @@ export default {
       "regulationBreached": "Przekroczone (T/N)",
       "quantity": "Ilość",
       "unknownBatch": "Nieznana Partia",
-      "aldLegend": "Jeżeli dostawa zagrożona ALD, to jest zaznaczona na pomarańczowo."
+      "legend": {
+        "ald": "Ryzyko ALD",
+        "writeOff": "Zagrożenie Odpisem",
+        "nonCompliant": "Niezgodne Przyjęcie",
+        "manual": "Dostawa Ręczna"
+      }
     },
     "log": {
       "title": "Dziennik Symulacji",
