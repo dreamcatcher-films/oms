@@ -7,7 +7,7 @@ const OPEN_ORDERS_STORE_NAME = 'openOrders';
 const SALES_STORE_NAME = 'sales';
 const METADATA_STORE_NAME = 'importMetadata';
 const SETTINGS_STORE_NAME = 'settings';
-const DB_VERSION = 10; 
+const DB_VERSION = 12; 
 
 const RDC_LIST_KEY = 'rdcList';
 const DEFAULT_RDC_LIST: RDC[] = [
@@ -129,6 +129,14 @@ const openDB = (): Promise<IDBDatabase> => {
                 cursor.continue();
             }
         };
+      }
+      
+      if (oldVersion < 12) {
+          // This migration cleans up the now-unused index from version 11
+          const productsStore = transaction.objectStore(PRODUCTS_STORE_NAME);
+          if (productsStore.indexNames.contains('shortIdIndex')) {
+              productsStore.deleteIndex('shortIdIndex');
+          }
       }
     };
 
