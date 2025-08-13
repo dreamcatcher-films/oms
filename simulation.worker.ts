@@ -1,3 +1,4 @@
+
 import {
   getProductDetails,
   getAllGoodsReceiptsForProduct,
@@ -17,6 +18,7 @@ export type SimulationLogEntry = {
   writeOffs: number;
   stockEnd: number;
   notes: string;
+  aldAffectedStock: number;
 };
 
 export type InitialStockBatch = {
@@ -28,6 +30,7 @@ export type InitialStockBatch = {
     daysToSell: number;
     isAffectedByWriteOff: boolean;
     isManual?: boolean;
+    isAldAffected: boolean;
 };
 
 export type SimulationResult = {
@@ -39,12 +42,14 @@ export type SimulationResult = {
   log: SimulationLogEntry[];
   initialStockComposition: InitialStockBatch[];
   isStockDataComplete: boolean;
+  initialAldAffectedValue: number;
 };
 
 type StockBatch = {
     quantity: number;
     bestBefore: Date;
     sDateHorizon: Date;
+    aldDate: Date;
     deliveryDate: string;
     bestBeforeDate: string;
 };
@@ -120,6 +125,10 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
 
         const deliveryDate = parseSortableDate(receipt.deliveryDateSortable);
         const bestBeforeDate = parseSortableDate(receipt.bestBeforeDateSortable);
+        
+        const aldDate = new Date(bestBeforeDate);
+        aldDate.setDate(aldDate.getDate() - sDate);
+        const isAldAffected = today >= aldDate;
 
         const shelfLifeAtReceipt = (bestBeforeDate.getTime() - deliveryDate.getTime()) / (1000 * 3600 * 24);
         const isNonCompliant = shelfLifeAtReceipt < wDate;
@@ -127,7 +136,6 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         const quantityFromThisBatch = Math.min(remainingStockToAllocate, receipt.deliveryQtyPcs);
         
         if (isNonCompliant) {
-            // Count all non-compliant receipts identified in the rollback, not just the one batch.
             nonCompliantReceiptsCount++;
         }
 
@@ -140,7 +148,8 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             isUnknown: false,
             isNonCompliant: isNonCompliant,
             daysToSell: daysToSell,
-            isAffectedByWriteOff: false, // Will be determined later
+            isAffectedByWriteOff: false,
+            isAldAffected: isAldAffected,
         });
         
         remainingStockToAllocate -= quantityFromThisBatch;
@@ -156,6 +165,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             isNonCompliant: true, 
             daysToSell: 0,
             isAffectedByWriteOff: false,
+            isAldAffected: true,
         });
     }
 
@@ -165,6 +175,10 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             if (delivery.date && delivery.bestBeforeDate && delivery.quantity > 0) {
                 const deliveryDate = new Date(delivery.date);
                 const bestBeforeDate = new Date(delivery.bestBeforeDate);
+
+                const aldDate = new Date(bestBeforeDate);
+                aldDate.setDate(aldDate.getDate() - sDate);
+                const isAldAffected = today >= aldDate;
                 
                 const shelfLifeAtReceipt = (bestBeforeDate.getTime() - deliveryDate.getTime()) / (1000 * 3600 * 24);
                 const isNonCompliant = shelfLifeAtReceipt < wDate;
@@ -177,12 +191,17 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
                     isUnknown: false,
                     isNonCompliant: isNonCompliant,
                     daysToSell,
-                    isAffectedByWriteOff: false, // Will be determined later
-                    isManual: true, // Flag as manual
+                    isAffectedByWriteOff: false,
+                    isManual: true,
+                    isAldAffected: isAldAffected,
                 });
             }
         }
     }
+
+    const initialAldAffectedValue = initialStockBatches
+        .filter(b => b.isAldAffected)
+        .reduce((sum, b) => sum + (b.quantity * productDetails.price), 0);
 
 
     let stock: StockBatch[] = initialStockBatches
@@ -191,10 +210,13 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             const bestBefore = new Date(batch.bestBeforeDate);
             const sDateHorizon = new Date(bestBefore);
             sDateHorizon.setDate(sDateHorizon.getDate() - sDate);
+            const aldDate = new Date(bestBefore);
+            aldDate.setDate(aldDate.getDate() - sDate);
             return {
                 quantity: batch.quantity,
                 bestBefore,
                 sDateHorizon,
+                aldDate,
                 deliveryDate: batch.deliveryDate,
                 bestBeforeDate: batch.bestBeforeDate,
             };
@@ -205,10 +227,14 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         pessimisticBestBefore.setHours(0,0,0,0);
         const pessimisticSDateHorizon = new Date(pessimisticBestBefore);
         pessimisticSDateHorizon.setDate(pessimisticSDateHorizon.getDate() - sDate);
+        const pessimisticAldDate = new Date(pessimisticBestBefore);
+        pessimisticAldDate.setDate(pessimisticAldDate.getDate() - sDate);
+
         stock.push({
             quantity: remainingStockToAllocate,
             bestBefore: pessimisticBestBefore,
             sDateHorizon: pessimisticSDateHorizon,
+            aldDate: pessimisticAldDate,
             deliveryDate: 'Unknown',
             bestBeforeDate: 'Unknown'
         });
@@ -238,6 +264,13 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
     while (currentDate <= simulationEndDate) {
         const dateStr = formatDate(currentDate);
         let currentStockQty = stock.reduce((sum, item) => sum + item.quantity, 0);
+        
+        const aldAffectedStock = stock.reduce((sum, batch) => {
+            if (currentDate >= batch.aldDate) {
+                return sum + batch.quantity;
+            }
+            return sum;
+        }, 0);
 
         const logEntry: SimulationLogEntry = {
             date: dateStr,
@@ -247,6 +280,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             writeOffs: 0,
             stockEnd: 0,
             notes: '',
+            aldAffectedStock,
         };
 
         if (receiptsCalendar.has(dateStr)) {
@@ -258,11 +292,14 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             bestBefore.setDate(deliveryDate.getDate() + wDate);
             const sDateHorizon = new Date(bestBefore);
             sDateHorizon.setDate(bestBefore.getDate() - sDate);
+            const aldDate = new Date(bestBefore);
+            aldDate.setDate(aldDate.getDate() - sDate);
 
             stock.push({
                 quantity: newReceiptQty,
                 bestBefore,
                 sDateHorizon,
+                aldDate,
                 deliveryDate: formatDate(deliveryDate),
                 bestBeforeDate: formatDate(bestBefore),
             });
@@ -306,7 +343,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
 
         logEntry.stockEnd = stock.reduce((sum, item) => sum + item.quantity, 0);
         
-        if (logEntry.sales > 0 || logEntry.receipts > 0 || logEntry.writeOffs > 0) {
+        if (logEntry.sales > 0 || logEntry.receipts > 0 || logEntry.writeOffs > 0 || logEntry.aldAffectedStock > 0) {
             log.push(logEntry);
         }
 
@@ -332,6 +369,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
       initialStockComposition: initialStockBatches,
       isStockDataComplete,
       nonCompliantReceiptsCount,
+      initialAldAffectedValue,
     };
 
     postMessage(result);
