@@ -1,4 +1,5 @@
 
+
 import {
   getProductDetails,
   getAllGoodsReceiptsForProduct,
@@ -199,11 +200,6 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
         }
     }
 
-    const initialAldAffectedValue = initialStockBatches
-        .filter(b => b.isAldAffected)
-        .reduce((sum, b) => sum + (b.quantity * productDetails.price), 0);
-
-
     let stock: StockBatch[] = initialStockBatches
         .filter(b => !b.isUnknown)
         .map(batch => {
@@ -225,15 +221,15 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
     if (remainingStockToAllocate > 0) {
         const pessimisticBestBefore = new Date();
         pessimisticBestBefore.setHours(0,0,0,0);
-        const pessimisticWriteOffHorizon = new Date(pessimisticBestBefore);
-        pessimisticWriteOffHorizon.setDate(pessimisticWriteOffHorizon.getDate() - cDate);
+        const writeOffHorizon = new Date(pessimisticBestBefore);
+        writeOffHorizon.setDate(writeOffHorizon.getDate() - cDate);
         const pessimisticAldDate = new Date(pessimisticBestBefore);
         pessimisticAldDate.setDate(pessimisticAldDate.getDate() - sDate);
 
         stock.push({
             quantity: remainingStockToAllocate,
             bestBefore: pessimisticBestBefore,
-            writeOffHorizon: pessimisticWriteOffHorizon,
+            writeOffHorizon: writeOffHorizon,
             aldDate: pessimisticAldDate,
             deliveryDate: 'Unknown',
             bestBeforeDate: 'Unknown'
@@ -257,6 +253,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
     currentDate.setHours(0,0,0,0);
     let totalWriteOffs = 0;
     let firstWriteOffDate: string | null = null;
+    let peakAldAffectedStock = 0;
     const simulationEndDate = new Date();
     simulationEndDate.setFullYear(simulationEndDate.getFullYear() + 1);
     const writtenOffBatchKeys = new Set<string>();
@@ -271,6 +268,10 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
             }
             return sum;
         }, 0);
+        
+        if (aldAffectedStock > peakAldAffectedStock) {
+            peakAldAffectedStock = aldAffectedStock;
+        }
 
         const logEntry: SimulationLogEntry = {
             date: dateStr,
@@ -371,7 +372,7 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
       initialStockComposition: initialStockBatches,
       isStockDataComplete,
       nonCompliantReceiptsCount,
-      initialAldAffectedValue,
+      initialAldAffectedValue: peakAldAffectedStock * productDetails.price,
     };
 
     postMessage(result);
