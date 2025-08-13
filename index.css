@@ -1,3 +1,4 @@
+
 :root {
   --primary-color: #4a90e2;
   --primary-hover-color: #357abd;
@@ -749,6 +750,13 @@ tr:hover {
     margin: 0;
 }
 
+.kpi-card .kpi-description {
+    font-size: 0.8rem;
+    color: var(--text-light-color);
+    margin-top: 0.5rem;
+    line-height: 1.3;
+}
+
 .kpi-card .kpi-input, .detail-item .detail-input {
     width: 100%;
     padding: 8px;
@@ -852,6 +860,23 @@ tr:hover {
     margin-top: 2rem;
 }
 
+.initial-stock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1rem;
+}
+
+.initial-stock-header h4 {
+    margin: 0;
+}
+
+.table-legend {
+    font-size: 0.85rem;
+    color: var(--text-light-color);
+    text-align: right;
+}
+
 .data-completeness-warning {
     padding: 1rem;
     background-color: #fffbe6;
@@ -867,7 +892,6 @@ tr:hover {
   width: auto;
   min-width: 50%;
   border-collapse: collapse;
-  margin-top: 1rem;
 }
 
 .initial-stock-table th,
@@ -889,6 +913,11 @@ tr:hover {
 .batch-risk-row {
     background-color: #fffbe6 !important;
     color: #d46b08;
+}
+
+.ald-risk-row {
+    background-color: #fff7e6 !important;
+    color: #d48806;
 }
 
 .log-write-off-row {
