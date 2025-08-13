@@ -1,7 +1,11 @@
 
 export default {
   "header": {
-    "title": "OMS"
+    "title": "OMS",
+    "session": {
+        "mode": "Modus",
+        "logout": "Abmelden"
+    }
   },
   "sidebar": {
     "import": "Datenimport",
@@ -207,14 +211,37 @@ export default {
     },
     "configManagement": {
         "title": "Konfigurationsverwaltung",
-        "description": "Exportieren Sie Ihre Einstellungen in eine Datei oder importieren Sie sie auf einem anderen Gerät. (Funktion in Entwicklung)",
+        "description": "Exportieren Sie Ihre Einstellungen (wie die RDC-Liste) in eine Datei oder importieren Sie sie auf einem anderen Gerät. Dies schließt verknüpfte Dateien nicht ein.",
         "exportButton": "Konfiguration exportieren",
-        "importButton": "Konfiguration importieren"
+        "importButton": "Konfiguration importieren",
+        "exportSuccess": "Konfiguration erfolgreich exportiert.",
+        "importSuccess": "Konfiguration erfolgreich importiert.",
+        "importError": "Fehler beim Import der Konfigurationsdatei."
+    },
+    "rdcManagement": {
+        "title": "RDC-Verwaltung",
+        "description": "Fügen Sie regionale Verteilzentren (RDCs) zur Anmeldeliste hinzu oder entfernen Sie sie.",
+        "rdcId": "RDC-ID",
+        "rdcName": "RDC-Name",
+        "addRdc": "RDC hinzufügen",
+        "deleteRdc": "Löschen",
+        "addSuccess": "RDC erfolgreich hinzugefügt.",
+        "deleteSuccess": "RDC erfolgreich gelöscht.",
+        "deleteConfirm": "Sind Sie sicher, dass Sie dieses RDC löschen möchten?"
     },
     "watchlists": {
         "title": "Beobachtungslisten",
         "description": "Erstellen und verwalten Sie Listen von Produkten zur Überwachung. (Funktion in Entwicklung)"
     }
+  },
+  "loginModal": {
+      "title": "Betriebsmodus auswählen",
+      "hqButton": "Zentrale (HQ)",
+      "rdcButton": "Lager (RDC)",
+      "password": "Passwort",
+      "selectRdc": "Lager auswählen",
+      "loginButton": "Anmelden",
+      "invalidPassword": "Das Passwort ist falsch."
   },
   "common": {
       "yesShort": "J",
