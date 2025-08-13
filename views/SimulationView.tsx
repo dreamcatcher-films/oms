@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
-import { getUniqueWarehouseIds, findProductsByPartialId, Product } from '../db';
+import { getUniqueWarehouseIds, findProductsByPartialId, Product, getAllSalesForProduct } from '../db';
 import { SimulationResult, InitialStockBatch } from "../simulation.worker";
 import { ManualDelivery, UserSession } from '../utils/types';
 import { StockChart } from '../components/StockChart';
@@ -59,12 +59,6 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
             }
             
             setOverrideAvgSales(result.avgDailySales.toFixed(2));
-            const lastReceipt = result.initialStockComposition
-                .filter(b => !b.isUnknown && !b.isManual)
-                .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))[0];
-            if (lastReceipt) {
-                setNewDelivery({ date: lastReceipt.deliveryDate, quantity: '', bestBeforeDate: '' });
-            }
             setIsDirty(false);
         };
 
@@ -84,33 +78,76 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
     }, [isRdcMode, userSession]);
 
     const resetOverrides = useCallback(() => {
-        if (originalSimParams) {
-            setOverrideWDate(String(originalSimParams.wDate));
-            setOverrideSDate(String(originalSimParams.sDate));
-            setOverrideCDate(String(originalSimParams.cDate));
-            setOverrideAvgSales(originalSimParams.avgDailySales.toFixed(2));
-        } else if (selectedProduct) {
-            setOverrideWDate(String(selectedProduct.shelfLifeAtReceiving));
-            setOverrideSDate(String(selectedProduct.shelfLifeAtStore));
-            setOverrideCDate(String(selectedProduct.customerShelfLife));
-            setOverrideAvgSales(simulationResult?.avgDailySales.toFixed(2) ?? '');
+        if (selectedProduct) {
+            // Restore from originalSimParams if they exist (true reset), otherwise from selectedProduct base values
+            const baseParams = originalSimParams || {
+                wDate: selectedProduct.shelfLifeAtReceiving,
+                sDate: selectedProduct.shelfLifeAtStore,
+                cDate: selectedProduct.customerShelfLife,
+                avgDailySales: simulationResult?.avgDailySales ?? 0,
+            };
+            
+            setOverrideWDate(String(baseParams.wDate));
+            setOverrideSDate(String(baseParams.sDate));
+            setOverrideCDate(String(baseParams.cDate));
+            setOverrideAvgSales(baseParams.avgDailySales.toFixed(2));
+            
+            // Reset manual delivery form to its defaults
+            const today = new Date();
+            const deliveryDate = today.toLocaleDateString('en-CA');
+            const bbd = new Date();
+            bbd.setDate(today.getDate() + selectedProduct.shelfLifeAtReceiving);
+            const bestBeforeDate = bbd.toLocaleDateString('en-CA');
+            const quantity = selectedProduct.caseSize * selectedProduct.cartonsPerPallet;
+            
+            setNewDelivery({
+                date: deliveryDate,
+                bestBeforeDate: bestBeforeDate,
+                quantity: quantity > 0 ? String(quantity) : ''
+            });
         } else {
+            // Clear everything if no product is selected
             setOverrideWDate('');
             setOverrideSDate('');
             setOverrideCDate('');
             setOverrideAvgSales('');
+            setNewDelivery({ date: '', quantity: '', bestBeforeDate: '' });
         }
+        
         setManualDeliveries([]);
-        setNewDelivery({ date: '', quantity: '', bestBeforeDate: '' });
         setIsDirty(true);
     }, [selectedProduct, simulationResult, originalSimParams]);
 
 
     useEffect(() => {
-        if (selectedProduct && !simulationResult) {
-            resetOverrides();
+        if (selectedProduct) {
+            // Set defaults for overrides
+            setOverrideWDate(String(selectedProduct.shelfLifeAtReceiving));
+            setOverrideSDate(String(selectedProduct.shelfLifeAtStore));
+            setOverrideCDate(String(selectedProduct.customerShelfLife));
+            setOverrideAvgSales(''); // Will be populated after first simulation run
+
+            // Set defaults for manual delivery form
+            const today = new Date();
+            const deliveryDate = today.toLocaleDateString('en-CA');
+            
+            const bbd = new Date();
+            bbd.setDate(today.getDate() + selectedProduct.shelfLifeAtReceiving);
+            const bestBeforeDate = bbd.toLocaleDateString('en-CA');
+
+            const suggestedQuantity = selectedProduct.caseSize * selectedProduct.cartonsPerPallet;
+            
+            setNewDelivery({
+                date: deliveryDate,
+                bestBeforeDate: bestBeforeDate,
+                quantity: suggestedQuantity > 0 ? String(suggestedQuantity) : '',
+            });
+
+            // Clear manual deliveries list from any previous product
+            setManualDeliveries([]);
+            setIsDirty(false); // A new selection is a clean state
         }
-    }, [selectedProduct, simulationResult, resetOverrides]);
+    }, [selectedProduct]);
 
     const handleProductIdChange = (e: Event) => {
         const value = (e.target as HTMLInputElement).value;
@@ -131,13 +168,22 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
         }
 
         debounceTimeoutRef.current = window.setTimeout(async () => {
-            const suggestions = await findProductsByPartialId(value, 10, warehouseId);
-            const sortedSuggestions = suggestions.sort((a, b) => {
+            const allProducts = await findProductsByPartialId(value, 10, warehouseId);
+            const stockLevels = new Map<string, number>();
+
+            // This logic could be expanded to get more accurate, real-time stock
+            // For now, using the stock from product master data.
+            for (const p of allProducts) {
+                stockLevels.set(p.fullProductId, p.stockOnHand);
+            }
+
+            const sortedSuggestions = allProducts.sort((a, b) => {
                 const statusA = a.status === '8' ? 0 : 1;
                 const statusB = b.status === '8' ? 0 : 1;
                 if (statusA !== statusB) {
                     return statusA - statusB;
                 }
+                // Optional: secondary sort by stock level?
                 return a.productId.localeCompare(b.productId);
             });
             setProductSuggestions(sortedSuggestions);
@@ -178,7 +224,8 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
     const handleAddManualDelivery = () => {
         if (newDelivery.date && newDelivery.quantity && newDelivery.bestBeforeDate) {
             setManualDeliveries(prev => [...prev, { ...newDelivery, quantity: parseFloat(newDelivery.quantity), id: Date.now() }]);
-            setNewDelivery({ date: newDelivery.date, quantity: '', bestBeforeDate: '' }); // Keep date, clear others
+            // Keep date for next entry, clear others
+            setNewDelivery(prev => ({ ...prev, quantity: '', bestBeforeDate: '' })); 
             setIsDirty(true);
         }
     };
