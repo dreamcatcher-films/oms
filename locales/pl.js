@@ -1,7 +1,11 @@
 
 export default {
   "header": {
-    "title": "OMS"
+    "title": "OMS",
+     "session": {
+        "mode": "Tryb",
+        "logout": "Wyloguj"
+    }
   },
   "sidebar": {
     "import": "Import Danych",
@@ -207,14 +211,37 @@ export default {
     },
     "configManagement": {
         "title": "Zarządzanie Konfiguracją",
-        "description": "Eksportuj swoje ustawienia do pliku lub importuj je na innym urządzeniu. (Funkcja w budowie)",
+        "description": "Eksportuj swoje ustawienia (jak lista RDC) do pliku lub importuj je na innym urządzeniu. Ta opcja nie obejmuje połączonych plików.",
         "exportButton": "Eksportuj Konfigurację",
-        "importButton": "Importuj Konfigurację"
+        "importButton": "Importuj Konfigurację",
+        "exportSuccess": "Konfiguracja wyeksportowana pomyślnie.",
+        "importSuccess": "Konfiguracja zaimportowana pomyślnie.",
+        "importError": "Błąd podczas importu pliku konfiguracyjnego."
+    },
+    "rdcManagement": {
+        "title": "Zarządzanie Magazynami (RDC)",
+        "description": "Dodawaj lub usuwaj Regionalne Centra Dystrybucyjne (RDC) z listy dostępnej przy logowaniu.",
+        "rdcId": "ID Magazynu",
+        "rdcName": "Nazwa Magazynu",
+        "addRdc": "Dodaj Magazyn",
+        "deleteRdc": "Usuń",
+        "addSuccess": "Magazyn dodany pomyślnie.",
+        "deleteSuccess": "Magazyn usunięty pomyślnie.",
+        "deleteConfirm": "Czy na pewno chcesz usunąć ten magazyn?"
     },
     "watchlists": {
         "title": "Listy Obserwowane",
         "description": "Twórz i zarządzaj listami produktów do monitorowania. (Funkcja w budowie)"
     }
+  },
+  "loginModal": {
+      "title": "Wybierz Tryb Pracy",
+      "hqButton": "Centrala (HQ)",
+      "rdcButton": "Magazyn (RDC)",
+      "password": "Hasło",
+      "selectRdc": "Wybierz magazyn",
+      "loginButton": "Zaloguj",
+      "invalidPassword": "Hasło jest nieprawidłowe."
   },
   "common": {
     "yesShort": "T",
