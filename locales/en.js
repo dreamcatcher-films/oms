@@ -102,7 +102,8 @@ export default {
   "placeholders": {
     "report": {
         "title": "Threat Report",
-        "description": "A list of products with potential risk of loss will be here, sorted by urgency. This feature is under construction."
+        "description": "A list of products with potential risk of loss will be here, sorted by urgency. This feature is under construction.",
+        "accessDenied": "This feature is only available for HQ users."
     },
     "dashboard": {
         "title": "Dashboard",
@@ -189,6 +190,9 @@ export default {
         "rerun": "Rerun Simulation",
         "showChart": "Show Chart",
         "hideChart": "Hide Chart"
+    },
+    "watchlist": {
+        "viewing": "Viewing item {{current}} of {{total}}"
     }
   },
   "settings": {
@@ -251,6 +255,36 @@ export default {
     "goodsReceipts": "Goods Receipts",
     "openOrders": "Open Orders",
     "sales": "Sales Data"
+  },
+  "threatReport": {
+    "title": "Threat Report",
+    "description": "Run a bulk simulation on products based on selected criteria to identify items with the highest risk of write-offs.",
+    "controls": {
+      "title": "Report Parameters",
+      "warehouses": "Warehouses",
+      "itemGroups": "Item Groups",
+      "statuses": "Statuses",
+      "runReport": "Run Report",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "runningTitle": "Generating Report...",
+      "runningDescription": "Analyzing {{processed}} of {{total}} products. This may take some time."
+    },
+    "results": {
+      "title": "Report Results",
+      "noResults": "No products match the selected criteria, or no risks were found.",
+      "goToSimulation": "Analyze",
+      "analyzeSelected": "Analyze Selected ({{count}})",
+      "warehouseId": "WH",
+      "productId": "Product",
+      "caseSize": "Case Size",
+      "palletFactor": "Pallet Factor",
+      "daysOfStock": "DoS (RW)",
+      "aldValue": "ALD Value",
+      "avgDailySales": "Avg. Sales",
+      "nonCompliantReceipts": "Non-Compl. Rec.",
+      "writeOffValue": "Write-Off Value"
+    }
   },
   "columns": {
     "product": {
