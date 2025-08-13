@@ -1,5 +1,5 @@
 import { useTranslation } from '../i18n';
-import { DataType } from '../utils/types';
+import { DataType, UserSession } from '../utils/types';
 import { ImportMetadata } from '../db';
 
 const isDateToday = (someDate: Date) => {
@@ -17,6 +17,7 @@ export const ImportView = ({
     onClear,
     linkedFiles,
     onReload,
+    userSession,
 }: {
     isLoading: boolean;
     importMetadata: ImportMetadata;
@@ -25,6 +26,7 @@ export const ImportView = ({
     onClear: (type: DataType) => void;
     linkedFiles: Map<DataType, FileSystemFileHandle>;
     onReload: (type: DataType) => void;
+    userSession: UserSession | null;
 }) => {
     const { t, language } = useTranslation();
     
