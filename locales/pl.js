@@ -242,18 +242,6 @@ export default {
       "loginButton": "Zaloguj",
       "invalidPassword": "Hasło jest nieprawidłowe."
   },
-  "productSelection": {
-    "title": "Wybierz Wariant Produktu",
-    "description": "Znaleziono wiele produktów o tym samym numerze. Wybierz właściwy, aby kontynuować.",
-    "selectButton": "Wybierz",
-    "headers": {
-      "fullProductId": "Pełny Nr art.",
-      "name": "Nazwa",
-      "status": "Status",
-      "caseSize": "Szt. w kart.",
-      "stockOnHand": "Stan mag."
-    }
-  },
   "common": {
     "yesShort": "T",
     "noShort": "N"
