@@ -1,11 +1,46 @@
 import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
-import { getUniqueWarehouseIds, findProductsByPartialId, Product, getAllSalesForProduct } from '../db';
+import { getUniqueWarehouseIds, findProductsByPartialId, Product, getProductDetails } from '../db';
 import { SimulationResult, InitialStockBatch } from "../simulation.worker";
-import { ManualDelivery, UserSession } from '../utils/types';
+import { ManualDelivery, UserSession, ReportResultItem } from '../utils/types';
 import { StockChart } from '../components/StockChart';
 
-export const SimulationView = ({ userSession }: { userSession: UserSession | null }) => {
+type SimulationViewProps = {
+    userSession: UserSession | null;
+    initialParams: { warehouseId: string; fullProductId: string; } | null;
+    onSimulationStart: () => void;
+    watchlist: ReportResultItem[];
+    watchlistIndex: number | null;
+    onNavigateWatchlist: (direction: 1 | -1) => void;
+    onClearWatchlist: () => void;
+};
+
+const WatchlistNavigator = ({ 
+    watchlist, 
+    currentIndex, 
+    onNavigate,
+}: {
+    watchlist: ReportResultItem[];
+    currentIndex: number;
+    onNavigate: (direction: 1 | -1) => void;
+}) => {
+    const { t } = useTranslation();
+    const currentItem = watchlist[currentIndex];
+
+    return (
+        <div class="watchlist-navigator">
+            <div class="watchlist-navigator-info">
+                {t('simulations.watchlist.viewing', { current: currentIndex + 1, total: watchlist.length })}: <strong>{currentItem.productName}</strong>
+            </div>
+            <div class="watchlist-navigator-actions">
+                <button onClick={() => onNavigate(-1)} disabled={currentIndex === 0}>{t('pagination.previous')}</button>
+                <button onClick={() => onNavigate(1)} disabled={currentIndex === watchlist.length - 1}>{t('pagination.next')}</button>
+            </div>
+        </div>
+    );
+};
+
+export const SimulationView = ({ userSession, initialParams, onSimulationStart, watchlist, watchlistIndex, onNavigateWatchlist, onClearWatchlist }: SimulationViewProps) => {
     const { t, language } = useTranslation();
     const [warehouseId, setWarehouseId] = useState('');
     const [productId, setProductId] = useState('');
@@ -40,6 +75,32 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
     const workerRef = useRef<Worker | null>(null);
 
     const isRdcMode = userSession?.mode === 'rdc';
+    
+    const runSimulation = useCallback((productToSimulate: Product) => {
+        if (!workerRef.current) return;
+        
+        setIsSimulating(true);
+        setIsChartVisible(false);
+
+        // This ensures we use the state-based overrides if they exist,
+        // otherwise we use the product's default values for the very first run.
+        const wDateOverride = overrideWDate !== '' ? parseFloat(overrideWDate) : productToSimulate.shelfLifeAtReceiving;
+        const sDateOverride = overrideSDate !== '' ? parseFloat(overrideSDate) : productToSimulate.shelfLifeAtStore;
+        const cDateOverride = overrideCDate !== '' ? parseFloat(overrideCDate) : productToSimulate.customerShelfLife;
+        const avgSalesOverride = overrideAvgSales !== '' ? parseFloat(overrideAvgSales) : undefined;
+
+        workerRef.current.postMessage({
+            warehouseId: productToSimulate.warehouseId,
+            fullProductId: productToSimulate.fullProductId,
+            overrides: {
+                wDate: wDateOverride,
+                sDate: sDateOverride,
+                cDate: cDateOverride,
+                avgDailySales: avgSalesOverride
+            },
+            manualDeliveries: manualDeliveries.map(({ id, ...rest }) => rest)
+        });
+    }, [manualDeliveries, overrideWDate, overrideSDate, overrideCDate, overrideAvgSales]);
 
     useEffect(() => {
         workerRef.current = new Worker(new URL('../simulation.worker.ts', import.meta.url), { type: 'module' });
@@ -71,15 +132,14 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
         (async () => {
             const ids = await getUniqueWarehouseIds();
             setWarehouseIds(ids);
-            if (isRdcMode) {
+            if (isRdcMode && !initialParams) {
                 setWarehouseId(userSession.rdc!.id);
             }
         })();
-    }, [isRdcMode, userSession]);
+    }, [isRdcMode, userSession, initialParams]);
 
     const resetOverrides = useCallback(() => {
         if (selectedProduct) {
-            // Restore from originalSimParams if they exist (true reset), otherwise from selectedProduct base values
             const baseParams = originalSimParams || {
                 wDate: selectedProduct.shelfLifeAtReceiving,
                 sDate: selectedProduct.shelfLifeAtStore,
@@ -92,7 +152,6 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
             setOverrideCDate(String(baseParams.cDate));
             setOverrideAvgSales(baseParams.avgDailySales.toFixed(2));
             
-            // Reset manual delivery form to its defaults
             const today = new Date();
             const deliveryDate = today.toLocaleDateString('en-CA');
             const bbd = new Date();
@@ -106,7 +165,6 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
                 quantity: quantity > 0 ? String(quantity) : ''
             });
         } else {
-            // Clear everything if no product is selected
             setOverrideWDate('');
             setOverrideSDate('');
             setOverrideCDate('');
@@ -117,39 +175,54 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
         setManualDeliveries([]);
         setIsDirty(true);
     }, [selectedProduct, simulationResult, originalSimParams]);
+    
+    const setupProductState = useCallback((product: Product) => {
+        setSelectedProduct(product);
+        setOverrideWDate(String(product.shelfLifeAtReceiving));
+        setOverrideSDate(String(product.shelfLifeAtStore));
+        setOverrideCDate(String(product.customerShelfLife));
+        setOverrideAvgSales(''); 
 
+        const today = new Date();
+        const deliveryDate = today.toLocaleDateString('en-CA');
+        const bbd = new Date();
+        bbd.setDate(today.getDate() + product.shelfLifeAtReceiving);
+        const bestBeforeDate = bbd.toLocaleDateString('en-CA');
+        const suggestedQuantity = product.caseSize * product.cartonsPerPallet;
 
+        setNewDelivery({
+            date: deliveryDate,
+            bestBeforeDate: bestBeforeDate,
+            quantity: suggestedQuantity > 0 ? String(suggestedQuantity) : '',
+        });
+        
+        setManualDeliveries([]);
+        setIsDirty(false);
+        setOriginalSimParams(null);
+        setSimulationResult(null);
+    }, []);
+    
     useEffect(() => {
-        if (selectedProduct) {
-            // Set defaults for overrides
-            setOverrideWDate(String(selectedProduct.shelfLifeAtReceiving));
-            setOverrideSDate(String(selectedProduct.shelfLifeAtStore));
-            setOverrideCDate(String(selectedProduct.customerShelfLife));
-            setOverrideAvgSales(''); // Will be populated after first simulation run
-
-            // Set defaults for manual delivery form
-            const today = new Date();
-            const deliveryDate = today.toLocaleDateString('en-CA');
-            
-            const bbd = new Date();
-            bbd.setDate(today.getDate() + selectedProduct.shelfLifeAtReceiving);
-            const bestBeforeDate = bbd.toLocaleDateString('en-CA');
-
-            const suggestedQuantity = selectedProduct.caseSize * selectedProduct.cartonsPerPallet;
-            
-            setNewDelivery({
-                date: deliveryDate,
-                bestBeforeDate: bestBeforeDate,
-                quantity: suggestedQuantity > 0 ? String(suggestedQuantity) : '',
-            });
-
-            // Clear manual deliveries list from any previous product
-            setManualDeliveries([]);
-            setIsDirty(false); // A new selection is a clean state
+        if (initialParams) {
+            (async () => {
+                setIsSimulating(true);
+                setWarehouseId(initialParams.warehouseId);
+                const product = await getProductDetails(initialParams.warehouseId, initialParams.fullProductId);
+                if (product) {
+                    setProductId(product.productId);
+                    setupProductState(product);
+                    runSimulation(product);
+                } else {
+                    setIsSimulating(false);
+                }
+                onSimulationStart();
+            })();
         }
-    }, [selectedProduct]);
+    }, [initialParams, onSimulationStart, runSimulation, setupProductState]);
+
 
     const handleProductIdChange = (e: Event) => {
+        onClearWatchlist(); // Clear watchlist when user starts a manual search
         const value = (e.target as HTMLInputElement).value;
         setProductId(value);
         setSelectedProduct(null); // Clear selected product on new input
@@ -171,8 +244,6 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
             const allProducts = await findProductsByPartialId(value, 10, warehouseId);
             const stockLevels = new Map<string, number>();
 
-            // This logic could be expanded to get more accurate, real-time stock
-            // For now, using the stock from product master data.
             for (const p of allProducts) {
                 stockLevels.set(p.fullProductId, p.stockOnHand);
             }
@@ -183,7 +254,6 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
                 if (statusA !== statusB) {
                     return statusA - statusB;
                 }
-                // Optional: secondary sort by stock level?
                 return a.productId.localeCompare(b.productId);
             });
             setProductSuggestions(sortedSuggestions);
@@ -197,34 +267,17 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
         if (!isRdcMode) {
             setWarehouseId(product.warehouseId);
         }
-        setSelectedProduct(product);
-        setSimulationResult(null);
-        setOriginalSimParams(null);
-        setIsChartVisible(false);
+        setupProductState(product);
     };
 
     const handleRunSimulation = () => {
-        if (!selectedProduct || !workerRef.current) return;
-        setIsSimulating(true);
-        setIsChartVisible(false);
-        
-        workerRef.current.postMessage({
-            warehouseId: selectedProduct.warehouseId,
-            fullProductId: selectedProduct.fullProductId,
-            overrides: {
-                wDate: overrideWDate !== '' ? parseFloat(overrideWDate) : undefined,
-                sDate: overrideSDate !== '' ? parseFloat(overrideSDate) : undefined,
-                cDate: overrideCDate !== '' ? parseFloat(overrideCDate) : undefined,
-                avgDailySales: overrideAvgSales !== '' ? parseFloat(overrideAvgSales) : undefined,
-            },
-            manualDeliveries: manualDeliveries.map(({ id, ...rest }) => rest)
-        });
+        if (!selectedProduct) return;
+        runSimulation(selectedProduct);
     };
     
     const handleAddManualDelivery = () => {
         if (newDelivery.date && newDelivery.quantity && newDelivery.bestBeforeDate) {
             setManualDeliveries(prev => [...prev, { ...newDelivery, quantity: parseFloat(newDelivery.quantity), id: Date.now() }]);
-            // Keep date for next entry, clear others
             setNewDelivery(prev => ({ ...prev, quantity: '', bestBeforeDate: '' })); 
             setIsDirty(true);
         }
@@ -264,6 +317,13 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
 
     return (
         <div class="simulation-view-container">
+            {watchlist.length > 0 && watchlistIndex !== null && (
+                <WatchlistNavigator 
+                    watchlist={watchlist}
+                    currentIndex={watchlistIndex}
+                    onNavigate={onNavigateWatchlist}
+                />
+            )}
             <div class="simulation-controls">
                 <div class="simulation-controls-header">
                     <h2>{t('simulations.controls.title')}</h2>
@@ -277,6 +337,7 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
                             value={warehouseId} 
                             disabled={isRdcMode}
                             onChange={(e) => {
+                                onClearWatchlist();
                                 setWarehouseId((e.target as HTMLSelectElement).value);
                                 setSelectedProduct(null);
                                 setProductId('');
