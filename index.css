@@ -632,6 +632,9 @@ tr:hover {
   padding: 10px 12px;
   cursor: pointer;
   font-size: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .suggestions-list li:hover {
@@ -640,6 +643,14 @@ tr:hover {
 
 .suggestions-list li strong {
   color: var(--primary-color);
+}
+
+.suggestion-details {
+  font-size: 0.85rem;
+  color: var(--text-light-color);
+  text-align: right;
+  white-space: nowrap;
+  padding-left: 1rem;
 }
 
 /* Language Selector */
@@ -1358,80 +1369,6 @@ tr:hover {
     color: var(--danger-color);
     cursor: pointer;
     font-size: 1.2rem;
-}
-
-/* Product Disambiguation Modal */
-.product-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10000;
-}
-
-.product-modal {
-    background-color: white;
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    width: 100%;
-    max-width: 800px;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-}
-
-.product-modal h3 {
-    margin-top: 0;
-}
-
-.product-modal p {
-    margin-bottom: 1.5rem;
-}
-
-.product-modal-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.product-modal-table th,
-.product-modal-table td {
-    padding: 10px 12px;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.product-modal-table th {
-    background-color: #f8f9fa;
-    font-size: 0.9rem;
-}
-
-.product-modal-table .button-primary {
-    padding: 6px 14px;
-    font-size: 0.8rem;
-}
-
-.modal-close-button {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: transparent;
-    border: none;
-    font-size: 2rem;
-    line-height: 1;
-    cursor: pointer;
-    color: var(--text-light-color);
-    opacity: 0.8;
-}
-
-.modal-close-button:hover {
-    opacity: 1;
 }
 
 @media (max-width: 900px) {
