@@ -117,3 +117,33 @@ export type ImportMetadata = {
     openOrders: ImportMeta | null;
     sales: ImportMeta | null;
 };
+
+// --- Threat Report Worker Types ---
+export type WorkerRequest = {
+    warehouseIds: string[];
+    itemGroupIds: string[];
+    statusIds: string[];
+};
+
+export type ReportResultItem = {
+    warehouseId: string;
+    productId: string;
+    fullProductId: string;
+    productName: string;
+    caseSize: number;
+    cartonsPerPallet: number;
+    daysOfStock: number;
+    aldValue: number;
+    avgDailySales: number;
+    nonCompliantReceipts: number;
+    totalWriteOffValue: number;
+};
+
+export type ProgressPayload = {
+    processed: number;
+    total: number;
+};
+
+export type WorkerMessage = 
+    | { type: 'progress', payload: ProgressPayload }
+    | { type: 'complete', payload: ReportResultItem[] };
