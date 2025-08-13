@@ -1,6 +1,8 @@
 
 
 
+
+
 import { RDC, DataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale } from './utils/types';
 
 const DB_NAME = 'OMSDatabase';
@@ -674,4 +676,4 @@ export const loadRdcList = async (): Promise<RDC[]> => {
     const list = await loadSetting<RDC[]>(RDC_LIST_KEY);
     return list ?? DEFAULT_RDC_LIST;
 };
-export { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType } from './utils/types';
+export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType } from './utils/types';
