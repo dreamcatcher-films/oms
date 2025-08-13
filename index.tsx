@@ -1,5 +1,5 @@
 import { render } from "preact";
-import { useState, useEffect, useCallback } from "preact/hooks";
+import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import {
   clearAllData,
   checkDBStatus,
@@ -18,13 +18,16 @@ import {
   saveSetting,
   loadAllSettings,
   deleteSetting,
+  loadRdcList,
+  saveRdcList
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
 import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper } from './utils/parsing';
-import { Status, View, DataType } from './utils/types';
+import { Status, View, DataType, RDC, UserSession } from './utils/types';
 
 import { LanguageSelector } from './components/LanguageSelector';
+import { LoginModal } from './components/LoginModal';
 import { ImportView } from './views/ImportView';
 import { DataPreview } from './views/DataPreview';
 import { SimulationView } from './views/SimulationView';
@@ -42,6 +45,10 @@ const App = () => {
   const [linkedFiles, setLinkedFiles] = useState<Map<DataType, FileSystemFileHandle>>(new Map());
   
   const [currentView, setCurrentView] = useState<View>('import');
+  const [userSession, setUserSession] = useState<UserSession | null>(null);
+  const [rdcList, setRdcList] = useState<RDC[]>([]);
+  
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const splashScreen = document.getElementById('splash-screen');
@@ -60,14 +67,13 @@ const App = () => {
   }, []);
 
   const loadSettings = useCallback(async () => {
-    if ('showOpenFilePicker' in window) { // Check for browser support
+    if ('showOpenFilePicker' in window) {
         try {
             const settings = await loadAllSettings();
             const fileHandles = new Map<DataType, FileSystemFileHandle>();
             for (const [key, value] of settings.entries()) {
                 if (key.startsWith('linkedFile:')) {
                     const dataType = key.split(':')[1] as DataType;
-                    // It's a good practice to verify the handle is still valid
                     const permission = await (value as any).queryPermission({ mode: 'read' });
                     if (permission === 'granted') {
                       fileHandles.set(dataType, value as FileSystemFileHandle);
@@ -79,8 +85,10 @@ const App = () => {
             console.error("Error loading settings:", e);
         }
     }
+    const rdcs = await loadRdcList();
+    setRdcList(rdcs);
   }, []);
-
+  
   const performInitialCheck = useCallback(async () => {
     setIsLoading(true);
     setStatusMessage({ text: t('status.checkingDb'), type: 'info' });
@@ -106,6 +114,10 @@ const App = () => {
   }, [t]);
 
   useEffect(() => {
+    const savedSession = localStorage.getItem('oms-session');
+    if(savedSession) {
+        setUserSession(JSON.parse(savedSession));
+    }
     performInitialCheck();
     loadSettings();
   }, [performInitialCheck, loadSettings]);
@@ -324,9 +336,8 @@ const App = () => {
           setLinkedFiles(prev => new Map(prev).set(dataType, handle as FileSystemFileHandle));
           setStatusMessage({ text: t('settings.dataSources.linkSuccess'), type: 'success' });
           const file = await (handle as any).getFile();
-          processFile(dataType, file); // Optionally process the file immediately after linking
+          processFile(dataType, file);
       } catch (err) {
-          // User probably cancelled the picker, so no error message is needed
           if ((err as Error).name !== 'AbortError') {
             console.error('Error linking file:', err);
             setStatusMessage({ text: t('settings.dataSources.linkError'), type: 'error' });
@@ -404,13 +415,89 @@ const App = () => {
       await clearAllData();
       setCounts({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0 });
       setImportMetadata({ products: null, goodsReceipts: null, openOrders: null, sales: null });
-      setLinkedFiles(new Map());
+      
+      const newLinkedFiles = new Map();
+      for (const [key, value] of linkedFiles.entries()) {
+          newLinkedFiles.set(key, value);
+      }
+      for (const key of newLinkedFiles.keys()) {
+          await handleClearLink(key);
+      }
+      
       setStatusMessage({ text: t('status.clear.clearedAll'), type: 'success' });
     } catch (error) {
       console.error("Failed to clear DB", error);
       setStatusMessage({ text: t('status.clear.clearAllError'), type: 'error' });
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const handleLogin = (session: UserSession) => {
+    setUserSession(session);
+    localStorage.setItem('oms-session', JSON.stringify(session));
+  };
+
+  const handleLogout = () => {
+    setUserSession(null);
+    localStorage.removeItem('oms-session');
+  };
+
+  const handleAddRdc = async (rdc: RDC) => {
+    const newList = [...rdcList, rdc].sort((a,b) => a.id.localeCompare(b.id));
+    setRdcList(newList);
+    await saveRdcList(newList);
+    setStatusMessage({ text: t('settings.rdcManagement.addSuccess'), type: 'success' });
+  };
+  
+  const handleDeleteRdc = async (rdcId: string) => {
+    const newList = rdcList.filter(r => r.id !== rdcId);
+    setRdcList(newList);
+    await saveRdcList(newList);
+    setStatusMessage({ text: t('settings.rdcManagement.deleteSuccess'), type: 'success' });
+  };
+  
+  const handleExportConfig = () => {
+    const config = {
+        rdcList: rdcList,
+    };
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `oms_config_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatusMessage({ text: t('settings.configManagement.exportSuccess'), type: 'success' });
+  };
+
+  const handleImportClick = () => {
+    importFileInputRef.current?.click();
+  };
+
+  const handleImportConfig = async (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    try {
+        const text = await file.text();
+        const config = JSON.parse(text);
+        if (config.rdcList && Array.isArray(config.rdcList)) {
+            setRdcList(config.rdcList);
+            await saveRdcList(config.rdcList);
+            setStatusMessage({ text: t('settings.configManagement.importSuccess'), type: 'success' });
+        } else {
+            throw new Error("Invalid config file format");
+        }
+    } catch (e) {
+        console.error("Config import failed", e);
+        setStatusMessage({ text: t('settings.configManagement.importError'), type: 'error' });
+    } finally {
+        if(importFileInputRef.current) {
+            importFileInputRef.current.value = '';
+        }
     }
   };
 
@@ -426,10 +513,11 @@ const App = () => {
             onClear={handleClearIndividualData}
             linkedFiles={linkedFiles}
             onReload={handleReloadFile}
+            userSession={userSession}
           />
         );
       case 'data-preview':
-        return <DataPreview />;
+        return <DataPreview userSession={userSession} />;
       case 'report':
         return (
           <div class="placeholder-view">
@@ -445,7 +533,7 @@ const App = () => {
           </div>
         );
       case 'simulations':
-        return <SimulationView />;
+        return <SimulationView userSession={userSession} />;
       case 'settings':
         return (
             <SettingsView 
@@ -454,12 +542,22 @@ const App = () => {
                 onReloadFile={handleReloadFile}
                 onClearLink={handleClearLink}
                 isLoading={isLoading}
+                userSession={userSession}
+                rdcList={rdcList}
+                onAddRdc={handleAddRdc}
+                onDeleteRdc={handleDeleteRdc}
+                onExportConfig={handleExportConfig}
+                onImportClick={handleImportClick}
             />
         );
       default:
         return null;
     }
   };
+
+  if (!userSession) {
+    return <LoginModal onLogin={handleLogin} rdcList={rdcList} />;
+  }
 
   const hasAnyData = counts.products > 0 || counts.goodsReceipts > 0 || counts.openOrders > 0 || counts.sales > 0;
   const canAnalyze = counts.products > 0 && counts.goodsReceipts > 0 && counts.sales > 0;
@@ -468,7 +566,13 @@ const App = () => {
     <>
       <header class="top-header">
         <h1>{t('header.title')}</h1>
-        <LanguageSelector />
+        <div class="header-controls">
+          <div class="header-session-info">
+            <span>{t('header.session.mode')}: <strong>{userSession.mode === 'hq' ? 'HQ' : `${userSession.rdc.id} ${userSession.rdc.name}`}</strong></span>
+            <button class="button-logout" onClick={handleLogout}>{t('header.session.logout')}</button>
+          </div>
+          <LanguageSelector />
+        </div>
       </header>
       <div class="app-layout">
         <nav class="sidebar">
@@ -487,6 +591,7 @@ const App = () => {
           </div>
         </nav>
         <main class="main-content">
+          <input type="file" ref={importFileInputRef} style={{ display: 'none' }} onChange={handleImportConfig} accept=".json" />
           {statusMessage && (
               <div class={`status-container ${statusMessage.type}`} role="status">
                 <div class="status-info">
