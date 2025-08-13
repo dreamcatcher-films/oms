@@ -568,7 +568,7 @@ const App = () => {
         <h1>{t('header.title')}</h1>
         <div class="header-controls">
           <div class="header-session-info">
-            <span>{t('header.session.mode')}: <strong>{userSession.mode === 'hq' ? 'HQ' : `${userSession.rdc.id} ${userSession.rdc.name}`}</strong></span>
+            <span>{t('header.session.mode')}: <strong>{userSession.mode === 'hq' ? 'HQ' : `${userSession.rdc!.id} ${userSession.rdc!.name}`}</strong></span>
             <button class="button-logout" onClick={handleLogout}>{t('header.session.logout')}</button>
           </div>
           <LanguageSelector />
