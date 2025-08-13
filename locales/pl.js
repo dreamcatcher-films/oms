@@ -7,7 +7,8 @@ export default {
     "dataPreview": "Przeglądanie Danych",
     "threatReport": "Raport Zagrożeń",
     "dashboard": "Dashboard",
-    "simulations": "Symulacje"
+    "simulations": "Symulacje",
+    "settings": "Ustawienia"
   },
   "actions": {
     "runAnalysis": "Uruchom Analizę",
@@ -57,10 +58,13 @@ export default {
         "updated": "Zaktualizowano",
         "todayAt": "dzisiaj o",
         "noData": "Brak danych",
-        "records": "rekordów"
+        "records": "rekordów",
+        "linkedTo": "Połączono z"
     },
     "buttons": {
         "selectFile": "Wybierz plik",
+        "change": "Zmień",
+        "reload": "Załaduj ponownie",
         "clear": "Wyczyść"
     }
   },
@@ -172,6 +176,34 @@ export default {
         "rerun": "Uruchom Ponownie",
         "showChart": "Pokaż Wykres",
         "hideChart": "Ukryj Wykres"
+    }
+  },
+  "settings": {
+    "title": "Ustawienia",
+    "dataSources": {
+        "title": "Źródła Danych",
+        "description": "Połącz swoje lokalne pliki z danymi, aby umożliwić ich szybkie ponowne ładowanie. Aplikacja zapamięta Twój wybór.",
+        "dataType": "Typ Danych",
+        "linkedFile": "Połączony Plik",
+        "actions": "Akcje",
+        "notLinked": "Nie połączono",
+        "linkFile": "Połącz Plik",
+        "clearLink": "Wyczyść",
+        "linkSuccess": "Plik połączono pomyślnie.",
+        "linkError": "Błąd podczas łączenia pliku.",
+        "permissionDenied": "Odmówiono uprawnień do odczytu pliku.",
+        "permissionNeeded": "Nie udzielono uprawnień do odczytu pliku.",
+        "reloadError": "Nie można odczytać pliku. Mógł zostać przeniesiony lub usunięty."
+    },
+    "configManagement": {
+        "title": "Zarządzanie Konfiguracją",
+        "description": "Eksportuj swoje ustawienia do pliku lub importuj je na innym urządzeniu. (Funkcja w budowie)",
+        "exportButton": "Eksportuj Konfigurację",
+        "importButton": "Importuj Konfigurację"
+    },
+    "watchlists": {
+        "title": "Listy Obserwowane",
+        "description": "Twórz i zarządzaj listami produktów do monitorowania. (Funkcja w budowie)"
     }
   },
   "common": {
