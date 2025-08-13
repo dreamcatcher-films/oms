@@ -7,7 +7,8 @@ export default {
     "dataPreview": "Data Preview",
     "threatReport": "Threat Report",
     "dashboard": "Dashboard",
-    "simulations": "Simulations"
+    "simulations": "Simulations",
+    "settings": "Settings"
   },
   "actions": {
     "runAnalysis": "Run Analysis",
@@ -57,10 +58,13 @@ export default {
         "updated": "Updated",
         "todayAt": "today at",
         "noData": "No data",
-        "records": "records"
+        "records": "records",
+        "linkedTo": "Linked to"
     },
     "buttons": {
         "selectFile": "Select file",
+        "change": "Change",
+        "reload": "Reload",
         "clear": "Clear"
     }
   },
@@ -172,6 +176,34 @@ export default {
         "rerun": "Rerun Simulation",
         "showChart": "Show Chart",
         "hideChart": "Hide Chart"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "dataSources": {
+        "title": "Data Sources",
+        "description": "Link your local data files for quick reloading. The application will remember your selection across sessions.",
+        "dataType": "Data Type",
+        "linkedFile": "Linked File",
+        "actions": "Actions",
+        "notLinked": "Not linked",
+        "linkFile": "Link File",
+        "clearLink": "Clear",
+        "linkSuccess": "File linked successfully.",
+        "linkError": "Failed to link file.",
+        "permissionDenied": "Permission to read the file was denied.",
+        "permissionNeeded": "Permission to read the file was not granted.",
+        "reloadError": "Could not read the file. It may have been moved or deleted."
+    },
+    "configManagement": {
+        "title": "Configuration Management",
+        "description": "Export your settings to a file, or import them on another device. (Feature under construction)",
+        "exportButton": "Export Configuration",
+        "importButton": "Import Configuration"
+    },
+    "watchlists": {
+        "title": "Watchlists",
+        "description": "Create and manage lists of products to monitor. (Feature under construction)"
     }
   },
   "common": {
