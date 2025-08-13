@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
 import { getUniqueWarehouseIds, findProductsByPartialId, getProductDetails, Product } from '../db';
@@ -313,6 +314,11 @@ export const SimulationView = () => {
                             <h4>{t('simulations.kpi.daysOfStock')}</h4>
                             <p>{simulationResult.daysOfStock.toFixed(1)} {t('simulations.details.days')}</p>
                         </div>
+                        <div class="kpi-card">
+                            <h4>{t('simulations.kpi.aldValue')}</h4>
+                            <p>{formatCurrency(simulationResult.initialAldAffectedValue)}</p>
+                            <p class="kpi-description">{t('simulations.kpi.aldDescription')}</p>
+                        </div>
                          <div class="kpi-card">
                             <h4>{t('simulations.kpi.avgDailySales')}</h4>
                             <div class="sales-adjust-controls">
@@ -356,7 +362,10 @@ export const SimulationView = () => {
                     )}
 
                     <div class="initial-stock-composition">
-                        <h4>{t('simulations.initialStock.title')}</h4>
+                        <div class="initial-stock-header">
+                            <h4>{t('simulations.initialStock.title')}</h4>
+                            <p class="table-legend">{t('simulations.initialStock.aldLegend')}</p>
+                        </div>
                         {!simulationResult.isStockDataComplete && (
                             <p class="data-completeness-warning">
                                 {t('simulations.initialStock.warning')}
@@ -375,7 +384,7 @@ export const SimulationView = () => {
                                 </thead>
                                 <tbody>
                                     {simulationResult.initialStockComposition.map((batch: InitialStockBatch, index) => (
-                                        <tr key={`${batch.deliveryDate}-${batch.bestBeforeDate}-${index}`} class={`${batch.isNonCompliant ? 'non-compliant-row' : ''} ${batch.isAffectedByWriteOff ? 'batch-risk-row' : ''} ${batch.isManual ? 'manual-delivery-row' : ''}`}>
+                                        <tr key={`${batch.deliveryDate}-${batch.bestBeforeDate}-${index}`} class={`${batch.isNonCompliant ? 'non-compliant-row' : ''} ${batch.isAffectedByWriteOff ? 'batch-risk-row' : ''} ${batch.isManual ? 'manual-delivery-row' : ''} ${batch.isAldAffected ? 'ald-risk-row' : ''}`}>
                                             <td>{batch.isUnknown ? t('simulations.initialStock.unknownBatch') : batch.deliveryDate}</td>
                                             <td>{batch.bestBeforeDate}</td>
                                             <td>{batch.daysToSell}</td>
@@ -448,6 +457,7 @@ export const SimulationView = () => {
                                     <th>{t('simulations.log.sales')}</th>
                                     <th>{t('simulations.log.receipts')}</th>
                                     <th>{t('simulations.log.writeOffs')}</th>
+                                    <th>{t('simulations.log.ald')}</th>
                                     <th>{t('simulations.log.stockEnd')}</th>
                                     <th>{t('simulations.log.notes')}</th>
                                 </tr>
@@ -460,6 +470,7 @@ export const SimulationView = () => {
                                         <td>{entry.sales.toLocaleString(language)}</td>
                                         <td>{entry.receipts.toLocaleString(language)}</td>
                                         <td>{entry.writeOffs.toLocaleString(language)}</td>
+                                        <td>{entry.aldAffectedStock.toLocaleString(language)}</td>
                                         <td>{entry.stockEnd.toLocaleString(language)}</td>
                                         <td>{entry.notes}</td>
                                     </tr>
