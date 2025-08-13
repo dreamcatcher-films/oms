@@ -28,6 +28,7 @@ export type UserSession = {
 export type Product = {
     warehouseId: string;
     productId: string;
+    productId_lower?: string;
     fullProductId: string;
     name: string;
     caseSize: number;
