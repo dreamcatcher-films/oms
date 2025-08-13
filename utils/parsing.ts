@@ -51,6 +51,7 @@ export const productRowMapper = (row: { [key: string]: string }): Product => {
     return {
         warehouseId: row['WH NR']?.trim() ?? '',
         productId: processedProductId,
+        productId_lower: processedProductId.toLowerCase(),
         fullProductId: row['ITEM NR FULL']?.trim() ?? '',
         name: row['ITEM DESC']?.trim() ?? '',
         caseSize: parseNum(row['CASE SIZE']),
