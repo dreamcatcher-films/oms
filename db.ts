@@ -1,5 +1,8 @@
 
 
+
+import { RDC, DataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale } from './utils/types';
+
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
 const GOODS_RECEIPTS_STORE_NAME = 'goodsReceipts';
@@ -9,145 +12,24 @@ const METADATA_STORE_NAME = 'importMetadata';
 const SETTINGS_STORE_NAME = 'settings';
 const DB_VERSION = 9; 
 
-export type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales';
+const RDC_LIST_KEY = 'rdcList';
+const DEFAULT_RDC_LIST: RDC[] = [
+    { id: '220', name: 'RUN' },
+    { id: '250', name: 'BEL' },
+    { id: '260', name: 'NAY' },
+    { id: '290', name: 'ENF' },
+    { id: '300', name: 'BRI' },
+    { id: '310', name: 'NFL' },
+    { id: '320', name: 'SOU' },
+    { id: '340', name: 'DON' },
+    { id: '360', name: 'WED' },
+    { id: '430', name: 'EXE' },
+    { id: '460', name: 'AVO' },
+    { id: '490', name: 'MOT' },
+    { id: '590', name: 'PET' },
+    { id: '600', name: 'LTN' },
+].sort((a,b) => a.id.localeCompare(b.id));
 
-export type ImportMeta = {
-  dataType: DataType;
-  lastImported: Date;
-};
-export type ImportMetadata = Record<DataType, ImportMeta | null>;
-
-export type Product = {
-  // --- Composite Key ---
-  // The primary key is now ['warehouseId', 'fullProductId'] to ensure uniqueness
-  warehouseId: string; // Kolumna A: WH NR
-  fullProductId: string; // Kolumna F: ITEM NR FULL (dłuższy, precyzjny numer)
-
-  // --- Grouping ---
-  dispoGroup: string;    // Kolumna B: DISPO GROUP
-  itemGroup: string;     // Kolumna C: ITEM GROUP
-  orderArea: string;     // Kolumna D: ORDER AREA
-
-  // --- Identifiers ---
-  productId: string;   // Kolumna E: ITEM NR SHORT (krótki numer)
-  name: string;          // Kolumna G: ITEM DESC
-
-  // --- Logistics & Packaging ---
-  caseSize: number;      // Kolumna H: CASE SIZE (ilość w kartonie)
-  cartonsPerLayer: number; // Kolumna I: LAYER FACTOR
-  duessFactor: number;   // Kolumna J: DUESS FACTOR (ilość na palecie DD)
-  cartonsPerPallet: number; // Kolumna K: EURO FACTOR (ilość kartonów na palecie)
-
-  // --- Time Metrics ---
-  shelfLifeAtReceiving: number; // Kolumna M: W-DATE DAYS (wymagana data przydatności przy dostawie)
-  shelfLifeAtStore: number;     // Kolumna N: S-DATE DAYS (wymagana data przydatności w sklepie)
-  customerShelfLife: number;    // Kolumna O: C-DATE DAYS (minimalna data dla klienta)
-  promoDate: string;     // Kolumna L: ADV DATE (data promocji)
-
-  // --- Status & Location ---
-  status: string;        // Kolumna Q: ITEM STATUS (status towaru, np. 7-9)
-  itemLocked: string;    // Kolumna R: ITEM LOCKED
-  slotNr: string;        // Kolumna S: SLOT NR
-
-  // --- Pricing ---
-  price: number;         // Kolumna P: RETAIL PRICE
-  
-  // --- Supplier Info ---
-  supplierId: string;   // Kolumna U: SUPPLIER NR
-  supplierName: string; // Kolumna V: SUPPLIER NAME
-  
-  // --- Stock Info ---
-  unprocessedDeliveryQty: number; // Kolumna W: UNPROC DEL QTY (dostawa nieprzetworzona)
-  stockOnHand: number;            // Kolumna Z: STOCK ON HAND
-  storeAllocationToday: number;   // Kolumna Y: STORE ALLOC C (wysyłane do sklepów dzisiaj)
-  storeAllocationTotal: number;   // Kolumna AA: STORE ALLOC C < (wysyłane do sklepów w kolejne dni)
-  estimatedReceivings: {          // Kolumny AB-AJ: Spodziewane dostawy
-    date: string;
-    quantity: number;
-  }[];
-};
-
-export type GoodsReceipt = {
-  // --- Composite Key ---
-  warehouseId: string;    // Kolumna A: WH NR
-  fullProductId: string;  // Kolumna B: ITEM NR
-  deliveryNote: string;   // Kolumna N: DELIVERY NOTE
-
-  // --- Calculated ---
-  productId: string;      // Calculated from fullProductId
-
-  // --- Item Info ---
-  name: string;             // Kolumna C: ITEM DESC
-
-  // --- Logistics ---
-  deliveryUnit: string;   // Kolumna D: DELIVERY UNIT OF MEASURE (CASES)
-  deliveryQtyUom: number; // Kolumna E: DELIVERY QTY (in UOM)
-  caseSize: number;       // Kolumna F: CASE SIZE
-  deliveryQtyPcs: number; // Kolumna G: DELIVERY QTY (in PIECES)
-
-  // --- Order Info ---
-  poNr: string;             // Kolumna H: PO NR
-  deliveryDate: string;     // Kolumna I: DELIVERY DATE
-  bestBeforeDate: string;   // Kolumna J: BEST BEFORE DATE
-  bolNr: string;            // Kolumna M: BOL NR
-  
-  // --- Supplier Info ---
-  supplierId: string;       // Kolumna K: SUPPLIER NR
-  supplierName: string;     // Kolumna L: SUPPLIER DESC
-  
-  // --- International Identifiers ---
-  intSupplierNr: string;  // Kolumna O: INT SUPPLIER NR
-  intItemNr: string;      // Kolumna P: INT ITEM NR
-  caseGtin: string;       // Kolumna Q: CASE GTIN
-  liaReference: string;   // Kolumna R: LIA REFERENCE
-
-  // --- Sortable fields ---
-  deliveryDateSortable: string; // YYYYMMDD format for sorting
-  bestBeforeDateSortable: string; // YYYYMMDD format for sorting
-};
-
-export type OpenOrder = {
-    // Composite Key
-    warehouseId: string;    // Kolumna A: WH NR
-    fullProductId: string;  // Kolumna B: ITEM NR
-    poNr: string;           // Kolumna H: PO NR
-
-    // Calculated
-    productId: string;
-    deliveryLeadTime: number; // in days
-
-    // Item Info
-    name: string;           // Kolumna C: ITEM DESC
-    orderUnit: string;      // Kolumna D: ORDER UNIT OF MEASURE (CASES)
-    orderQtyUom: number;    // Kolumna E: ORDER QTY (in UOM)
-    caseSize: number;       // Kolumna F: CASE SIZE
-    orderQtyPcs: number;    // Kolumna G: ORDER QTY (in PIECES)
-
-    // Supplier Info
-    supplierId: string;     // Kolumna I: SUPPLIER NR
-    supplierName: string;   // Kolumna J: SUPPLIER DESC
-
-    // Dates
-    deliveryDate: string;   // Kolumna K: DELIVERY DATE
-    creationDate: string;   // Kolumna L: CREATION DATE
-
-    // Sortable fields
-    deliveryDateSortable: string; // YYYYMMDD format for sorting
-};
-
-export type Sale = {
-    // Composite Key
-    resaleDate: string;     // Column 1
-    warehouseId: string;    // Column 2
-    productId: string;      // Column 4
-
-    // Data
-    productName: string;    // Column 5
-    quantity: number;       // Column 6
-    
-    // Sortable fields
-    resaleDateSortable: string; // YYYYMMDD format
-};
 
 export type DBStatus = {
   productsCount: number;
@@ -227,7 +109,8 @@ const openDB = (): Promise<IDBDatabase> => {
 
       if (oldVersion < 9) {
         if (!db.objectStoreNames.contains(SETTINGS_STORE_NAME)) {
-            db.createObjectStore(SETTINGS_STORE_NAME, { keyPath: 'key' });
+            const store = db.createObjectStore(SETTINGS_STORE_NAME, { keyPath: 'key' });
+            store.put({ key: RDC_LIST_KEY, value: DEFAULT_RDC_LIST });
         }
       }
     };
@@ -334,7 +217,14 @@ export const clearAllData = async (): Promise<void> => {
     await clearStore(OPEN_ORDERS_STORE_NAME);
     await clearStore(SALES_STORE_NAME);
     await clearStore(METADATA_STORE_NAME);
-    await clearStore(SETTINGS_STORE_NAME);
+    // Note: This does NOT clear the SETTINGS_STORE_NAME to preserve RDC list, etc.
+    // We only clear linked files.
+    const allSettings = await loadAllSettings();
+    for (const key of allSettings.keys()) {
+        if(key.startsWith('linkedFile:')) {
+            await deleteSetting(key);
+        }
+    }
 };
 
 export const getProductsPaginatedAndFiltered = async (
@@ -777,3 +667,11 @@ export const deleteSetting = async (key: string): Promise<void> => {
         transaction.onerror = () => reject(transaction.error);
     });
 };
+
+export const saveRdcList = (rdcs: RDC[]): Promise<void> => saveSetting(RDC_LIST_KEY, rdcs);
+
+export const loadRdcList = async (): Promise<RDC[]> => {
+    const list = await loadSetting<RDC[]>(RDC_LIST_KEY);
+    return list ?? DEFAULT_RDC_LIST;
+};
+export { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType } from './utils/types';
