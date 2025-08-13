@@ -1,3 +1,4 @@
+
 export default {
   "header": {
     "title": "OMS"
@@ -133,6 +134,8 @@ export default {
       "avgDailySales": "Avg. Daily Sales",
       "nonCompliantReceipts": "Non-Compliant Receipts",
       "firstWriteOffDate": "First Write-Off Date",
+      "aldValue": "ALD Value",
+      "aldDescription": "Value of goods affected by ALD.",
       "salesAdjustUp": "Increase sales by 10%",
       "salesAdjustDown": "Decrease sales by 10%",
       "original": "Original",
@@ -153,7 +156,8 @@ export default {
       "daysForSale": "Days For Sale",
       "regulationBreached": "Breached (Y/N)",
       "quantity": "Quantity",
-      "unknownBatch": "Unknown Batch"
+      "unknownBatch": "Unknown Batch",
+      "aldLegend": "If the delivery is at ALD risk, it is marked in orange."
     },
     "log": {
       "title": "Simulation Log",
@@ -162,6 +166,7 @@ export default {
       "sales": "Sales",
       "receipts": "Receipts",
       "writeOffs": "Write-Offs",
+      "ald": "ALD",
       "stockEnd": "Stock End",
       "notes": "Notes"
     },
