@@ -600,11 +600,21 @@ export const findAllProductsByShortId = async (warehouseId: string, shortProduct
     const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
     const store = transaction.objectStore(PRODUCTS_STORE_NAME);
     const index = store.index('shortIdIndex');
-    const request = index.getAll([warehouseId, shortProductId]);
+    
+    const keyRange = IDBKeyRange.only([warehouseId, shortProductId]);
+    const request = index.openCursor(keyRange);
+    
+    const results: Product[] = [];
 
     return new Promise((resolve, reject) => {
-        request.onsuccess = () => {
-            resolve(request.result ?? []);
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                results.push(cursor.value);
+                cursor.continue();
+            } else {
+                resolve(results);
+            }
         };
         request.onerror = () => {
             reject(request.error);
