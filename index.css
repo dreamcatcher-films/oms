@@ -614,44 +614,49 @@ tr:hover {
   position: absolute;
   top: 100%;
   left: 0;
-  right: 0;
   background-color: white;
   border: 1px solid var(--border-color);
   border-top: none;
-  border-radius: 0 0 4px 4px;
+  border-radius: 0 0 6px 6px;
   list-style: none;
-  padding: 0;
+  padding: 0.5rem;
   margin: 0;
-  max-height: 200px;
+  max-height: 250px;
   overflow-y: auto;
   z-index: 100;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  min-width: 450px;
+  box-sizing: border-box;
 }
 
 .suggestions-list li {
-  padding: 10px 12px;
+  padding: 0.75rem;
   cursor: pointer;
-  font-size: 0.9rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  border-radius: 4px;
 }
 
 .suggestions-list li:hover {
   background-color: #f0f4f8;
 }
 
-.suggestions-list li strong {
+.suggestions-list strong, .suggestion-main strong {
   color: var(--primary-color);
 }
 
-.suggestion-details {
-  font-size: 0.85rem;
-  color: var(--text-light-color);
-  text-align: right;
-  white-space: nowrap;
-  padding-left: 1rem;
+.suggestion-main {
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.4;
 }
+
+.suggestion-details {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-light-color);
+  margin-top: 4px;
+}
+
 
 /* Language Selector */
 .language-selector {
