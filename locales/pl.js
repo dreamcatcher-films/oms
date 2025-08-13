@@ -1,3 +1,4 @@
+
 export default {
   "header": {
     "title": "OMS"
@@ -133,6 +134,8 @@ export default {
       "avgDailySales": "Śr. Sprzedaż Dzienna",
       "nonCompliantReceipts": "Niezgodne Przyjęcia",
       "firstWriteOffDate": "Data Pierwszego Odpisu",
+      "aldValue": "Wartość ALD",
+      "aldDescription": "Wartość towaru, który jest dotknięty ALD.",
       "salesAdjustUp": "Zwiększ sprzedaż o 10%",
       "salesAdjustDown": "Zmniejsz sprzedaż o 10%",
       "original": "Oryginalna",
@@ -153,7 +156,8 @@ export default {
       "daysForSale": "Dni na Sprzedaż",
       "regulationBreached": "Przekroczone (T/N)",
       "quantity": "Ilość",
-      "unknownBatch": "Nieznana Partia"
+      "unknownBatch": "Nieznana Partia",
+      "aldLegend": "Jeżeli dostawa zagrożona ALD, to jest zaznaczona na pomarańczowo."
     },
     "log": {
       "title": "Dziennik Symulacji",
@@ -162,6 +166,7 @@ export default {
       "sales": "Sprzedaż",
       "receipts": "Przyjęcia",
       "writeOffs": "Odpisy",
+      "ald": "ALD",
       "stockEnd": "Stan Końcowy",
       "notes": "Notatki"
     },
