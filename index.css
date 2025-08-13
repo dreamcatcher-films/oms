@@ -891,10 +891,10 @@ tr:hover {
     border-radius: 3px;
     border: 1px solid rgba(0,0,0,0.1);
 }
-.legend-color-box.ald { background-color: #fff7e6; }
-.legend-color-box.write-off { background-color: #fffbe6; }
-.legend-color-box.non-compliant { background-color: #fff1f0; }
-.legend-color-box.manual { background-color: #e7f3fe; }
+.legend-color-box.ald { background-color: #ffd591; }
+.legend-color-box.write-off { background-color: #ffe58f; }
+.legend-color-box.non-compliant { background-color: #ffccc7; }
+.legend-color-box.manual { background-color: #bae0ff; }
 
 
 .data-completeness-warning {
