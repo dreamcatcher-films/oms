@@ -7,7 +7,8 @@ export default {
     "dataPreview": "Datenvorschau",
     "threatReport": "Risikobericht",
     "dashboard": "Dashboard",
-    "simulations": "Simulationen"
+    "simulations": "Simulationen",
+    "settings": "Einstellungen"
   },
   "actions": {
     "runAnalysis": "Analyse starten",
@@ -57,10 +58,13 @@ export default {
         "updated": "Aktualisiert",
         "todayAt": "heute um",
         "noData": "Keine Daten",
-        "records": "Datensätze"
+        "records": "Datensätze",
+        "linkedTo": "Verknüpft mit"
     },
     "buttons": {
         "selectFile": "Datei wählen",
+        "change": "Ändern",
+        "reload": "Neu laden",
         "clear": "Löschen"
     }
   },
@@ -172,6 +176,34 @@ export default {
         "rerun": "Neu ausführen",
         "showChart": "Diagramm anzeigen",
         "hideChart": "Diagramm ausblenden"
+    }
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "dataSources": {
+        "title": "Datenquellen",
+        "description": "Verknüpfen Sie Ihre lokalen Datendateien, um sie schnell neu laden zu können. Die Anwendung merkt sich Ihre Auswahl.",
+        "dataType": "Datentyp",
+        "linkedFile": "Verknüpfte Datei",
+        "actions": "Aktionen",
+        "notLinked": "Nicht verknüpft",
+        "linkFile": "Datei verknüpfen",
+        "clearLink": "Löschen",
+        "linkSuccess": "Datei erfolgreich verknüpft.",
+        "linkError": "Fehler beim Verknüpfen der Datei.",
+        "permissionDenied": "Berechtigung zum Lesen der Datei verweigert.",
+        "permissionNeeded": "Berechtigung zum Lesen der Datei nicht erteilt.",
+        "reloadError": "Datei konnte nicht gelesen werden. Sie wurde möglicherweise verschoben oder gelöscht."
+    },
+    "configManagement": {
+        "title": "Konfigurationsverwaltung",
+        "description": "Exportieren Sie Ihre Einstellungen in eine Datei oder importieren Sie sie auf einem anderen Gerät. (Funktion in Entwicklung)",
+        "exportButton": "Konfiguration exportieren",
+        "importButton": "Konfiguration importieren"
+    },
+    "watchlists": {
+        "title": "Beobachtungslisten",
+        "description": "Erstellen und verwalten Sie Listen von Produkten zur Überwachung. (Funktion in Entwicklung)"
     }
   },
   "common": {
