@@ -1,11 +1,13 @@
 
+
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
 const GOODS_RECEIPTS_STORE_NAME = 'goodsReceipts';
 const OPEN_ORDERS_STORE_NAME = 'openOrders';
 const SALES_STORE_NAME = 'sales';
 const METADATA_STORE_NAME = 'importMetadata';
-const DB_VERSION = 8; 
+const SETTINGS_STORE_NAME = 'settings';
+const DB_VERSION = 9; 
 
 export type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales';
 
@@ -19,7 +21,7 @@ export type Product = {
   // --- Composite Key ---
   // The primary key is now ['warehouseId', 'fullProductId'] to ensure uniqueness
   warehouseId: string; // Kolumna A: WH NR
-  fullProductId: string; // Kolumna F: ITEM NR FULL (dłuższy, precyzyjny numer)
+  fullProductId: string; // Kolumna F: ITEM NR FULL (dłuższy, precyzjny numer)
 
   // --- Grouping ---
   dispoGroup: string;    // Kolumna B: DISPO GROUP
@@ -222,6 +224,12 @@ const openDB = (): Promise<IDBDatabase> => {
             salesStore.createIndex('productIndex', ['warehouseId', 'productId']);
         }
       }
+
+      if (oldVersion < 9) {
+        if (!db.objectStoreNames.contains(SETTINGS_STORE_NAME)) {
+            db.createObjectStore(SETTINGS_STORE_NAME, { keyPath: 'key' });
+        }
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -326,6 +334,7 @@ export const clearAllData = async (): Promise<void> => {
     await clearStore(OPEN_ORDERS_STORE_NAME);
     await clearStore(SALES_STORE_NAME);
     await clearStore(METADATA_STORE_NAME);
+    await clearStore(SETTINGS_STORE_NAME);
 };
 
 export const getProductsPaginatedAndFiltered = async (
@@ -712,5 +721,59 @@ export const getImportMetadata = async (): Promise<ImportMetadata> => {
             resolve(result);
         };
         request.onerror = () => reject(request.error);
+    });
+};
+
+// --- Settings Functions ---
+
+export const saveSetting = async (key: string, value: any): Promise<void> => {
+    const db = await openDB();
+    const transaction = db.transaction(SETTINGS_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(SETTINGS_STORE_NAME);
+    store.put({ key, value });
+    return new Promise<void>((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+    });
+};
+
+export const loadSetting = async <T>(key: string): Promise<T | null> => {
+    const db = await openDB();
+    const transaction = db.transaction(SETTINGS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(SETTINGS_STORE_NAME);
+    const request = store.get(key);
+    return new Promise<T | null>((resolve, reject) => {
+        request.onsuccess = () => {
+            resolve(request.result ? request.result.value : null);
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const loadAllSettings = async (): Promise<Map<string, any>> => {
+    const db = await openDB();
+    const transaction = db.transaction(SETTINGS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(SETTINGS_STORE_NAME);
+    const request = store.getAll();
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+            const map = new Map<string, any>();
+            request.result.forEach(item => {
+                map.set(item.key, item.value);
+            });
+            resolve(map);
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const deleteSetting = async (key: string): Promise<void> => {
+    const db = await openDB();
+    const transaction = db.transaction(SETTINGS_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(SETTINGS_STORE_NAME);
+    store.delete(key);
+    return new Promise<void>((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
     });
 };
