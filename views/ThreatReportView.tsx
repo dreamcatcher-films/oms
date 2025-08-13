@@ -161,7 +161,7 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
         return selectedWarehouses.length > 0 && selectedItemGroups.length > 0 && selectedStatuses.length > 0 && !isLoading;
     }, [selectedWarehouses, selectedItemGroups, selectedStatuses, isLoading]);
     
-    const allSelected = reportResults && reportResults.length > 0 && selectedForWatchlist.size === reportResults.length;
+    const allSelected = reportResults ? reportResults.length > 0 && selectedForWatchlist.size === reportResults.length : false;
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat(language, { style: 'currency', currency: 'GBP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
