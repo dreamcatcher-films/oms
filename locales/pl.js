@@ -102,7 +102,8 @@ export default {
   "placeholders": {
     "report": {
         "title": "Raport Zagrożeń",
-        "description": "Tutaj znajdzie się lista artykułów z potencjalnym ryzykiem strat, posortowana według pilności. Ta funkcjonalność jest w budowie."
+        "description": "Tutaj znajdzie się lista artykułów z potencjalnym ryzykiem strat, posortowana według pilności. Ta funkcjonalność jest w budowie.",
+        "accessDenied": "Ta funkcjonalność jest dostępna tylko dla użytkowników Centrali (HQ)."
     },
     "dashboard": {
         "title": "Dashboard",
@@ -189,6 +190,9 @@ export default {
         "rerun": "Uruchom Ponownie",
         "showChart": "Pokaż Wykres",
         "hideChart": "Ukryj Wykres"
+    },
+    "watchlist": {
+        "viewing": "Przeglądany artykuł {{current}} z {{total}}"
     }
   },
   "settings": {
@@ -251,6 +255,36 @@ export default {
     "goodsReceipts": "Przyjęcia towaru",
     "openOrders": "Otwarte zamówienia",
     "sales": "Dane o odsprzedaży"
+  },
+  "threatReport": {
+    "title": "Raport Zagrożeń",
+    "description": "Uruchom symulację zbiorczą dla produktów na podstawie wybranych kryteriów, aby zidentyfikować pozycje o najwyższym ryzyku odpisu.",
+    "controls": {
+      "title": "Parametry Raportu",
+      "warehouses": "Magazyny",
+      "itemGroups": "Grupy Artykułów",
+      "statuses": "Statusy",
+      "runReport": "Uruchom Raport",
+      "selectAll": "Zaznacz wszystko",
+      "deselectAll": "Odznacz wszystko",
+      "runningTitle": "Generowanie Raportu...",
+      "runningDescription": "Analizowanie {{processed}} z {{total}} produktów. To może chwilę potrwać."
+    },
+    "results": {
+      "title": "Wyniki Raportu",
+      "noResults": "Żadne produkty nie pasują do wybranych kryteriów lub nie znaleziono żadnych zagrożeń.",
+      "goToSimulation": "Analizuj",
+      "analyzeSelected": "Analizuj zaznaczone ({{count}})",
+      "warehouseId": "Magazyn",
+      "productId": "Artykuł",
+      "caseSize": "Szt. w kart.",
+      "palletFactor": "Kart. na pal.",
+      "daysOfStock": "Dni Zapasu (RW)",
+      "aldValue": "Wartość ALD",
+      "avgDailySales": "Śr. Sprzedaż",
+      "nonCompliantReceipts": "Niezgodne Przyj.",
+      "writeOffValue": "Wartość Odpisu"
+    }
   },
   "columns": {
     "product": {
