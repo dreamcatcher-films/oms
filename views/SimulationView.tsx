@@ -3,10 +3,10 @@ import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
 import { getUniqueWarehouseIds, findProductsByPartialId, getProductDetails, Product } from '../db';
 import { SimulationResult, InitialStockBatch } from "../simulation.worker";
-import { ManualDelivery } from '../utils/types';
+import { ManualDelivery, UserSession } from '../utils/types';
 import { StockChart } from '../components/StockChart';
 
-export const SimulationView = () => {
+export const SimulationView = ({ userSession }: { userSession: UserSession | null }) => {
     const { t, language } = useTranslation();
     const [warehouseId, setWarehouseId] = useState('');
     const [productId, setProductId] = useState('');
@@ -39,6 +39,8 @@ export const SimulationView = () => {
 
     const debounceTimeoutRef = useRef<number | null>(null);
     const workerRef = useRef<Worker | null>(null);
+
+    const isRdcMode = userSession?.mode === 'rdc';
 
     useEffect(() => {
         workerRef.current = new Worker(new URL('../simulation.worker.ts', import.meta.url), { type: 'module' });
@@ -76,8 +78,11 @@ export const SimulationView = () => {
         (async () => {
             const ids = await getUniqueWarehouseIds();
             setWarehouseIds(ids);
+            if (isRdcMode) {
+                setWarehouseId(userSession.rdc!.id);
+            }
         })();
-    }, []);
+    }, [isRdcMode, userSession]);
 
     const resetOverrides = useCallback(() => {
         if (originalSimParams) {
@@ -135,7 +140,9 @@ export const SimulationView = () => {
 
     const handleSuggestionClick = async (product: Product) => {
         setProductId(product.productId);
-        setWarehouseId(product.warehouseId); // Auto-select warehouse
+        if (!isRdcMode) {
+            setWarehouseId(product.warehouseId);
+        }
         setIsSuggestionsVisible(false);
         const fullProductDetails = await getProductDetails(product.warehouseId, product.fullProductId);
         setSelectedProduct(fullProductDetails);
@@ -212,14 +219,18 @@ export const SimulationView = () => {
                 <div class="filter-bar">
                     <div class="filter-group">
                         <label htmlFor="sim-warehouseId">{t('simulations.controls.warehouse')}</label>
-                        <select id="sim-warehouseId" value={warehouseId} onChange={(e) => {
-                            setWarehouseId((e.target as HTMLSelectElement).value);
-                            setSelectedProduct(null);
-                            setProductId('');
-                            setSimulationResult(null);
-                            setOriginalSimParams(null);
-                            setIsChartVisible(false);
-                        }}>
+                        <select 
+                            id="sim-warehouseId" 
+                            value={warehouseId} 
+                            disabled={isRdcMode}
+                            onChange={(e) => {
+                                setWarehouseId((e.target as HTMLSelectElement).value);
+                                setSelectedProduct(null);
+                                setProductId('');
+                                setSimulationResult(null);
+                                setOriginalSimParams(null);
+                                setIsChartVisible(false);
+                            }}>
                             <option value="">{t('simulations.controls.selectWarehouse')}</option>
                             {warehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
                         </select>
