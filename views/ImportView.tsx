@@ -15,12 +15,16 @@ export const ImportView = ({
     counts,
     onFileSelect,
     onClear,
+    linkedFiles,
+    onReload,
 }: {
     isLoading: boolean;
     importMetadata: ImportMetadata;
     counts: { products: number; goodsReceipts: number; openOrders: number; sales: number };
     onFileSelect: (type: DataType, event: Event) => void;
     onClear: (type: DataType) => void;
+    linkedFiles: Map<DataType, FileSystemFileHandle>;
+    onReload: (type: DataType) => void;
 }) => {
     const { t, language } = useTranslation();
     
@@ -68,13 +72,14 @@ export const ImportView = ({
             {dataTypes.map(({ key, titleKey, descriptionKey, accept }) => {
                 const meta = importMetadata[key];
                 const count = counts[key];
-                const isUpdatedToday = meta && meta.lastImported ? isDateToday(meta.lastImported) : false;
+                const isUpdatedToday = meta && meta.lastImported ? isDateToday(new Date(meta.lastImported)) : false;
                 const statusIcon = count > 0 && isUpdatedToday ? '✓' : '✗';
                 const statusClass = count > 0 && isUpdatedToday ? 'success' : 'error';
                 let statusText = t('import.status.noData');
                 if (meta && meta.lastImported) {
-                    statusText = `${t('import.status.updated')} ${formatStatusDate(meta.lastImported)}`;
+                    statusText = `${t('import.status.updated')} ${formatStatusDate(new Date(meta.lastImported))}`;
                 }
+                const isLinked = linkedFiles.has(key);
 
                 return (
                     <div class="import-section" key={key}>
@@ -92,12 +97,20 @@ export const ImportView = ({
                             <p>{t(descriptionKey)}</p>
                         </div>
                         <div class="import-section-actions">
+                             {isLinked && (
+                                <button onClick={() => onReload(key)} class="button-primary reload" disabled={isLoading}>{t('import.buttons.reload')}</button>
+                            )}
                             <label htmlFor={`${key}-file-input`} class={`file-label ${isLoading ? 'disabled' : ''}`}>
-                                {t('import.buttons.selectFile')}
+                                {isLinked ? t('import.buttons.change') : t('import.buttons.selectFile')}
                             </label>
                             <input id={`${key}-file-input`} type="file" accept={accept} onChange={(e) => onFileSelect(key, e)} disabled={isLoading} />
                             {count > 0 && <button onClick={() => onClear(key)} class="button-clear" disabled={isLoading}>{t('import.buttons.clear')}</button>}
                         </div>
+                         {isLinked && (
+                            <div class="import-linked-info">
+                                <strong>{t('import.status.linkedTo')}:</strong> {linkedFiles.get(key)?.name}
+                            </div>
+                        )}
                     </div>
                 );
             })}
