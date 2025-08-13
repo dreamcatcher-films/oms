@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
 import { getUniqueWarehouseIds, findProductsByPartialId, getProductDetails, Product } from '../db';
@@ -132,7 +131,7 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
         }
 
         debounceTimeoutRef.current = window.setTimeout(async () => {
-            const suggestions = await findProductsByPartialId(value, 10);
+            const suggestions = await findProductsByPartialId(value, 10, warehouseId);
             setProductSuggestions(suggestions);
             setIsSuggestionsVisible(suggestions.length > 0);
         }, 300);
@@ -249,7 +248,6 @@ export const SimulationView = ({ userSession }: { userSession: UserSession | nul
                         {isSuggestionsVisible && productSuggestions.length > 0 && (
                             <ul class="suggestions-list">
                                 {productSuggestions
-                                .filter(p => p.warehouseId === warehouseId)
                                 .map(p => (
                                     <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
                                         <strong>{p.productId}</strong> - {p.name}
