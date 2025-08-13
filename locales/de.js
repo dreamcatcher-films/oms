@@ -1,4 +1,3 @@
-
 export default {
   "header": {
     "title": "OMS",
@@ -116,7 +115,7 @@ export default {
       "warehouse": "Lager",
       "selectWarehouse": "Lager auswählen",
       "productId": "Artikel-Nr.",
-      "productIdPlaceholder": "Tippen, um Produkt zu suchen...",
+      "productIdPlaceholder": "Artikel suchen...",
       "run": "Simulation starten"
     },
     "details": {
@@ -133,19 +132,19 @@ export default {
       "none": "Keine"
     },
     "kpi": {
-      "totalWriteOffValue": "Gesamtabschreibungswert",
-      "daysOfStock": "Lagerreichweite",
-      "avgDailySales": "Ø tägl. Absatz",
+      "totalWriteOffValue": "Gesamtwert der Abschreibung",
+      "daysOfStock": "Lagerreichweite (Tage)",
+      "avgDailySales": "Ø Tägl. Verkauf",
       "nonCompliantReceipts": "Regelwidrige Eingänge",
-      "firstWriteOffDate": "Erstes Abschreibungsdatum",
+      "firstWriteOffDate": "Erstes Abschr.-Datum",
       "aldValue": "ALD-Wert",
-      "aldDescription": "Wert der von ALD betroffenen Waren.",
-      "salesAdjustUp": "Absatz um 10% erhöhen",
-      "salesAdjustDown": "Absatz um 10% verringern",
+      "aldDescription": "Wert der vom ALD betroffenen Ware.",
+      "salesAdjustUp": "Verkauf um 10% erhöhen",
+      "salesAdjustDown": "Verkauf um 10% verringern",
       "original": "Original",
-      "salesResetTooltip": "Klicken, um den Originalwert wiederherzustellen"
+      "salesResetTooltip": "Klicken, um Originalwert wiederherzustellen"
     },
-     "manualDelivery": {
+    "manualDelivery": {
         "title": "Manuelle Lieferung hinzufügen",
         "addedTitle": "Hinzugefügte Lieferungen",
         "date": "Lieferdatum",
@@ -153,10 +152,10 @@ export default {
         "bestBeforeDate": "Mindesthaltbarkeitsdatum"
     },
     "initialStock": {
-      "title": "Anfängliche Lagerzusammensetzung",
-      "warning": "Der anfängliche Lagerbestand konnte nicht vollständig mit den Wareneingängen abgeglichen werden. Die Simulation geht davon aus, dass dieser nicht zugeordnete Teil der älteste Bestand ist und möglicherweise früher abgeschrieben wird.",
+      "title": "Zusammensetzung des Anfangsbestands",
+      "warning": "Der Anfangsbestand konnte nicht vollständig mit den Wareneingängen abgeglichen werden. Die Simulation geht davon aus, dass dieser nicht zugeordnete Teil der älteste Bestand ist und früher abgeschrieben werden könnte.",
       "deliveryDate": "Lieferdatum",
-      "bestBeforeDate": "Mindesthaltbarkeitsdatum",
+      "bestBeforeDate": "MHD",
       "daysForSale": "Tage zum Verkauf",
       "regulationBreached": "Verstoß (J/N)",
       "quantity": "Menge",
@@ -172,7 +171,7 @@ export default {
       "title": "Simulationsprotokoll",
       "date": "Datum",
       "stockStart": "Anfangsbestand",
-      "sales": "Verkäufe",
+      "sales": "Verkauf",
       "receipts": "Eingänge",
       "writeOffs": "Abschreibungen",
       "ald": "ALD",
@@ -180,14 +179,14 @@ export default {
       "notes": "Notizen"
     },
     "chart": {
-      "title": "Lagerbestandsprognose (14 Tage)"
+      "title": "Bestandsprognose (14 Tage)"
     },
     "buttons": {
         "add": "Hinzufügen",
         "resetDefaults": "Zurücksetzen",
         "showMore": "Mehr anzeigen",
         "showLess": "Weniger anzeigen",
-        "rerun": "Neu ausführen",
+        "rerun": "Neu starten",
         "showChart": "Diagramm anzeigen",
         "hideChart": "Diagramm ausblenden"
     }
@@ -196,7 +195,7 @@ export default {
     "title": "Einstellungen",
     "dataSources": {
         "title": "Datenquellen",
-        "description": "Verknüpfen Sie Ihre lokalen Datendateien, um sie schnell neu laden zu können. Die Anwendung merkt sich Ihre Auswahl.",
+        "description": "Verknüpfen Sie Ihre lokalen Datendateien für ein schnelles Neuladen. Die Anwendung merkt sich Ihre Auswahl.",
         "dataType": "Datentyp",
         "linkedFile": "Verknüpfte Datei",
         "actions": "Aktionen",
@@ -211,27 +210,27 @@ export default {
     },
     "configManagement": {
         "title": "Konfigurationsverwaltung",
-        "description": "Exportieren Sie Ihre Einstellungen (wie die RDC-Liste) in eine Datei oder importieren Sie sie auf einem anderen Gerät. Dies schließt verknüpfte Dateien nicht ein.",
+        "description": "Exportieren Sie Ihre Einstellungen (wie die RDC-Liste) in eine Datei oder importieren Sie sie auf einem anderen Gerät. Verknüpfte Dateien sind nicht enthalten.",
         "exportButton": "Konfiguration exportieren",
         "importButton": "Konfiguration importieren",
         "exportSuccess": "Konfiguration erfolgreich exportiert.",
         "importSuccess": "Konfiguration erfolgreich importiert.",
-        "importError": "Fehler beim Import der Konfigurationsdatei."
+        "importError": "Fehler beim Importieren der Konfigurationsdatei."
     },
     "rdcManagement": {
         "title": "RDC-Verwaltung",
-        "description": "Fügen Sie regionale Verteilzentren (RDCs) zur Anmeldeliste hinzu oder entfernen Sie sie.",
+        "description": "Fügen Sie Regionale Distributionszentren (RDCs) zur Anmeldeliste hinzu oder entfernen Sie sie.",
         "rdcId": "RDC-ID",
         "rdcName": "RDC-Name",
         "addRdc": "RDC hinzufügen",
         "deleteRdc": "Löschen",
         "addSuccess": "RDC erfolgreich hinzugefügt.",
         "deleteSuccess": "RDC erfolgreich gelöscht.",
-        "deleteConfirm": "Sind Sie sicher, dass Sie dieses RDC löschen möchten?"
+        "deleteConfirm": "Möchten Sie dieses RDC wirklich löschen?"
     },
     "watchlists": {
-        "title": "Beobachtungslisten",
-        "description": "Erstellen und verwalten Sie Listen von Produkten zur Überwachung. (Funktion in Entwicklung)"
+        "title": "Watchlists",
+        "description": "Erstellen und verwalten Sie Produktlisten zur Überwachung. (Funktion in Entwicklung)"
     }
   },
   "loginModal": {
@@ -241,7 +240,19 @@ export default {
       "password": "Passwort",
       "selectRdc": "Lager auswählen",
       "loginButton": "Anmelden",
-      "invalidPassword": "Das Passwort ist falsch."
+      "invalidPassword": "Passwort ist falsch."
+  },
+  "productSelection": {
+    "title": "Produktvariante auswählen",
+    "description": "Mehrere Produkte entsprechen dieser ID. Bitte wählen Sie das richtige aus, um fortzufahren.",
+    "selectButton": "Auswählen",
+    "headers": {
+      "fullProductId": "Vollst. Artikel-Nr.",
+      "name": "Name",
+      "status": "Status",
+      "caseSize": "Stk./Karton",
+      "stockOnHand": "Lagerbestand"
+    }
   },
   "common": {
       "yesShort": "J",
@@ -255,76 +266,76 @@ export default {
   },
   "columns": {
     "product": {
-        "warehouseId": "Lager",
-        "dispoGroup": "Dispo-Gruppe",
-        "itemGroup": "Art.-Gruppe",
-        "orderArea": "Bestellbereich",
-        "productId": "Art.-Nr. (Kurz)",
-        "fullProductId": "Art.-Nr. (Lang)",
-        "name": "Name",
-        "caseSize": "Stk./Karton",
-        "cartonsPerLayer": "Kartons/Lage",
-        "duessFactor": "DD",
-        "cartonsPerPallet": "Kartons/Palette",
-        "shelfLifeAtReceiving": "W-DATE Tage",
-        "shelfLifeAtStore": "S-DATE Tage",
-        "customerShelfLife": "C-DATE Tage",
-        "price": "Preis",
-        "status": "Status",
-        "itemLocked": "Gesperrt",
-        "slotNr": "Slot",
-        "unprocessedDeliveryQty": "Unbearb. Menge",
-        "supplierId": "Lieferant-ID",
-        "supplierName": "Lieferant-Name",
-        "stockOnHand": "Lagerbestand",
-        "storeAllocationToday": "Zuteilung Heute",
-        "storeAllocationTotal": "Zuteilung Gesamt",
-        "promoDate": "Aktionsdatum",
-        "estimatedReceivings": "Erw. Eingänge"
+      "warehouseId": "Lager",
+      "dispoGroup": "Dispo-Gruppe",
+      "itemGroup": "Art.-Gruppe",
+      "orderArea": "Bestellber.",
+      "productId": "Artikel-Nr. (Kurz)",
+      "fullProductId": "Artikel-Nr. (Voll)",
+      "name": "Name",
+      "caseSize": "Stk./Karton",
+      "cartonsPerLayer": "Kart./Lage",
+      "duessFactor": "DD",
+      "cartonsPerPallet": "Kart./Palette",
+      "shelfLifeAtReceiving": "W-DATE Tage",
+      "shelfLifeAtStore": "S-DATE Tage",
+      "customerShelfLife": "C-DATE Tage",
+      "price": "Preis",
+      "status": "Status",
+      "itemLocked": "Gesperrt",
+      "slotNr": "Slot",
+      "unprocessedDeliveryQty": "Unbearb. Menge",
+      "supplierId": "Lieferanten-ID",
+      "supplierName": "Lieferantenname",
+      "stockOnHand": "Lagerbestand",
+      "storeAllocationToday": "Heutige Zuordnung",
+      "storeAllocationTotal": "Gesamtzuordnung",
+      "promoDate": "Promo-Datum",
+      "estimatedReceivings": "Erw. Eingänge"
     },
     "goodsReceipt": {
-        "warehouseId": "Lager",
-        "productId": "Art.-Nr. (Kurz)",
-        "fullProductId": "Art.-Nr. (Lang)",
-        "name": "Name",
-        "deliveryUnit": "Liefereinheit",
-        "deliveryQtyUom": "Menge (ME)",
-        "caseSize": "Stk./Karton",
-        "deliveryQtyPcs": "Menge (Stk.)",
-        "poNr": "Bestell-Nr.",
-        "deliveryDate": "Lieferdatum",
-        "bestBeforeDate": "MHD",
-        "supplierId": "Lieferant-ID",
-        "supplierName": "Lieferant-Name",
-        "bolNr": "BOL-Nr.",
-        "deliveryNote": "Lieferschein",
-        "intSupplierNr": "Int. Lieferant-Nr.",
-        "intItemNr": "Int. Artikel-Nr.",
-        "caseGtin": "Karton GTIN",
-        "liaReference": "LIA-Ref"
+      "warehouseId": "Lager",
+      "productId": "Artikel-Nr. (Kurz)",
+      "fullProductId": "Artikel-Nr. (Voll)",
+      "name": "Name",
+      "deliveryUnit": "Liefereinheit",
+      "deliveryQtyUom": "Menge (ME)",
+      "caseSize": "Stk./Karton",
+      "deliveryQtyPcs": "Menge (Stk.)",
+      "poNr": "Bestell-Nr.",
+      "deliveryDate": "Lieferdatum",
+      "bestBeforeDate": "MHD",
+      "supplierId": "Lieferanten-ID",
+      "supplierName": "Lieferantenname",
+      "bolNr": "BOL-Nr.",
+      "deliveryNote": "Lieferschein",
+      "intSupplierNr": "Int. Liefer.-Nr.",
+      "intItemNr": "Int. Artikel-Nr.",
+      "caseGtin": "Karton-GTIN",
+      "liaReference": "LIA-Ref"
     },
     "openOrder": {
-        "warehouseId": "Lager",
-        "productId": "Art.-Nr. (Kurz)",
-        "fullProductId": "Art.-Nr. (Lang)",
-        "name": "Name",
-        "orderUnit": "Bestelleinheit",
-        "orderQtyUom": "Menge (ME)",
-        "caseSize": "Stk./Karton",
-        "orderQtyPcs": "Menge (Stk.)",
-        "poNr": "Bestell-Nr.",
-        "supplierId": "Lieferant-ID",
-        "supplierName": "Lieferant-Name",
-        "deliveryDate": "Erw. Lieferdatum",
-        "creationDate": "Erstelldatum",
-        "deliveryLeadTime": "Vorlaufzeit (Tage)"
+      "warehouseId": "Lager",
+      "productId": "Artikel-Nr. (Kurz)",
+      "fullProductId": "Artikel-Nr. (Voll)",
+      "name": "Name",
+      "orderUnit": "Bestelleinheit",
+      "orderQtyUom": "Menge (ME)",
+      "caseSize": "Stk./Karton",
+      "orderQtyPcs": "Menge (Stk.)",
+      "poNr": "Bestell-Nr.",
+      "supplierId": "Lieferanten-ID",
+      "supplierName": "Lieferantenname",
+      "deliveryDate": "Gepl. Lieferdatum",
+      "creationDate": "Erstelldatum",
+      "deliveryLeadTime": "Vorlaufzeit (Tage)"
     },
     "sale": {
-        "resaleDate": "Verkaufsdatum",
-        "warehouseId": "Lager",
-        "productId": "Artikel-Nr.",
-        "productName": "Produktname",
-        "quantity": "Verkaufte Menge"
+      "resaleDate": "Verkaufsdatum",
+      "warehouseId": "Lager",
+      "productId": "Artikel-Nr.",
+      "productName": "Produktname",
+      "quantity": "Verkaufte Menge"
     }
   }
 }
