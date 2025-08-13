@@ -364,7 +364,12 @@ export const SimulationView = () => {
                     <div class="initial-stock-composition">
                         <div class="initial-stock-header">
                             <h4>{t('simulations.initialStock.title')}</h4>
-                            <p class="table-legend">{t('simulations.initialStock.aldLegend')}</p>
+                             <div class="table-legend-container">
+                                <div class="legend-item"><div class="legend-color-box ald"></div><span>{t('simulations.initialStock.legend.ald')}</span></div>
+                                <div class="legend-item"><div class="legend-color-box write-off"></div><span>{t('simulations.initialStock.legend.writeOff')}</span></div>
+                                <div class="legend-item"><div class="legend-color-box non-compliant"></div><span>{t('simulations.initialStock.legend.nonCompliant')}</span></div>
+                                <div class="legend-item"><div class="legend-color-box manual"></div><span>{t('simulations.initialStock.legend.manual')}</span></div>
+                            </div>
                         </div>
                         {!simulationResult.isStockDataComplete && (
                             <p class="data-completeness-warning">
