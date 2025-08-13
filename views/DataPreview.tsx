@@ -16,10 +16,11 @@ import {
   getUniqueWarehouseIdsForSales,
   findProductsByPartialId,
 } from "../db";
+import { UserSession } from "../utils/types";
 
 const PAGE_SIZE = 20;
 
-export const DataPreview = () => {
+export const DataPreview = ({ userSession }: { userSession: UserSession | null }) => {
   const { t, language } = useTranslation();
   const [activeTab, setActiveTab] = useState<'products' | 'goodsReceipts' | 'openOrders' | 'sales'>('products');
   const [products, setProducts] = useState<Product[]>([]);
@@ -130,6 +131,19 @@ export const DataPreview = () => {
         { key: 'quantity', labelKey: 'columns.sale.quantity' },
     ];
 
+  useEffect(() => {
+    if (userSession?.mode === 'rdc') {
+      const rdcId = userSession.rdc!.id;
+      setProductFilters(prev => ({ ...prev, warehouseId: rdcId }));
+      setAppliedProductFilters(prev => ({ ...prev, warehouseId: rdcId }));
+      setGoodsReceiptsFilters(prev => ({ ...prev, warehouseId: rdcId }));
+      setAppliedGoodsReceiptsFilters(prev => ({ ...prev, warehouseId: rdcId }));
+      setOpenOrderFilters(prev => ({ ...prev, warehouseId: rdcId }));
+      setAppliedOpenOrderFilters(prev => ({ ...prev, warehouseId: rdcId }));
+      setSalesFilters(prev => ({ ...prev, warehouseId: rdcId }));
+      setAppliedSalesFilters(prev => ({ ...prev, warehouseId: rdcId }));
+    }
+  }, [userSession]);
 
   const fetchDropdownData = useCallback(async () => {
     const [statuses, pWarehouses, grWarehouses, ooWarehouses, sWarehouses] = await Promise.all([
@@ -287,18 +301,20 @@ export const DataPreview = () => {
   
   const clearFilters = () => {
     setCurrentPage(1);
+    const rdcFilter = userSession?.mode === 'rdc' ? { warehouseId: userSession.rdc!.id } : { warehouseId: '' };
+
     if(activeTab === 'products') {
-        setProductFilters({ warehouseId: '', productId: '', status: '' });
-        setAppliedProductFilters({ warehouseId: '', productId: '', status: '' });
+        setProductFilters({ ...rdcFilter, productId: '', status: '' });
+        setAppliedProductFilters({ ...rdcFilter, productId: '', status: '' });
     } else if (activeTab === 'goodsReceipts') {
-        setGoodsReceiptsFilters({ warehouseId: '', productId: '' });
-        setAppliedGoodsReceiptsFilters({ warehouseId: '', productId: '' });
+        setGoodsReceiptsFilters({ ...rdcFilter, productId: '' });
+        setAppliedGoodsReceiptsFilters({ ...rdcFilter, productId: '' });
     } else if (activeTab === 'openOrders') {
-        setOpenOrderFilters({ warehouseId: '', productId: '' });
-        setAppliedOpenOrderFilters({ warehouseId: '', productId: '' });
+        setOpenOrderFilters({ ...rdcFilter, productId: '' });
+        setAppliedOpenOrderFilters({ ...rdcFilter, productId: '' });
     } else if (activeTab === 'sales') {
-        setSalesFilters({ warehouseId: '', productId: '' });
-        setAppliedSalesFilters({ warehouseId: '', productId: '' });
+        setSalesFilters({ ...rdcFilter, productId: '' });
+        setAppliedSalesFilters({ ...rdcFilter, productId: '' });
     }
     setIsSuggestionsVisible(false);
   };
@@ -322,6 +338,8 @@ export const DataPreview = () => {
     }
   };
   
+  const isRdcMode = userSession?.mode === 'rdc';
+
   return (
     <div class="data-preview-container" onBlur={() => setIsSuggestionsVisible(false)}>
       <div class="tabs">
@@ -336,7 +354,7 @@ export const DataPreview = () => {
         <div class="filter-bar">
           <div class="filter-group">
             <label for="p-warehouseId">{t('dataPreview.filters.warehouse')}</label>
-            <select id="p-warehouseId" name="warehouseId" value={productFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'products')} onKeyDown={handleKeyDown}>
+            <select id="p-warehouseId" name="warehouseId" value={productFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'products')} onKeyDown={handleKeyDown} disabled={isRdcMode}>
               <option value="">{t('dataPreview.filters.all')}</option>
               {productWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
@@ -410,7 +428,7 @@ export const DataPreview = () => {
          <div class="filter-bar">
           <div class="filter-group">
             <label for="gr-warehouseId">{t('dataPreview.filters.warehouse')}</label>
-            <select id="gr-warehouseId" name="warehouseId" value={goodsReceiptsFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'goodsReceipts')} onKeyDown={handleKeyDown}>
+            <select id="gr-warehouseId" name="warehouseId" value={goodsReceiptsFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'goodsReceipts')} onKeyDown={handleKeyDown} disabled={isRdcMode}>
               <option value="">{t('dataPreview.filters.all')}</option>
               {goodsReceiptsWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
@@ -470,7 +488,7 @@ export const DataPreview = () => {
          <div class="filter-bar">
           <div class="filter-group">
             <label for="oo-warehouseId">{t('dataPreview.filters.warehouse')}</label>
-            <select id="oo-warehouseId" name="warehouseId" value={openOrderFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'openOrders')} onKeyDown={handleKeyDown}>
+            <select id="oo-warehouseId" name="warehouseId" value={openOrderFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'openOrders')} onKeyDown={handleKeyDown} disabled={isRdcMode}>
               <option value="">{t('dataPreview.filters.all')}</option>
               {openOrdersWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
@@ -530,7 +548,7 @@ export const DataPreview = () => {
          <div class="filter-bar">
           <div class="filter-group">
             <label for="s-warehouseId">{t('dataPreview.filters.warehouse')}</label>
-            <select id="s-warehouseId" name="warehouseId" value={salesFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'sales')} onKeyDown={handleKeyDown}>
+            <select id="s-warehouseId" name="warehouseId" value={salesFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'sales')} onKeyDown={handleKeyDown} disabled={isRdcMode}>
               <option value="">{t('dataPreview.filters.all')}</option>
               {salesWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
