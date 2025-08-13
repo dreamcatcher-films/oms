@@ -33,10 +33,11 @@ body, html {
 }
 
 h1 {
+  font-family: 'Bungee Tint', display;
+  font-weight: 400;
+  font-size: 2.25rem;
   color: var(--primary-color);
   margin: 0;
-  font-weight: 600;
-  font-size: 1.75rem;
 }
 
 h2 {
@@ -1159,9 +1160,9 @@ tr:hover {
 }
 
 #splash-text {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Bungee Tint', display;
   font-size: 38vh;
-  font-weight: 600;
+  font-weight: 400;
   color: #333;
   margin: 0;
   line-height: 1;
