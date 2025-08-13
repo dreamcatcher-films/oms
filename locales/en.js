@@ -157,7 +157,12 @@ export default {
       "regulationBreached": "Breached (Y/N)",
       "quantity": "Quantity",
       "unknownBatch": "Unknown Batch",
-      "aldLegend": "If the delivery is at ALD risk, it is marked in orange."
+      "legend": {
+        "ald": "ALD Risk",
+        "writeOff": "Write-Off Risk",
+        "nonCompliant": "Non-Compliant Receipt",
+        "manual": "Manual Delivery"
+      }
     },
     "log": {
       "title": "Simulation Log",
