@@ -1,198 +1,534 @@
-import { useState } from 'preact/hooks';
+import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
-import { DataType, RDC, UserSession } from '../utils/types';
+import { getUniqueWarehouseIds, findProductsByPartialId, getProductDetails, Product, findAllProductsByShortId } from '../db';
+import { SimulationResult, InitialStockBatch } from "../simulation.worker";
+import { ManualDelivery, UserSession } from '../utils/types';
+import { StockChart } from '../components/StockChart';
+import { ProductDisambiguationModal } from '../components/ProductDisambiguationModal';
 
-type SettingsViewProps = {
-    linkedFiles: Map<DataType, FileSystemFileHandle>;
-    onLinkFile: (dataType: DataType) => void;
-    onReloadFile: (dataType: DataType) => void;
-    onClearLink: (dataType: DataType) => void;
-    isLoading: boolean;
-    userSession: UserSession | null;
-    rdcList: RDC[];
-    onAddRdc: (rdc: RDC) => void;
-    onDeleteRdc: (rdcId: string) => void;
-    onExportConfig: () => void;
-    onImportClick: () => void;
-};
+export const SimulationView = ({ userSession }: { userSession: UserSession | null }) => {
+    const { t, language } = useTranslation();
+    const [warehouseId, setWarehouseId] = useState('');
+    const [productId, setProductId] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [productSuggestions, setProductSuggestions] = useState<Product[]>([]);
+    const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
+    const [warehouseIds, setWarehouseIds] = useState<string[]>([]);
+    const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
+    const [isSimulating, setIsSimulating] = useState(false);
+    
+    const [originalSimParams, setOriginalSimParams] = useState<{
+        wDate: number;
+        sDate: number;
+        cDate: number;
+        avgDailySales: number;
+    } | null>(null);
 
-export const SettingsView = (props: SettingsViewProps) => {
-    const { 
-        linkedFiles, 
-        onLinkFile, 
-        onReloadFile, 
-        onClearLink, 
-        isLoading,
-        userSession,
-        rdcList,
-        onAddRdc,
-        onDeleteRdc,
-        onExportConfig,
-        onImportClick
-    } = props;
-    const { t } = useTranslation();
-    const [newRdc, setNewRdc] = useState({ id: '', name: '' });
+    // State for user overrides
+    const [overrideWDate, setOverrideWDate] = useState('');
+    const [overrideSDate, setOverrideSDate] = useState('');
+    const [overrideCDate, setOverrideCDate] = useState('');
+    const [overrideAvgSales, setOverrideAvgSales] = useState('');
 
-    const dataTypes: DataType[] = ['products', 'goodsReceipts', 'openOrders', 'sales'];
-    const isApiSupported = 'showOpenFilePicker' in window;
-    const isHq = userSession?.mode === 'hq';
+    const [newDelivery, setNewDelivery] = useState({ date: '', quantity: '', bestBeforeDate: '' });
+    const [manualDeliveries, setManualDeliveries] = useState<ManualDelivery[]>([]);
 
-    const handleAddRdc = (e: Event) => {
-        e.preventDefault();
-        if (newRdc.id && newRdc.name) {
-            onAddRdc(newRdc);
-            setNewRdc({ id: '', name: '' });
+    const [isDirty, setIsDirty] = useState(false);
+    const [isLogExpanded, setIsLogExpanded] = useState(false);
+    const [isChartVisible, setIsChartVisible] = useState(false);
+    
+    const [productVariants, setProductVariants] = useState<Product[] | null>(null);
+
+    const debounceTimeoutRef = useRef<number | null>(null);
+    const workerRef = useRef<Worker | null>(null);
+
+    const isRdcMode = userSession?.mode === 'rdc';
+
+    useEffect(() => {
+        workerRef.current = new Worker(new URL('../simulation.worker.ts', import.meta.url), { type: 'module' });
+
+        workerRef.current.onmessage = (event: MessageEvent<SimulationResult>) => {
+            const result = event.data;
+            setSimulationResult(result);
+            setIsSimulating(false);
+
+            if (!originalSimParams && selectedProduct) {
+                 setOriginalSimParams({
+                    wDate: selectedProduct.shelfLifeAtReceiving,
+                    sDate: selectedProduct.shelfLifeAtStore,
+                    cDate: selectedProduct.customerShelfLife,
+                    avgDailySales: result.avgDailySales,
+                });
+            }
+            
+            setOverrideAvgSales(result.avgDailySales.toFixed(2));
+            const lastReceipt = result.initialStockComposition
+                .filter(b => !b.isUnknown && !b.isManual)
+                .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))[0];
+            if (lastReceipt) {
+                setNewDelivery({ date: lastReceipt.deliveryDate, quantity: '', bestBeforeDate: '' });
+            }
+            setIsDirty(false);
+        };
+
+        return () => {
+            workerRef.current?.terminate();
+        };
+    }, [originalSimParams, selectedProduct]);
+
+    useEffect(() => {
+        (async () => {
+            const ids = await getUniqueWarehouseIds();
+            setWarehouseIds(ids);
+            if (isRdcMode) {
+                setWarehouseId(userSession.rdc!.id);
+            }
+        })();
+    }, [isRdcMode, userSession]);
+
+    const resetOverrides = useCallback(() => {
+        if (originalSimParams) {
+            setOverrideWDate(String(originalSimParams.wDate));
+            setOverrideSDate(String(originalSimParams.sDate));
+            setOverrideCDate(String(originalSimParams.cDate));
+            setOverrideAvgSales(originalSimParams.avgDailySales.toFixed(2));
+        } else if (selectedProduct) {
+            setOverrideWDate(String(selectedProduct.shelfLifeAtReceiving));
+            setOverrideSDate(String(selectedProduct.shelfLifeAtStore));
+            setOverrideCDate(String(selectedProduct.customerShelfLife));
+            setOverrideAvgSales(simulationResult?.avgDailySales.toFixed(2) ?? '');
+        } else {
+            setOverrideWDate('');
+            setOverrideSDate('');
+            setOverrideCDate('');
+            setOverrideAvgSales('');
+        }
+        setManualDeliveries([]);
+        setNewDelivery({ date: '', quantity: '', bestBeforeDate: '' });
+        setIsDirty(true);
+    }, [selectedProduct, simulationResult, originalSimParams]);
+
+
+    useEffect(() => {
+        if (selectedProduct && !simulationResult) {
+            resetOverrides();
+        }
+    }, [selectedProduct, simulationResult, resetOverrides]);
+
+    const handleProductIdChange = (e: Event) => {
+        const value = (e.target as HTMLInputElement).value;
+        setProductId(value);
+        setSelectedProduct(null); // Clear selected product on new input
+        setSimulationResult(null);
+        setOriginalSimParams(null);
+        setIsChartVisible(false);
+
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+        }
+
+        if (value.trim().length < 2) {
+            setProductSuggestions([]);
+            setIsSuggestionsVisible(false);
+            return;
+        }
+
+        debounceTimeoutRef.current = window.setTimeout(async () => {
+            const suggestions = await findProductsByPartialId(value, 10, warehouseId);
+            setProductSuggestions(suggestions);
+            setIsSuggestionsVisible(suggestions.length > 0);
+        }, 300);
+    };
+
+    const handleSuggestionClick = async (product: Product) => {
+        setIsSuggestionsVisible(false);
+        setProductId(product.productId);
+        if (!isRdcMode) {
+            setWarehouseId(product.warehouseId);
+        }
+
+        const variants = await findAllProductsByShortId(product.warehouseId, product.productId);
+
+        if (variants.length > 1) {
+            setProductVariants(variants);
+        } else if (variants.length === 1) {
+            const fullProductDetails = await getProductDetails(variants[0].warehouseId, variants[0].fullProductId);
+            setSelectedProduct(fullProductDetails);
+            setSimulationResult(null);
+            setOriginalSimParams(null);
+            setIsChartVisible(false);
+        } else {
+            setSelectedProduct(null);
+        }
+    };
+    
+    const handleVariantSelect = (variant: Product) => {
+        setProductVariants(null);
+        setSelectedProduct(variant);
+        setSimulationResult(null);
+        setOriginalSimParams(null);
+        setIsChartVisible(false);
+    }
+
+    const handleRunSimulation = () => {
+        if (!selectedProduct || !workerRef.current) return;
+        setIsSimulating(true);
+        setIsChartVisible(false);
+        
+        workerRef.current.postMessage({
+            warehouseId: selectedProduct.warehouseId,
+            fullProductId: selectedProduct.fullProductId,
+            overrides: {
+                wDate: overrideWDate !== '' ? parseFloat(overrideWDate) : undefined,
+                sDate: overrideSDate !== '' ? parseFloat(overrideSDate) : undefined,
+                cDate: overrideCDate !== '' ? parseFloat(overrideCDate) : undefined,
+                avgDailySales: overrideAvgSales !== '' ? parseFloat(overrideAvgSales) : undefined,
+            },
+            manualDeliveries: manualDeliveries.map(({ id, ...rest }) => rest)
+        });
+    };
+    
+    const handleAddManualDelivery = () => {
+        if (newDelivery.date && newDelivery.quantity && newDelivery.bestBeforeDate) {
+            setManualDeliveries(prev => [...prev, { ...newDelivery, quantity: parseFloat(newDelivery.quantity), id: Date.now() }]);
+            setNewDelivery({ date: newDelivery.date, quantity: '', bestBeforeDate: '' }); // Keep date, clear others
+            setIsDirty(true);
+        }
+    };
+    
+    const handleRemoveManualDelivery = (id: number) => {
+        setManualDeliveries(prev => prev.filter(d => d.id !== id));
+        setIsDirty(true);
+    };
+
+    const handleOverrideChange = (setter: (val: string) => void, value: string) => {
+        setter(value);
+        setIsDirty(true);
+    }
+    
+    const adjustSales = (percentage: number) => {
+        const currentSales = parseFloat(overrideAvgSales);
+        if (!isNaN(currentSales)) {
+            const newSales = currentSales * (1 + percentage);
+            setOverrideAvgSales(newSales.toFixed(2));
+            setIsDirty(true);
         }
     };
 
+    const renderDetail = (labelKey: string, value: any) => {
+        return (
+            <div class="detail-item">
+                <span class="detail-label">{t(labelKey)}</span>
+                <span class="detail-value">{value ?? 'N/A'}</span>
+            </div>
+        )
+    };
+    
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat(language, { style: 'currency', currency: 'GBP' }).format(value);
+    }
+
     return (
-        <div class="settings-view">
-            <h2>{t('settings.title')}</h2>
-            
-            <div class="settings-section">
-                <h3>{t('settings.dataSources.title')}</h3>
-                <p>{t('settings.dataSources.description')}</p>
-
-                {!isApiSupported && (
-                    <div class="status-container error" role="alert">
-                        <p class="status-text">Your browser does not support the File System Access API. This feature is unavailable.</p>
+        <div class="simulation-view-container">
+            {productVariants && (
+                <ProductDisambiguationModal
+                    variants={productVariants}
+                    onSelect={handleVariantSelect}
+                    onClose={() => setProductVariants(null)}
+                />
+            )}
+            <div class="simulation-controls">
+                <div class="simulation-controls-header">
+                    <h2>{t('simulations.controls.title')}</h2>
+                    {selectedProduct && <button class="button-secondary reset-button" onClick={resetOverrides}>{t('simulations.buttons.resetDefaults')}</button>}
+                </div>
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label htmlFor="sim-warehouseId">{t('simulations.controls.warehouse')}</label>
+                        <select 
+                            id="sim-warehouseId" 
+                            value={warehouseId} 
+                            disabled={isRdcMode}
+                            onChange={(e) => {
+                                setWarehouseId((e.target as HTMLSelectElement).value);
+                                setSelectedProduct(null);
+                                setProductId('');
+                                setSimulationResult(null);
+                                setOriginalSimParams(null);
+                                setIsChartVisible(false);
+                            }}>
+                            <option value="">{t('simulations.controls.selectWarehouse')}</option>
+                            {warehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
+                        </select>
                     </div>
-                )}
-                
-                <div class="table-container">
-                    <table class="data-sources-table">
-                        <thead>
-                            <tr>
-                                <th>{t('settings.dataSources.dataType')}</th>
-                                <th>{t('settings.dataSources.linkedFile')}</th>
-                                <th>{t('settings.dataSources.actions')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {dataTypes.map(type => {
-                                const handle = linkedFiles.get(type);
-                                const isLinked = !!handle;
-                                return (
-                                    <tr key={type}>
-                                        <td><strong>{t(`dataType.${type}`)}</strong></td>
-                                        <td>
-                                            {isLinked ? (
-                                                <span class="file-info">{handle.name}</span>
-                                            ) : (
-                                                <span class="file-info">{t('settings.dataSources.notLinked')}</span>
-                                            )}
-                                        </td>
-                                        <td>
-                                            <div class="data-source-actions">
-                                                <button 
-                                                    onClick={() => onLinkFile(type)} 
-                                                    class="button-link"
-                                                    disabled={isLoading || !isApiSupported}
-                                                >
-                                                    {t('settings.dataSources.linkFile')}
-                                                </button>
-                                                {isLinked && (
-                                                    <>
-                                                        <button 
-                                                            onClick={() => onReloadFile(type)} 
-                                                            class="button-primary reload"
-                                                            disabled={isLoading || !isApiSupported}
-                                                        >
-                                                            {t('import.buttons.reload')}
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => onClearLink(type)} 
-                                                            class="button-clear"
-                                                            disabled={isLoading || !isApiSupported}
-                                                        >
-                                                            {t('settings.dataSources.clearLink')}
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
+                    <div class="filter-group">
+                        <label htmlFor="sim-productId">{t('simulations.controls.productId')}</label>
+                        <input
+                            type="text"
+                            id="sim-productId"
+                            value={productId}
+                            onInput={handleProductIdChange}
+                            placeholder={t('simulations.controls.productIdPlaceholder')}
+                            disabled={!warehouseId}
+                            autocomplete="off"
+                        />
+                        {isSuggestionsVisible && productSuggestions.length > 0 && (
+                            <ul class="suggestions-list">
+                                {productSuggestions
+                                .map(p => (
+                                    <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
+                                        <strong>{p.productId}</strong> - {p.name}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                     <div class="filter-actions">
+                        <button onClick={handleRunSimulation} disabled={!selectedProduct || isSimulating} class={`button-primary ${isDirty ? 'dirty' : ''}`}>{isDirty ? t('simulations.buttons.rerun') : t('simulations.controls.run')}</button>
+                    </div>
+                </div>
+            </div>
+
+            {isSimulating && (
+                 <div class="simulation-loading">
+                    <div class="spinner"></div>
+                    <p>{t('simulations.results.calculating')}</p>
+                 </div>
+            )}
+
+            {selectedProduct && !isSimulating && (
+                <>
+                 <div class="product-details-card">
+                    <h3>{t('simulations.details.title')}</h3>
+                    <div class="details-grid">
+                        {renderDetail('columns.product.itemGroup', selectedProduct.itemGroup)}
+                        {renderDetail('columns.product.productId', selectedProduct.productId)}
+                        {renderDetail('columns.product.name', selectedProduct.name)}
+                        {renderDetail('columns.product.caseSize', selectedProduct.caseSize)}
+                        {renderDetail('columns.product.cartonsPerPallet', selectedProduct.cartonsPerPallet)}
+                        {renderDetail('columns.product.price', formatCurrency(selectedProduct.price))}
+                        {renderDetail('columns.product.status', 
+                            <span>
+                                {selectedProduct.status}
+                                {selectedProduct.itemLocked && <span class="status-locked"> ({t('simulations.details.locked')}: {selectedProduct.itemLocked})</span>}
+                            </span>
+                        )}
+                        {renderDetail('columns.product.supplierId', selectedProduct.supplierId)}
+                        {renderDetail('columns.product.supplierName', selectedProduct.supplierName)}
+                    </div>
+                </div>
+
+                <div class="simulation-overrides-card">
+                    <h3>{t('simulations.overrides.title')}</h3>
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <label class="detail-label" htmlFor="wdate-override">{t('columns.product.shelfLifeAtReceiving')}</label>
+                            <input id="wdate-override" type="number" value={overrideWDate} onInput={(e) => handleOverrideChange(setOverrideWDate, (e.target as HTMLInputElement).value)} class="detail-input"/>
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label" htmlFor="sdate-override">{t('columns.product.shelfLifeAtStore')}</label>
+                            <input id="sdate-override" type="number" value={overrideSDate} onInput={(e) => handleOverrideChange(setOverrideSDate, (e.target as HTMLInputElement).value)} class="detail-input"/>
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label" htmlFor="cdate-override">{t('columns.product.customerShelfLife')}</label>
+                            <input id="cdate-override" type="number" value={overrideCDate} onInput={(e) => handleOverrideChange(setOverrideCDate, (e.target as HTMLInputElement).value)} class="detail-input"/>
+                        </div>
+                    </div>
+                </div>
+                </>
+            )}
+            
+            {simulationResult && !isSimulating && (
+                <div class="simulation-results">
+                    <h3>{t('simulations.results.title')}</h3>
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <h4>{t('simulations.kpi.totalWriteOffValue')}</h4>
+                            <p>{formatCurrency(simulationResult.totalWriteOffValue)}</p>
+                        </div>
+                        <div class="kpi-card">
+                            <h4>{t('simulations.kpi.daysOfStock')}</h4>
+                            <p>{simulationResult.daysOfStock.toFixed(1)} {t('simulations.details.days')}</p>
+                        </div>
+                        <div class="kpi-card">
+                            <h4>{t('simulations.kpi.aldValue')}</h4>
+                            <p>{formatCurrency(simulationResult.initialAldAffectedValue)}</p>
+                            <p class="kpi-description">{t('simulations.kpi.aldDescription')}</p>
+                        </div>
+                         <div class="kpi-card">
+                            <h4>{t('simulations.kpi.avgDailySales')}</h4>
+                            <div class="sales-adjust-controls">
+                               <input 
+                                 type="number" 
+                                 value={overrideAvgSales}
+                                 onInput={(e) => handleOverrideChange(setOverrideAvgSales, (e.target as HTMLInputElement).value)}
+                                 class="kpi-input"
+                                />
+                               <div class="adjust-buttons">
+                                <button class="adjust-btn" onClick={() => adjustSales(0.10)} title={t('simulations.kpi.salesAdjustUp')}>+10%</button>
+                                <button class="adjust-btn" onClick={() => adjustSales(-0.10)} title={t('simulations.kpi.salesAdjustDown')}>-10%</button>
+                               </div>
+                            </div>
+                            <span class="sales-reset-value" onClick={() => { setOverrideAvgSales((originalSimParams || simulationResult).avgDailySales.toFixed(2)); setIsDirty(true);}} title={t('simulations.kpi.salesResetTooltip')}>
+                                {t('simulations.kpi.original')}: {(originalSimParams || simulationResult).avgDailySales.toFixed(2)}
+                            </span>
+                        </div>
+                        <div class="kpi-card">
+                            <h4>{t('simulations.kpi.nonCompliantReceipts')}</h4>
+                            <p>{simulationResult.nonCompliantReceiptsCount}</p>
+                        </div>
+                        <div class="kpi-card">
+                            <h4>{t('simulations.kpi.firstWriteOffDate')}</h4>
+                            <p>{simulationResult.firstWriteOffDate || t('simulations.results.none')}</p>
+                        </div>
+                    </div>
+
+                    {simulationResult.log && simulationResult.log.length > 0 && (
+                        <div class="expandable-section">
+                            <div class="expandable-header" onClick={() => setIsChartVisible(!isChartVisible)}>
+                                <h4>{t('simulations.chart.title')}</h4>
+                                <button>
+                                    {isChartVisible ? t('simulations.buttons.hideChart') : t('simulations.buttons.showChart')}
+                                </button>
+                            </div>
+                            <div class={`expandable-content ${isChartVisible ? 'expanded' : ''}`}>
+                                <StockChart data={simulationResult.log.slice(0, 14)} />
+                            </div>
+                        </div>
+                    )}
+
+                    <div class="initial-stock-composition">
+                        <div class="initial-stock-header">
+                            <h4>{t('simulations.initialStock.title')}</h4>
+                             <div class="table-legend-container">
+                                <div class="legend-item"><div class="legend-color-box ald"></div><span>{t('simulations.initialStock.legend.ald')}</span></div>
+                                <div class="legend-item"><div class="legend-color-box write-off"></div><span>{t('simulations.initialStock.legend.writeOff')}</span></div>
+                                <div class="legend-item"><div class="legend-color-box non-compliant"></div><span>{t('simulations.initialStock.legend.nonCompliant')}</span></div>
+                                <div class="legend-item"><div class="legend-color-box manual"></div><span>{t('simulations.initialStock.legend.manual')}</span></div>
+                            </div>
+                        </div>
+                        {!simulationResult.isStockDataComplete && (
+                            <p class="data-completeness-warning">
+                                {t('simulations.initialStock.warning')}
+                            </p>
+                        )}
+                        <div class="table-container">
+                            <table class="initial-stock-table">
+                                <thead>
+                                    <tr>
+                                        <th>{t('simulations.initialStock.deliveryDate')}</th>
+                                        <th>{t('simulations.initialStock.bestBeforeDate')}</th>
+                                        <th>{t('simulations.initialStock.daysForSale')}</th>
+                                        <th>{t('simulations.initialStock.regulationBreached')}</th>
+                                        <th>{t('simulations.initialStock.quantity')}</th>
                                     </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                </thead>
+                                <tbody>
+                                    {simulationResult.initialStockComposition.map((batch: InitialStockBatch, index) => (
+                                        <tr key={`${batch.deliveryDate}-${batch.bestBeforeDate}-${index}`} class={`${batch.isNonCompliant ? 'non-compliant-row' : ''} ${batch.isAffectedByWriteOff ? 'batch-risk-row' : ''} ${batch.isManual ? 'manual-delivery-row' : ''} ${batch.isAldAffected ? 'ald-risk-row' : ''}`}>
+                                            <td>{batch.isUnknown ? t('simulations.initialStock.unknownBatch') : batch.deliveryDate}</td>
+                                            <td>{batch.bestBeforeDate}</td>
+                                            <td>{batch.daysToSell}</td>
+                                            <td>{batch.isNonCompliant ? t('common.yesShort') : t('common.noShort')}</td>
+                                            <td>{batch.quantity.toLocaleString(language)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
-            <div class="settings-section">
-                <h3>{t('settings.configManagement.title')}</h3>
-                <p>{t('settings.configManagement.description')}</p>
-                <div class="filter-actions">
-                    <button class="button-primary" onClick={onExportConfig}>{t('settings.configManagement.exportButton')}</button>
-                    <button class="button-primary" onClick={onImportClick}>{t('settings.configManagement.importButton')}</button>
-                </div>
-            </div>
-
-            {isHq && (
-                <div class="settings-section">
-                    <h3>{t('settings.rdcManagement.title')}</h3>
-                    <p>{t('settings.rdcManagement.description')}</p>
+                    <div class="manual-delivery-section">
+                        <h4>{t('simulations.manualDelivery.title')}</h4>
+                         <div class="filter-bar">
+                            <div class="filter-group">
+                                <label htmlFor="manual-delivery-date">{t('simulations.manualDelivery.date')}</label>
+                                <input 
+                                    type="date" 
+                                    id="manual-delivery-date" 
+                                    value={newDelivery.date}
+                                    onInput={(e) => setNewDelivery(prev => ({...prev, date: (e.target as HTMLInputElement).value}))}
+                                />
+                            </div>
+                            <div class="filter-group">
+                                <label htmlFor="manual-best-before-date">{t('simulations.manualDelivery.bestBeforeDate')}</label>
+                                <input 
+                                    type="date" 
+                                    id="manual-best-before-date" 
+                                    value={newDelivery.bestBeforeDate}
+                                    onInput={(e) => setNewDelivery(prev => ({...prev, bestBeforeDate: (e.target as HTMLInputElement).value}))}
+                                />
+                            </div>
+                            <div class="filter-group">
+                                 <label htmlFor="manual-delivery-qty">{t('simulations.manualDelivery.quantity')}</label>
+                                 <input 
+                                    type="number" 
+                                    id="manual-delivery-qty" 
+                                    value={newDelivery.quantity}
+                                    onInput={(e) => setNewDelivery(prev => ({...prev, quantity: (e.target as HTMLInputElement).value}))}
+                                    placeholder="0"
+                                />
+                            </div>
+                            <div class="filter-actions">
+                                <button class="button-primary" onClick={handleAddManualDelivery}>{t('simulations.buttons.add')}</button>
+                            </div>
+                         </div>
+                         {manualDeliveries.length > 0 && (
+                            <div class="manual-deliveries-list">
+                                <h5>{t('simulations.manualDelivery.addedTitle')}</h5>
+                                <ul>
+                                    {manualDeliveries.map(d => (
+                                        <li key={d.id}>
+                                            <span>{d.date} (BBD: {d.bestBeforeDate}): {d.quantity.toLocaleString(language)}</span>
+                                            <button onClick={() => handleRemoveManualDelivery(d.id)}>&times;</button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                         )}
+                    </div>
+                    
+                    <h4>{t('simulations.log.title')}</h4>
                     <div class="table-container">
-                        <table class="rdc-management-table">
+                        <table>
                             <thead>
                                 <tr>
-                                    <th>{t('settings.rdcManagement.rdcId')}</th>
-                                    <th>{t('settings.rdcManagement.rdcName')}</th>
-                                    <th>{t('settings.dataSources.actions')}</th>
+                                    <th>{t('simulations.log.date')}</th>
+                                    <th>{t('simulations.log.stockStart')}</th>
+                                    <th>{t('simulations.log.sales')}</th>
+                                    <th>{t('simulations.log.receipts')}</th>
+                                    <th>{t('simulations.log.writeOffs')}</th>
+                                    <th>{t('simulations.log.ald')}</th>
+                                    <th>{t('simulations.log.stockEnd')}</th>
+                                    <th>{t('simulations.log.notes')}</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {rdcList.map(rdc => (
-                                    <tr key={rdc.id}>
-                                        <td>{rdc.id}</td>
-                                        <td>{rdc.name}</td>
-                                        <td class="rdc-actions">
-                                            <button 
-                                                onClick={() => {
-                                                    if(confirm(t('settings.rdcManagement.deleteConfirm'))) {
-                                                        onDeleteRdc(rdc.id)
-                                                    }
-                                                }}
-                                                title={t('settings.rdcManagement.deleteRdc')}
-                                            >&times;</button>
-                                        </td>
+                                {(isLogExpanded ? simulationResult.log : simulationResult.log.slice(0, 14)).map(entry => (
+                                    <tr key={entry.date} class={`${entry.writeOffs > 0 ? 'log-write-off-row' : ''} ${entry.stockEnd === 0 && entry.writeOffs === 0 ? 'log-stock-out-row' : ''}`}>
+                                        <td>{entry.date}</td>
+                                        <td>{entry.stockStart.toLocaleString(language)}</td>
+                                        <td>{entry.sales.toLocaleString(language)}</td>
+                                        <td>{entry.receipts.toLocaleString(language)}</td>
+                                        <td>{entry.writeOffs.toLocaleString(language)}</td>
+                                        <td>{entry.aldAffectedStock.toLocaleString(language)}</td>
+                                        <td>{entry.stockEnd.toLocaleString(language)}</td>
+                                        <td>{entry.notes}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-                    <form class="add-rdc-form" onSubmit={handleAddRdc}>
-                        <div class="filter-group">
-                            <label for="new-rdc-id">{t('settings.rdcManagement.rdcId')}</label>
-                            <input 
-                                id="new-rdc-id" 
-                                type="text" 
-                                value={newRdc.id}
-                                onInput={(e) => setNewRdc({...newRdc, id: (e.target as HTMLInputElement).value})}
-                                required
-                            />
+                     {simulationResult.log.length > 14 && (
+                        <div class="log-toggle-container">
+                            <button class="log-toggle-button" onClick={() => setIsLogExpanded(!isLogExpanded)}>
+                                {isLogExpanded ? t('simulations.buttons.showLess') : t('simulations.buttons.showMore')}
+                            </button>
                         </div>
-                        <div class="filter-group">
-                            <label for="new-rdc-name">{t('settings.rdcManagement.rdcName')}</label>
-                            <input 
-                                id="new-rdc-name" 
-                                type="text" 
-                                value={newRdc.name}
-                                onInput={(e) => setNewRdc({...newRdc, name: (e.target as HTMLInputElement).value})}
-                                required
-                            />
-                        </div>
-                        <div class="filter-actions">
-                             <button type="submit" class="button-primary">{t('settings.rdcManagement.addRdc')}</button>
-                        </div>
-                    </form>
+                    )}
                 </div>
             )}
 
-            <div class="settings-section">
-                <h3>{t('settings.watchlists.title')}</h3>
-                <p>{t('settings.watchlists.description')}</p>
-            </div>
         </div>
     );
 };
