@@ -102,7 +102,8 @@ export default {
   "placeholders": {
     "report": {
         "title": "Risikobericht",
-        "description": "Hier wird eine Liste der Produkte mit potenziellem Verlustrisiko angezeigt, sortiert nach Dringlichkeit. Diese Funktion ist in Entwicklung."
+        "description": "Hier wird eine Liste der Produkte mit potenziellem Verlustrisiko angezeigt, sortiert nach Dringlichkeit. Diese Funktion ist in Entwicklung.",
+        "accessDenied": "Diese Funktion ist nur für HQ-Benutzer verfügbar."
     },
     "dashboard": {
         "title": "Dashboard",
@@ -189,6 +190,9 @@ export default {
         "rerun": "Neu starten",
         "showChart": "Diagramm anzeigen",
         "hideChart": "Diagramm ausblenden"
+    },
+    "watchlist": {
+        "viewing": "Artikel {{current}} von {{total}} wird angezeigt"
     }
   },
   "settings": {
@@ -251,6 +255,36 @@ export default {
     "goodsReceipts": "Wareneingänge",
     "openOrders": "Offene Bestellungen",
     "sales": "Verkaufsdaten"
+  },
+  "threatReport": {
+    "title": "Risikobericht",
+    "description": "Führen Sie eine Massensimulation für Produkte basierend auf ausgewählten Kriterien durch, um Artikel mit dem höchsten Abschreibungsrisiko zu identifizieren.",
+    "controls": {
+      "title": "Berichtsparameter",
+      "warehouses": "Lager",
+      "itemGroups": "Artikelgruppen",
+      "statuses": "Status",
+      "runReport": "Bericht erstellen",
+      "selectAll": "Alle auswählen",
+      "deselectAll": "Alle abwählen",
+      "runningTitle": "Bericht wird erstellt...",
+      "runningDescription": "Analysiere {{processed}} von {{total}} Produkten. Dies kann einen Moment dauern."
+    },
+    "results": {
+      "title": "Berichtsergebnisse",
+      "noResults": "Keine Produkte entsprechen den ausgewählten Kriterien, oder es wurden keine Risiken gefunden.",
+      "goToSimulation": "Analysieren",
+      "analyzeSelected": "Ausgewählte analysieren ({{count}})",
+      "warehouseId": "Lager",
+      "productId": "Artikel",
+      "caseSize": "VE-Größe",
+      "palletFactor": "Pal.-Faktor",
+      "daysOfStock": "Reichweite",
+      "aldValue": "ALD-Wert",
+      "avgDailySales": "Ø Verkauf",
+      "nonCompliantReceipts": "N-konf. Eing.",
+      "writeOffValue": "Abschr.-Wert"
+    }
   },
   "columns": {
     "product": {
