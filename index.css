@@ -8,6 +8,7 @@
   --danger-color: #e74c3c;
   --danger-hover-color: #c0392b;
   --success-color: #2ecc71;
+  --success-hover-color: #27ae60;
   --info-color: #3498db;
   --warning-color: #f39c12;
   --font-family-main: 'Inter', sans-serif;
@@ -218,6 +219,15 @@ h5 {
   gap: 1rem;
 }
 
+.import-linked-info {
+    font-size: 0.85rem;
+    color: var(--text-light-color);
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--border-color);
+    word-break: break-all;
+}
+
 
 .actions-container {
   display: flex;
@@ -230,7 +240,7 @@ h5 {
   flex-shrink: 0;
 }
 
-.button-primary, .button-secondary, .file-label, .button-clear {
+.button-primary, .button-secondary, .file-label, .button-clear, .button-link {
   cursor: pointer;
   padding: 10px 20px;
   border: 1px solid transparent;
@@ -241,7 +251,7 @@ h5 {
   text-align: center;
   font-size: 0.9rem;
 }
-.button-primary:active, .button-secondary:active, .file-label:active, .button-clear:active {
+.button-primary:active, .button-secondary:active, .file-label:active, .button-clear:active, .button-link:active {
   transform: translateY(1px);
 }
 
@@ -252,7 +262,7 @@ h5 {
 .file-label:hover {
   background-color: var(--primary-hover-color);
 }
-.file-label.disabled, .button-primary:disabled, .button-clear:disabled {
+.file-label.disabled, .button-primary:disabled, .button-clear:disabled, .button-link:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -272,6 +282,13 @@ h5 {
     background-color: #e67e22;
 }
 
+.button-primary.reload {
+    background-color: var(--success-color);
+}
+.button-primary.reload:hover:not(:disabled) {
+    background-color: var(--success-hover-color);
+}
+
 .button-secondary {
   background-color: var(--danger-color);
 }
@@ -287,6 +304,16 @@ h5 {
 }
 .button-clear:hover:not(:disabled) {
     background-color: var(--danger-color);
+    color: white;
+}
+
+.button-link {
+    background-color: transparent;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+.button-link:hover:not(:disabled) {
+    background-color: var(--primary-color);
     color: white;
 }
 
@@ -1118,6 +1145,53 @@ tr:hover {
     visibility: hidden; /* Hide completely */
   }
 }
+
+/* Settings View Styles */
+.settings-view {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+.settings-section {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+.settings-section p {
+  margin-top: -0.5rem;
+  margin-bottom: 1.5rem;
+  max-width: 80ch;
+}
+.data-sources-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-sources-table th, .data-sources-table td {
+  text-align: left;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+.data-sources-table th {
+  color: var(--text-light-color);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.data-sources-table tr:last-child td {
+  border-bottom: none;
+}
+.file-info {
+  font-style: italic;
+  color: var(--text-light-color);
+  word-break: break-all;
+}
+.data-source-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 
 @media (max-width: 900px) {
   .app-layout {
