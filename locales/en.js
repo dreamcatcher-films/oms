@@ -1,4 +1,3 @@
-
 export default {
   "header": {
     "title": "OMS",
@@ -242,6 +241,18 @@ export default {
       "selectRdc": "Select Warehouse",
       "loginButton": "Login",
       "invalidPassword": "Password is incorrect."
+  },
+  "productSelection": {
+    "title": "Select Product Variant",
+    "description": "Multiple products match this ID. Please select the correct one to continue.",
+    "selectButton": "Select",
+    "headers": {
+      "fullProductId": "Full Product No.",
+      "name": "Name",
+      "status": "Status",
+      "caseSize": "Case Size",
+      "stockOnHand": "Stock on Hand"
+    }
   },
   "common": {
       "yesShort": "Y",
