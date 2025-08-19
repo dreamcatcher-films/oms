@@ -319,6 +319,7 @@ export default {
     },
     "results": {
       "title": "Inconsistent Products",
+      "titleWithConsistent": "Results ({{count}}) incl. Consistent Items",
       "noResults": "No products with inconsistent statuses were found.",
       "productId": "Product No.",
       "productName": "Product Name",
