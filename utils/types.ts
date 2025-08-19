@@ -167,6 +167,7 @@ export type StatusReportResultItem = {
     dominantStatusInfo: DominantStatusInfo;
     statusesByWarehouse: Record<string, string>; 
     stockByWarehouse: Record<string, number>;
+    isInconsistent: boolean;
 };
 
 export type StatusReportProgressPayload = {
