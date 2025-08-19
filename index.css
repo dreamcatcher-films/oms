@@ -1540,10 +1540,22 @@ tr:hover {
     border-radius: 8px;
     border: 1px solid var(--border-color);
 }
+.summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.summary-header .arrow {
+    transition: transform 0.2s ease-in-out;
+}
+
+.summary-header.collapsed .arrow {
+    transform: rotate(-90deg);
+}
 .summary-table-container {
     margin-top: 1rem;
-    max-height: 250px;
-    overflow-y: auto;
     overflow-x: auto;
 }
 .summary-table-container table {
@@ -1690,8 +1702,8 @@ tr:hover {
 
 .status-report-results th.item-group-col,
 .status-report-results td.item-group-col {
-    max-width: 170px;
-    width: 170px;
+    max-width: 150px;
+    width: 150px;
 }
 
 .truncated-cell-content {
