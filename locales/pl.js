@@ -233,6 +233,17 @@ export default {
         "deleteSuccess": "Magazyn usunięty pomyślnie.",
         "deleteConfirm": "Czy na pewno chcesz usunąć ten magazyn?"
     },
+    "exclusionList": {
+      "title": "Zarządzanie Listą Wykluczeń",
+      "description": "Zaimportuj listę numerów produktów, które mają być wykluczone z obliczeń 'Podejrzanych statusów' w Raporcie Statusów. Produkty te nadal będą widoczne w raporcie, ale zostaną podświetlone.",
+      "importButton": "Importuj listę (.txt)",
+      "clearButton": "Wyczyść listę",
+      "currentCount": "Na liście wykluczeń znajduje się {{count}} pozycji.",
+      "importSuccess": "Lista wykluczeń zaimportowana pomyślnie. Załadowano {{count}} pozycji.",
+      "importError": "Błąd podczas importu listy wykluczeń.",
+      "clearSuccess": "Lista wykluczeń została wyczyszczona.",
+      "clearConfirm": "Czy na pewno chcesz wyczyścić całą listę wykluczeń?"
+    },
     "watchlists": {
         "title": "Listy Obserwowane",
         "description": "Twórz i zarządzaj listami produktów do monitorowania. (Funkcja w budowie)"
@@ -303,13 +314,19 @@ export default {
       "excludeWhenDominantIs": "Wyklucz, gdy status dominujący to:",
       "apply": "Filtruj",
       "clear": "Wyczyść filtry",
-      "all": "Wszystkie"
+      "all": "Wszystkie",
+      "pastedInfo": "Filtrowanie wg {{count}} wklejonych pozycji"
+    },
+    "exclusionInfo": {
+      "info": "Wykluczone pozycje wgrano {{date}} o {{time}}. Załadowano pozycji: {{count}}",
+      "updateButton": "Zaktualizuj listę"
     },
     "summary": {
       "title": "Podsumowanie Raportu",
       "warehouse": "Magazyn",
       "itemsChecked": "Sprawdzone art.",
       "suspiciousStatuses": "Podejrzane statusy",
+      "excluded": "Wykluczone",
       "status8Items": "Artykuły ze stat. 8"
     },
     "statusTypes": {
@@ -319,12 +336,16 @@ export default {
     },
     "results": {
       "title": "Niespójne Produkty",
+      "titleWithConsistent": "Wyniki ({{count}}) z uwzgl. Spójnych",
       "noResults": "Nie znaleziono produktów z niespójnymi statusami.",
       "productId": "Nr artykułu",
       "productName": "Nazwa produktu",
       "caseSize": "Szt. w kart.",
       "dominantStatus": "Ustalony Status",
       "exportPdf": "Eksportuj do PDF"
+    },
+    "tooltips": {
+      "excluded": "Wykluczony z analizy"
     },
     "pdf": {
       "summaryTitle": "Podsumowanie dla magazynów",
