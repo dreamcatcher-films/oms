@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'preact/hooks';
 import type { VNode } from 'preact';
 import { useTranslation } from '../i18n';
-import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, RDC } from '../utils/types';
+import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, RDC, ExclusionListData } from '../utils/types';
 import { itemGroupMap } from '../utils/itemGroups';
 // @ts-ignore
 import jsPDF from 'jspdf';
@@ -13,9 +13,9 @@ const PAGE_SIZE = 20;
 const SUSPICIOUS_STATUSES = ['5', '6', '7', '9', '10', '11', '12'];
 const EXCLUDABLE_STATUSES = ['5', '6', '7', '8', '9', '10', '11', '12','-'];
 
-export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<string> }) => {
+export const StatusReportView = (props: { rdcList: RDC[], exclusionList: ExclusionListData, onUpdateExclusionList: () => void }) => {
     const { t, language } = useTranslation();
-    const { rdcList, exclusionList } = props;
+    const { rdcList, exclusionList, onUpdateExclusionList } = props;
     const workerRef = useRef<Worker | null>(null);
 
     const [isLoading, setIsLoading] = useState(false);
@@ -179,7 +179,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<str
                         summary[whId].filteredStatus8Items++;
                     }
                     // Only count as suspicious if inconsistent AND NOT on the exclusion list
-                    if (item.isInconsistent && !exclusionList.has(item.productId) && status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status)) {
+                    if (item.isInconsistent && !exclusionList.list.has(item.productId) && status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status)) {
                         summary[whId].filteredSuspiciousCounts[status] = (summary[whId].filteredSuspiciousCounts[status] || 0) + 1;
                     }
                 }
@@ -298,7 +298,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<str
         item: StatusReportResultItem,
         warehouseId: string
     ) => {
-        const isExcluded = exclusionList.has(item.productId);
+        const isExcluded = exclusionList.list.has(item.productId);
 
         let content: VNode;
         if (isExcluded) {
@@ -522,7 +522,21 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<str
             <div class="status-report-controls">
                 <h3>{t('statusReport.title')}</h3>
                 <p>{t('statusReport.description')}</p>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem'}}>
+                 {exclusionList.lastUpdated && (
+                    <div class="exclusion-list-info-bar">
+                        <span class="info-text">
+                            {t('statusReport.exclusionInfo.info', { 
+                                date: exclusionList.lastUpdated.toLocaleDateString(language), 
+                                time: exclusionList.lastUpdated.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' }),
+                                count: exclusionList.list.size 
+                            })}
+                        </span>
+                        <button class="button-secondary" onClick={onUpdateExclusionList}>
+                            {t('statusReport.exclusionInfo.updateButton')}
+                        </button>
+                    </div>
+                )}
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginTop: '1.5rem'}}>
                     <button class="button-primary" onClick={handleRunReport} disabled={isLoading}>
                         {reportResults ? t('simulations.buttons.rerun') : t('statusReport.runReport')}
                     </button>
@@ -709,7 +723,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<str
                                 </thead>
                                 <tbody>
                                     {paginatedResults.map(item => {
-                                        const isExcluded = exclusionList.has(item.productId);
+                                        const isExcluded = exclusionList.list.has(item.productId);
                                         return (
                                         <tr key={`${item.productId}-${item.caseSize}`} class={isExcluded ? 'excluded-row' : ''}>
                                             <td>{item.productId}</td>
