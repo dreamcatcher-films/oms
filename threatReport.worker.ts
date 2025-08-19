@@ -188,7 +188,15 @@ async function runSimulationForProduct(product: Product): Promise<ReportResultIt
 // --- Worker Main Logic ---
 onmessage = async (e: MessageEvent<WorkerRequest>) => {
     const filters = e.data;
-    const productsToProcess = await getProductsByCriteria(filters);
+    let productsToProcess = await getProductsByCriteria(filters);
+
+    // Exclude item groups with ID > 95
+    productsToProcess = productsToProcess.filter(product => {
+        if (!product.itemGroup) return true; // Keep if no item group
+        const itemGroupId = parseInt(product.itemGroup, 10);
+        return isNaN(itemGroupId) || itemGroupId <= 95;
+    });
+    
     const total = productsToProcess.length;
     
     const results: ReportResultItem[] = [];
