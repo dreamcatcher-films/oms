@@ -13,9 +13,9 @@ const PAGE_SIZE = 20;
 const SUSPICIOUS_STATUSES = ['5', '6', '7', '9', '10', '11', '12'];
 const EXCLUDABLE_STATUSES = ['5', '6', '7', '8', '9', '10', '11', '12','-'];
 
-export const StatusReportView = (props: { rdcList: RDC[] }) => {
+export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<string> }) => {
     const { t, language } = useTranslation();
-    const { rdcList } = props;
+    const { rdcList, exclusionList } = props;
     const workerRef = useRef<Worker | null>(null);
 
     const [isLoading, setIsLoading] = useState(false);
@@ -138,7 +138,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     }, [reportResults, productIdFilter, pastedProductIds, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, showOnlyUndetermined, excludedDominantStatuses, includeConsistent]);
     
     const combinedSummaryData = useMemo(() => {
-        if (!filteredResults) return null;
+        if (!reportResults) return null;
 
         const summary: {
             [whId: string]: {
@@ -156,24 +156,35 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
             };
         });
         
-        for (const item of filteredResults) {
+        // Base calculation on all results from the worker
+        for (const item of reportResults) {
             for (const rdc of rdcList) {
                 const whId = rdc.id;
                 if (item.statusesByWarehouse[whId] !== undefined) {
                     summary[whId].totalItemsChecked++;
+                }
+            }
+        }
+
+        // Now, calculate filtered stats based on the filtered results
+        for (const item of filteredResults) {
+             for (const rdc of rdcList) {
+                const whId = rdc.id;
+                 if (item.statusesByWarehouse[whId] !== undefined) {
                     const status = item.statusesByWarehouse[whId];
                     if (status === '8') {
                         summary[whId].filteredStatus8Items++;
                     }
-                    if (item.isInconsistent && status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status)) {
+                    // Only count as suspicious if inconsistent AND NOT on the exclusion list
+                    if (item.isInconsistent && !exclusionList.has(item.productId) && status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status)) {
                         summary[whId].filteredSuspiciousCounts[status] = (summary[whId].filteredSuspiciousCounts[status] || 0) + 1;
                     }
                 }
             }
         }
-
+        
         return summary;
-    }, [filteredResults, rdcList]);
+    }, [filteredResults, reportResults, rdcList, exclusionList]);
     
     const foundSuspiciousStatuses = useMemo(() => {
         if (!combinedSummaryData) return [];
@@ -275,18 +286,24 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         item: StatusReportResultItem,
         warehouseId: string
     ) => {
-        const stock = item.stockByWarehouse[warehouseId];
-        const orderInfo = item.openOrdersByWarehouse[warehouseId];
+        const isExcluded = exclusionList.has(item.productId);
 
-        const content = (
-            <div>
-                <p><strong>{t('columns.product.stockOnHand')}:</strong> {stock !== undefined ? stock.toLocaleString(language) : 'N/A'}</p>
-                <p><strong>{t('dataType.openOrders')}:</strong> {orderInfo?.hasFutureOrders ? t('common.yesShort') : t('common.noShort')}</p>
-                {orderInfo?.hasFutureOrders && orderInfo.nextOrderDate && (
-                    <p><strong>{t('columns.openOrder.deliveryDate')}:</strong> {orderInfo.nextOrderDate}</p>
-                )}
-            </div>
-        );
+        let content: VNode;
+        if (isExcluded) {
+            content = <div><strong>{t('statusReport.tooltips.excluded')}</strong></div>;
+        } else {
+            const stock = item.stockByWarehouse[warehouseId];
+            const orderInfo = item.openOrdersByWarehouse[warehouseId];
+            content = (
+                <div>
+                    <p><strong>{t('columns.product.stockOnHand')}:</strong> {stock !== undefined ? stock.toLocaleString(language) : 'N/A'}</p>
+                    <p><strong>{t('dataType.openOrders')}:</strong> {orderInfo?.hasFutureOrders ? t('common.yesShort') : t('common.noShort')}</p>
+                    {orderInfo?.hasFutureOrders && orderInfo.nextOrderDate && (
+                        <p><strong>{t('columns.openOrder.deliveryDate')}:</strong> {orderInfo.nextOrderDate}</p>
+                    )}
+                </div>
+            );
+        }
         
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         setTooltip({
@@ -679,8 +696,10 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {paginatedResults.map(item => (
-                                        <tr key={`${item.productId}-${item.caseSize}`}>
+                                    {paginatedResults.map(item => {
+                                        const isExcluded = exclusionList.has(item.productId);
+                                        return (
+                                        <tr key={`${item.productId}-${item.caseSize}`} class={isExcluded ? 'excluded-row' : ''}>
                                             <td>{item.productId}</td>
                                             <td title={item.productName}>
                                                 <div class="truncated-cell-content" style={{width: `${(productNameWidth || 200) - 24}px`}}>
@@ -717,7 +736,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                                 );
                                             })}
                                         </tr>
-                                    ))}
+                                    )})}
                                 </tbody>
                             </table>
                         </div>
