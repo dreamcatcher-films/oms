@@ -1523,7 +1523,6 @@ tr:hover {
     flex-direction: column;
     gap: 1.5rem;
 }
-
 .status-report-controls {
     background-color: white;
     padding: 1.5rem;
@@ -1535,9 +1534,48 @@ tr:hover {
     margin-bottom: 1.5rem;
     max-width: 80ch;
 }
+.status-report-summary {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+.summary-table-container {
+    margin-top: 1rem;
+    max-height: 250px;
+    overflow-y: auto;
+}
+.summary-table-container table {
+    font-size: 0.9rem;
+}
+.summary-table-container th {
+    font-size: 0.8rem;
+}
+
+.status-report-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+.status-report-checkbox-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.status-report-checkbox-filters label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+.status-report-results .table-container {
+    overflow-x: auto;
+}
 .status-report-results table th, .status-report-results table td {
     padding: 10px 12px;
     text-align: center;
+    white-space: nowrap;
 }
 .status-report-results table th:nth-child(1),
 .status-report-results table td:nth-child(1),
@@ -1545,12 +1583,38 @@ tr:hover {
 .status-report-results table td:nth-child(2) {
     text-align: left;
 }
+.status-report-results .warehouse-header {
+    line-height: 1.2;
+}
+.status-report-results .rdc-name {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: normal;
+    color: var(--text-light-color);
+}
 .status-inconsistent {
     background-color: #f8d7da;
     color: #721c24;
     font-weight: bold;
 }
-
+.status-report-results th.resizable {
+    position: relative;
+    overflow: visible;
+}
+.resizer {
+    position: absolute;
+    top: 0;
+    right: -2px;
+    width: 5px;
+    cursor: col-resize;
+    user-select: none;
+    height: 100%;
+    z-index: 2;
+}
+.resizer:hover, .resizing {
+    background-color: var(--primary-color);
+    opacity: 0.5;
+}
 
 @media (max-width: 900px) {
   .app-layout {
