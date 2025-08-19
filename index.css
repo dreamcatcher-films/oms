@@ -1564,6 +1564,8 @@ tr:hover {
 .summary-table-container .group-header {
     font-weight: bold;
     background-color: #f8f9fa;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
 }
 
 
@@ -1584,6 +1586,36 @@ tr:hover {
     gap: 0.5rem;
     font-size: 0.9rem;
 }
+
+.dominant-status-exclude-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  grid-column: 1 / -1; /* Make it span all columns */
+  margin-top: 0.5rem;
+}
+
+.dominant-status-exclude-filter .filter-group-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-light-color);
+  margin-bottom: 0.25rem;
+}
+
+.dominant-status-exclude-filter .checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.dominant-status-exclude-filter .checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
 .status-report-results .table-container {
     overflow-x: auto;
 }
