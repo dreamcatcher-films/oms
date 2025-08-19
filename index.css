@@ -1561,6 +1561,10 @@ tr:hover {
 .summary-table-container th:first-child {
     text-align: left;
 }
+.summary-table-container .group-header {
+    font-weight: bold;
+    background-color: #f8f9fa;
+}
 
 
 .status-report-filters {
@@ -1639,6 +1643,11 @@ tr:hover {
 .resizer:hover, .resizing {
     background-color: var(--primary-color);
     opacity: 0.5;
+}
+
+.small-font-cell {
+    font-size: 0.85em;
+    color: var(--text-light-color);
 }
 
 @media (max-width: 900px) {
