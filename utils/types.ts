@@ -151,13 +151,18 @@ export type WorkerMessage =
 // --- Status Report Worker Types ---
 export type StatusReportWorkerRequest = {}; // No params needed for now
 
+export type DominantStatusInfo = {
+    status: string; // The status value, or '-' if none
+    type: 'dominant' | 'most_frequent' | 'none';
+};
+
 export type StatusReportResultItem = {
     productId: string;
     productName: string;
     caseSize: number;
-    dominantStatus: string;
-    // e.g. { '220': '8', '250': '11' }
+    dominantStatusInfo: DominantStatusInfo;
     statusesByWarehouse: Record<string, string>; 
+    stockByWarehouse: Record<string, number>;
 };
 
 export type StatusReportProgressPayload = {
