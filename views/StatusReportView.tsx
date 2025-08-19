@@ -578,10 +578,12 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                 id="sr-productId"
                                 type="text"
                                 value={pastedProductIds.length > 0 ? t('statusReport.filters.pastedInfo', { count: pastedProductIds.length }) : productIdFilter}
-                                onInput={(e) => setProductIdFilter((e.target as HTMLInputElement).value)}
+                                onInput={(e) => {
+                                    if (pastedProductIds.length > 0) setPastedProductIds([]);
+                                    setProductIdFilter((e.target as HTMLInputElement).value);
+                                }}
                                 onPaste={handlePaste}
                                 placeholder={t('dataPreview.filters.productIdPlaceholder')}
-                                disabled={pastedProductIds.length > 0}
                             />
                         </div>
                         <div class="filter-group">
