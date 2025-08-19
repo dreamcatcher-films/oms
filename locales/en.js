@@ -299,6 +299,7 @@ export default {
       "dominantStatus": "Status",
       "excludeNoStock": "Exclude items with no stock",
       "showOnlyUndetermined": "Show only items without dominant status",
+      "includeConsistent": "Include consistent items",
       "excludeWhenDominantIs": "Exclude when dominant status is:",
       "apply": "Apply Filters",
       "clear": "Clear Filters",
