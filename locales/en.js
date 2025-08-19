@@ -10,6 +10,7 @@ export default {
     "import": "Data Import",
     "dataPreview": "Data Preview",
     "threatReport": "Threat Report",
+    "statusReport": "Status Report",
     "dashboard": "Dashboard",
     "simulations": "Simulations",
     "settings": "Settings"
@@ -284,6 +285,21 @@ export default {
       "avgDailySales": "Avg. Sales",
       "nonCompliantReceipts": "Non-Compl. Rec.",
       "writeOffValue": "Write-Off Value"
+    }
+  },
+  "statusReport": {
+    "title": "Status Consistency Report",
+    "description": "Run a report to find products with inconsistent statuses across different warehouses. The report will only show products where a status mismatch is detected.",
+    "runReport": "Run Report",
+    "runningTitle": "Generating Report...",
+    "runningDescription": "Analyzing {{processed}} of {{total}} product groups.",
+    "results": {
+      "title": "Inconsistent Products",
+      "noResults": "No products with inconsistent statuses were found.",
+      "productId": "Product No.",
+      "productName": "Product Name",
+      "caseSize": "Case Size",
+      "dominantStatus": "Dominant Status"
     }
   },
   "columns": {
