@@ -123,7 +123,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     }, [reportResults, productIdFilter, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, requireActiveStatus, showOnlyUndetermined]);
     
     const summaryData = useMemo<DetailedSummaryData | null>(() => {
-        if (!reportResults) return null;
+        if (!filteredResults) return null;
 
         const summary: DetailedSummaryData = {};
         
@@ -131,7 +131,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
              summary[rdc.id] = { itemsChecked: 0, status8Items: 0, suspiciousStatusCounts: {} };
         });
         
-        for (const item of reportResults) {
+        for (const item of filteredResults) {
             for (const [whId, status] of Object.entries(item.statusesByWarehouse)) {
                 if (summary[whId]) {
                     summary[whId].itemsChecked++;
@@ -145,7 +145,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
             }
         }
         return summary;
-    }, [reportResults, rdcList]);
+    }, [filteredResults, rdcList]);
     
     const foundSuspiciousStatuses = useMemo(() => {
         if (!summaryData) return [];
@@ -263,7 +263,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                     item.productId,
                     item.productName,
                     item.dispoGroup,
-                    itemGroupMap[item.itemGroup] || item.itemGroup,
+                    `${item.itemGroup} - ${itemGroupMap[item.itemGroup] || ''}`,
                     item.caseSize,
                     `${item.dominantStatusInfo.status} (${t(`statusReport.statusTypes.${item.dominantStatusInfo.type}`)})`,
                     ...warehouseColumns.map(wh => item.statusesByWarehouse[wh] ?? '-')
@@ -359,7 +359,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                             <label htmlFor="sr-itemGroup">{t('columns.product.itemGroup')}</label>
                             <select id="sr-itemGroup" value={itemGroupFilter} onChange={(e) => setItemGroupFilter((e.target as HTMLSelectElement).value)}>
                                 <option value="">{t('dataPreview.filters.all')}</option>
-                                {availableItemGroups.map(g => <option key={g} value={g}>{itemGroupMap[g] || g}</option>)}
+                                {availableItemGroups.map(g => <option key={g} value={g}>{g} - {itemGroupMap[g] || ''}</option>)}
                             </select>
                         </div>
                          <div class="filter-group">
@@ -413,10 +413,14 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                         <table class="summary-table">
                             <thead>
                                 <tr>
-                                    <th>{t('statusReport.summary.warehouse')}</th>
-                                    <th>{t('statusReport.summary.itemsChecked')}</th>
+                                    <th rowSpan={2}>{t('statusReport.summary.warehouse')}</th>
+                                    <th rowSpan={2}>{t('statusReport.summary.itemsChecked')}</th>
+                                    <th class="group-header" colSpan={foundSuspiciousStatuses.length || 1}>{t('statusReport.summary.suspiciousStatuses')}</th>
+                                    <th rowSpan={2}>{t('statusReport.summary.status8Items')}</th>
+                                </tr>
+                                <tr>
                                     {foundSuspiciousStatuses.map(status => <th key={status}>{status}</th>)}
-                                    <th>{t('statusReport.summary.status8Items')}</th>
+                                    {foundSuspiciousStatuses.length === 0 && <th>-</th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -427,6 +431,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                         <td><strong>{whId}</strong> - {rdcNameMap.get(whId) || ''}</td>
                                         <td>{data.itemsChecked.toLocaleString()}</td>
                                         {foundSuspiciousStatuses.map(status => <td key={status}>{(data.suspiciousStatusCounts[status] || 0).toLocaleString()}</td>)}
+                                        {foundSuspiciousStatuses.length === 0 && <td>0</td>}
                                         <td>{data.status8Items.toLocaleString()}</td>
                                     </tr>
                                 ))}
@@ -471,9 +476,9 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                         <tr key={`${item.productId}-${item.caseSize}`}>
                                             <td>{item.productId}</td>
                                             <td style={{whiteSpace: 'normal'}}>{item.productName}</td>
-                                            <td>{item.dispoGroup}</td>
-                                            <td>{itemGroupMap[item.itemGroup] || item.itemGroup}</td>
-                                            <td>{item.caseSize}</td>
+                                            <td class="small-font-cell">{item.dispoGroup}</td>
+                                            <td class="small-font-cell">{item.itemGroup} - {itemGroupMap[item.itemGroup] || ''}</td>
+                                            <td class="small-font-cell">{item.caseSize}</td>
                                             <td>
                                                 <strong>{item.dominantStatusInfo.status}</strong>
                                                 {item.dominantStatusInfo.type !== 'none' && (
