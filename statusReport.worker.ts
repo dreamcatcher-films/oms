@@ -5,7 +5,14 @@ import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWor
 onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
     try {
         const { allWarehouseIds } = e.data;
-        const allProducts = await getAllProducts();
+        let allProducts = await getAllProducts();
+
+        // Exclude item groups with ID > 95
+        allProducts = allProducts.filter(product => {
+            if (!product.itemGroup) return true; // Keep if no item group
+            const itemGroupId = parseInt(product.itemGroup, 10);
+            return isNaN(itemGroupId) || itemGroupId <= 95;
+        });
         
         // 1. Group products by a unique key (productId + caseSize)
         const productGroups = new Map<string, Product[]>();
