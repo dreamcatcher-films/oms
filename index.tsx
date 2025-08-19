@@ -33,6 +33,7 @@ import { DataPreview } from './views/DataPreview';
 import { SimulationView } from './views/SimulationView';
 import { SettingsView } from './views/SettingsView';
 import { ThreatReportView } from './views/ThreatReportView';
+import { StatusReportView } from './views/StatusReportView';
 
 
 const BATCH_SIZE = 5000;
@@ -560,6 +561,8 @@ const App = () => {
             onNavigateToSimulation={handleNavigateToSimulation}
             onStartWatchlist={handleStartWatchlist}
         />;
+      case 'status-report':
+        return <StatusReportView />;
       case 'dashboard':
         return (
           <div class="placeholder-view">
@@ -623,6 +626,9 @@ const App = () => {
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('import')}} class={currentView === 'import' ? 'active' : ''}>{t('sidebar.import')}</a></li>
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('data-preview')}} class={currentView === 'data-preview' ? 'active' : ''}>{t('sidebar.dataPreview')}</a></li>
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('report')}} class={currentView === 'report' ? 'active' : ''}>{t('sidebar.threatReport')}</a></li>
+            {userSession.mode === 'hq' && (
+              <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('status-report')}} class={currentView === 'status-report' ? 'active' : ''}>{t('sidebar.statusReport')}</a></li>
+            )}
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('dashboard')}} class={currentView === 'dashboard' ? 'active' : ''}>{t('sidebar.dashboard')}</a></li>
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('simulations')}} class={currentView === 'simulations' ? 'active' : ''}>{t('sidebar.simulations')}</a></li>
             <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('settings')}} class={currentView === 'settings' ? 'active' : ''}>{t('sidebar.settings')}</a></li>
