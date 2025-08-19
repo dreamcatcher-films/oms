@@ -10,6 +10,7 @@ const SETTINGS_STORE_NAME = 'settings';
 const DB_VERSION = 12; 
 
 const RDC_LIST_KEY = 'rdcList';
+const EXCLUSION_LIST_KEY = 'exclusionList';
 const DEFAULT_RDC_LIST: RDC[] = [
     { id: '220', name: 'RUN' },
     { id: '250', name: 'BEL' },
@@ -798,4 +799,14 @@ export const loadRdcList = async (): Promise<RDC[]> => {
     const list = await loadSetting<RDC[]>(RDC_LIST_KEY);
     return list ?? DEFAULT_RDC_LIST;
 };
+
+// --- Exclusion List Functions ---
+export const saveExclusionList = (list: string[]): Promise<void> => saveSetting(EXCLUSION_LIST_KEY, list);
+
+export const loadExclusionList = async (): Promise<Set<string>> => {
+    const list = await loadSetting<string[]>(EXCLUSION_LIST_KEY);
+    return new Set(list || []);
+};
+
+export const clearExclusionList = (): Promise<void> => deleteSetting(EXCLUSION_LIST_KEY);
 export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType } from './utils/types';
