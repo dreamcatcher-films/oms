@@ -1569,6 +1569,15 @@ tr:hover {
 .summary-table-container td {
     text-align: center;
 }
+.summary-table-container .suspicious-status-cell-content {
+    line-height: 1.2;
+}
+
+.summary-table-container .suspicious-status-percent {
+    display: block;
+    font-size: 0.8em;
+    color: var(--text-light-color);
+}
 .summary-table-container td:first-child,
 .summary-table-container th:first-child {
     text-align: left;
