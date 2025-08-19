@@ -149,7 +149,9 @@ export type WorkerMessage =
     | { type: 'complete', payload: ReportResultItem[] };
 
 // --- Status Report Worker Types ---
-export type StatusReportWorkerRequest = {}; // No params needed for now
+export type StatusReportWorkerRequest = {
+    allWarehouseIds: string[];
+};
 
 export type DominantStatusInfo = {
     status: string; // The status value, or '-' if none
