@@ -562,7 +562,7 @@ const App = () => {
             onStartWatchlist={handleStartWatchlist}
         />;
       case 'status-report':
-        return <StatusReportView />;
+        return <StatusReportView rdcList={rdcList} />;
       case 'dashboard':
         return (
           <div class="placeholder-view">
