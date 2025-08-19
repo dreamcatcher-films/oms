@@ -153,7 +153,7 @@ export type StatusReportWorkerRequest = {}; // No params needed for now
 
 export type DominantStatusInfo = {
     status: string; // The status value, or '-' if none
-    type: 'dominant' | 'most_frequent' | 'none';
+    type: 'dominant' | 'mostFrequent' | 'none';
 };
 
 export type StatusReportResultItem = {
