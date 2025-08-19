@@ -293,13 +293,42 @@ export default {
     "runReport": "Run Report",
     "runningTitle": "Generating Report...",
     "runningDescription": "Analyzing {{processed}} of {{total}} product groups.",
+    "filters": {
+      "title": "Filters",
+      "productId": "Product No.",
+      "dominantStatus": "Status",
+      "excludeNoStock": "Exclude items with no stock",
+      "requireActiveStatus": "Show only items with active status (6-8)",
+      "showOnlyUndetermined": "Show only items without dominant status",
+      "apply": "Apply Filters",
+      "clear": "Clear Filters",
+      "all": "All"
+    },
+    "summary": {
+      "title": "Report Summary",
+      "warehouse": "Warehouse",
+      "itemsChecked": "Items Checked",
+      "suspiciousStatuses": "Suspicious Statuses",
+      "status8Items": "Status 8 Items"
+    },
+    "statusTypes": {
+      "dominant": "Dominant",
+      "mostFrequent": "Most Frequent",
+      "none": "Undetermined"
+    },
     "results": {
       "title": "Inconsistent Products",
       "noResults": "No products with inconsistent statuses were found.",
       "productId": "Product No.",
       "productName": "Product Name",
       "caseSize": "Case Size",
-      "dominantStatus": "Dominant Status"
+      "dominantStatus": "Determined Status",
+      "exportPdf": "Export to PDF"
+    },
+    "pdf": {
+      "summaryTitle": "Summary per Warehouse",
+      "inconsistentProductsTitle": "Inconsistent Products",
+      "groupedByStatus": "Grouped by Suspicious Status: {{status}}"
     }
   },
   "columns": {
