@@ -159,6 +159,8 @@ export type DominantStatusInfo = {
 export type StatusReportResultItem = {
     productId: string;
     productName: string;
+    dispoGroup: string;
+    itemGroup: string;
     caseSize: number;
     dominantStatusInfo: DominantStatusInfo;
     statusesByWarehouse: Record<string, string>; 
