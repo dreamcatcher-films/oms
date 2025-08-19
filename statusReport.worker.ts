@@ -4,6 +4,7 @@ import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWor
 // --- Worker Main Logic ---
 onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
     try {
+        const { allWarehouseIds } = e.data;
         const allProducts = await getAllProducts();
         
         // 1. Group products by a unique key (productId + caseSize)
@@ -26,7 +27,8 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
 
             if (statusSet.size > 1) { // Found an inconsistency
                 const statusCounts: Record<string, number> = {};
-                const totalWarehouses = productsInGroup.length;
+                const totalWarehousesInReport = allWarehouseIds.length;
+                
                 productsInGroup.forEach(p => {
                     statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
                 });
@@ -38,7 +40,7 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
                 if (sortedStatuses.length > 0) {
                     const [topStatus, topCount] = sortedStatuses[0];
 
-                    if (topCount > totalWarehouses / 2) {
+                    if (topCount > totalWarehousesInReport / 2) {
                         dominantStatusInfo = { status: topStatus, type: 'dominant' };
                     } else {
                         const isTie = sortedStatuses.length > 1 && sortedStatuses[1][1] === topCount;
