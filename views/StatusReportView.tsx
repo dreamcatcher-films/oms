@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'preact/hooks';
 import { useTranslation } from '../i18n';
 import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, RDC } from '../utils/types';
+import { itemGroupMap } from '../utils/itemGroups';
 // @ts-ignore
 import jsPDF from 'jspdf';
 // @ts-ignore
@@ -30,6 +31,8 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     
     const [productIdFilter, setProductIdFilter] = useState('');
     const [dominantStatusFilter, setDominantStatusFilter] = useState('');
+    const [dispoGroupFilter, setDispoGroupFilter] = useState('');
+    const [itemGroupFilter, setItemGroupFilter] = useState('');
     const [excludeNoStock, setExcludeNoStock] = useState(true);
     const [requireActiveStatus, setRequireActiveStatus] = useState(true);
     const [showOnlyUndetermined, setShowOnlyUndetermined] = useState(false);
@@ -76,6 +79,18 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         return Array.from(statuses).sort();
     }, [reportResults]);
 
+    const availableDispoGroups = useMemo(() => {
+        if (!reportResults) return [];
+        const groups = new Set(reportResults.map(r => r.dispoGroup).filter(Boolean));
+        return Array.from(groups).sort();
+    }, [reportResults]);
+
+    const availableItemGroups = useMemo(() => {
+        if (!reportResults) return [];
+        const groups = new Set(reportResults.map(r => r.itemGroup).filter(Boolean));
+        return Array.from(groups).sort();
+    }, [reportResults]);
+
     const filteredResults = useMemo(() => {
         if (!reportResults) return [];
         
@@ -84,6 +99,12 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                 return false;
             }
             if (dominantStatusFilter && item.dominantStatusInfo.status !== dominantStatusFilter) {
+                return false;
+            }
+            if (dispoGroupFilter && item.dispoGroup !== dispoGroupFilter) {
+                return false;
+            }
+            if (itemGroupFilter && item.itemGroup !== itemGroupFilter) {
                 return false;
             }
             if (excludeNoStock) {
@@ -99,7 +120,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
             }
             return true;
         });
-    }, [reportResults, productIdFilter, dominantStatusFilter, excludeNoStock, requireActiveStatus, showOnlyUndetermined]);
+    }, [reportResults, productIdFilter, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, requireActiveStatus, showOnlyUndetermined]);
     
     const summaryData = useMemo<DetailedSummaryData | null>(() => {
         if (!reportResults) return null;
@@ -175,6 +196,8 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const handleClearFilters = () => {
         setProductIdFilter('');
         setDominantStatusFilter('');
+        setDispoGroupFilter('');
+        setItemGroupFilter('');
         setExcludeNoStock(true);
         setRequireActiveStatus(true);
         setShowOnlyUndetermined(false);
@@ -220,9 +243,11 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         doc.text(t('statusReport.pdf.inconsistentProductsTitle'), 40, 60);
 
         const tableHead = [
-            t('statusReport.results.productId'),
-            t('statusReport.results.productName'),
-            t('statusReport.results.caseSize'),
+            t('columns.product.productId'),
+            t('columns.product.name'),
+            t('columns.product.dispoGroup'),
+            t('columns.product.itemGroup'),
+            t('columns.product.caseSize'),
             t('statusReport.results.dominantStatus'),
             ...warehouseColumns
         ];
@@ -237,6 +262,8 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                  const tableBody = itemsForStatus.map(item => [
                     item.productId,
                     item.productName,
+                    item.dispoGroup,
+                    itemGroupMap[item.itemGroup] || item.itemGroup,
                     item.caseSize,
                     `${item.dominantStatusInfo.status} (${t(`statusReport.statusTypes.${item.dominantStatusInfo.type}`)})`,
                     ...warehouseColumns.map(wh => item.statusesByWarehouse[wh] ?? '-')
@@ -250,8 +277,8 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                     headStyles: { fillColor: [74, 144, 226], textColor: 255, fontStyle: 'bold' },
                     didParseCell: (data: any) => {
                         const item = itemsForStatus[data.row.index];
-                        if (item && data.column.index >= 4) { // warehouse columns
-                            const wh = warehouseColumns[data.column.index - 4];
+                        if (item && data.column.index >= 6) { 
+                            const wh = warehouseColumns[data.column.index - 6];
                             const cellStatus = item.statusesByWarehouse[wh];
                             if (cellStatus && cellStatus !== item.dominantStatusInfo.status) {
                                 data.cell.styles.fillColor = '#f8d7da';
@@ -312,7 +339,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                  {reportResults && (
                     <div class="status-report-filters">
                         <div class="filter-group">
-                            <label htmlFor="sr-productId">{t('statusReport.filters.productId')}</label>
+                            <label htmlFor="sr-productId">{t('columns.product.productId')}</label>
                             <input
                                 id="sr-productId"
                                 type="text"
@@ -321,10 +348,24 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                 placeholder={t('dataPreview.filters.productIdPlaceholder')}
                             />
                         </div>
+                        <div class="filter-group">
+                            <label htmlFor="sr-dispoGroup">{t('columns.product.dispoGroup')}</label>
+                            <select id="sr-dispoGroup" value={dispoGroupFilter} onChange={(e) => setDispoGroupFilter((e.target as HTMLSelectElement).value)}>
+                                <option value="">{t('dataPreview.filters.all')}</option>
+                                {availableDispoGroups.map(g => <option key={g} value={g}>{g}</option>)}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label htmlFor="sr-itemGroup">{t('columns.product.itemGroup')}</label>
+                            <select id="sr-itemGroup" value={itemGroupFilter} onChange={(e) => setItemGroupFilter((e.target as HTMLSelectElement).value)}>
+                                <option value="">{t('dataPreview.filters.all')}</option>
+                                {availableItemGroups.map(g => <option key={g} value={g}>{itemGroupMap[g] || g}</option>)}
+                            </select>
+                        </div>
                          <div class="filter-group">
                             <label htmlFor="sr-dominantStatus">{t('statusReport.filters.dominantStatus')}</label>
                             <select id="sr-dominantStatus" value={dominantStatusFilter} onChange={(e) => setDominantStatusFilter((e.target as HTMLSelectElement).value)}>
-                                <option value="">{t('statusReport.filters.all')}</option>
+                                <option value="">{t('dataPreview.filters.all')}</option>
                                 {availableDominantStatuses.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
@@ -343,7 +384,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                             </label>
                         </div>
                         <div class="filter-actions">
-                            <button class="button-secondary" onClick={handleClearFilters}>{t('statusReport.filters.clear')}</button>
+                            <button class="button-secondary" onClick={handleClearFilters}>{t('dataPreview.filters.clear')}</button>
                         </div>
                     </div>
                  )}
@@ -404,12 +445,14 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>{t('statusReport.results.productId')}</th>
+                                        <th>{t('columns.product.productId')}</th>
                                         <th ref={thRef} class="resizable" style={{ width: productNameWidth ? `${productNameWidth}px` : 'auto', minWidth: '150px' }}>
-                                            {t('statusReport.results.productName')}
+                                            {t('columns.product.name')}
                                             <div ref={resizerRef} class="resizer" onMouseDown={handleMouseDown} />
                                         </th>
-                                        <th>{t('statusReport.results.caseSize')}</th>
+                                        <th>{t('columns.product.dispoGroup')}</th>
+                                        <th>{t('columns.product.itemGroup')}</th>
+                                        <th>{t('columns.product.caseSize')}</th>
                                         <th>{t('statusReport.results.dominantStatus')}</th>
                                         {warehouseColumns.map(wh => (
                                             <th 
@@ -428,6 +471,8 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                         <tr key={`${item.productId}-${item.caseSize}`}>
                                             <td>{item.productId}</td>
                                             <td style={{whiteSpace: 'normal'}}>{item.productName}</td>
+                                            <td>{item.dispoGroup}</td>
+                                            <td>{itemGroupMap[item.itemGroup] || item.itemGroup}</td>
                                             <td>{item.caseSize}</td>
                                             <td>
                                                 <strong>{item.dominantStatusInfo.status}</strong>
