@@ -36,6 +36,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const [excludeNoStock, setExcludeNoStock] = useState(true);
     const [showOnlyUndetermined, setShowOnlyUndetermined] = useState(false);
     const [excludedDominantStatuses, setExcludedDominantStatuses] = useState<string[]>(EXCLUDABLE_STATUSES.filter(s => s !== '8'));
+    const [includeConsistent, setIncludeConsistent] = useState(false);
     
     const [currentPage, setCurrentPage] = useState(1);
     const [sortByWarehouse, setSortByWarehouse] = useState<string | null>(null);
@@ -99,6 +100,9 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         if (!reportResults) return [];
         
         return reportResults.filter(item => {
+            if (!includeConsistent && !item.isInconsistent) {
+                return false;
+            }
             if (productIdFilter && !item.productId.toLowerCase().includes(productIdFilter.toLowerCase())) {
                 return false;
             }
@@ -123,7 +127,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
             }
             return true;
         });
-    }, [reportResults, productIdFilter, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, showOnlyUndetermined, excludedDominantStatuses]);
+    }, [reportResults, productIdFilter, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, showOnlyUndetermined, excludedDominantStatuses, includeConsistent]);
     
     const summaryData = useMemo<DetailedSummaryData | null>(() => {
         if (!filteredResults) return null;
@@ -221,6 +225,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         setExcludeNoStock(true);
         setShowOnlyUndetermined(false);
         setExcludedDominantStatuses(EXCLUDABLE_STATUSES.filter(s => s !== '8'));
+        setIncludeConsistent(false);
     };
 
     const handleExcludeStatusChange = (status: string, isChecked: boolean) => {
@@ -407,6 +412,10 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                             <label>
                                 <input type="checkbox" checked={showOnlyUndetermined} onChange={(e) => setShowOnlyUndetermined((e.target as HTMLInputElement).checked)} />
                                 {t('statusReport.filters.showOnlyUndetermined')}
+                            </label>
+                            <label>
+                                <input type="checkbox" checked={includeConsistent} onChange={(e) => setIncludeConsistent((e.target as HTMLInputElement).checked)} />
+                                {t('statusReport.filters.includeConsistent')}
                             </label>
                         </div>
                         <div class="filter-actions">
