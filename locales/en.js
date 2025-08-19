@@ -326,6 +326,7 @@ export default {
       "warehouse": "Warehouse",
       "itemsChecked": "Items Checked",
       "suspiciousStatuses": "Suspicious Statuses",
+      "excluded": "Excluded",
       "status8Items": "Items with status 8"
     },
     "statusTypes": {
