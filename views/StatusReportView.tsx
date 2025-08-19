@@ -147,6 +147,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                 filteredItemsChecked: number;
                 filteredStatus8Items: number;
                 filteredSuspiciousCounts: { [status: string]: number };
+                filteredExcludedSuspiciousCount: number;
             }
         } = {};
 
@@ -156,10 +157,10 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                 filteredItemsChecked: 0,
                 filteredStatus8Items: 0,
                 filteredSuspiciousCounts: {},
+                filteredExcludedSuspiciousCount: 0,
             };
         });
         
-        // Base calculation on all results from the worker
         for (const item of reportResults) {
             for (const rdc of rdcList) {
                 const whId = rdc.id;
@@ -169,7 +170,6 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
             }
         }
 
-        // Now, calculate filtered stats based on the filtered results
         for (const item of filteredResults) {
              for (const rdc of rdcList) {
                 const whId = rdc.id;
@@ -179,13 +179,19 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                     if (status === '8') {
                         summary[whId].filteredStatus8Items++;
                     }
-                    // Only count as suspicious if inconsistent AND NOT on the exclusion list
-                    if (item.isInconsistent && !exclusionList.list.has(item.productId) && status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status)) {
-                        const isStatutoryExcluded = STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup);
-                        const isWh290SpecialExclusion = whId === '290' && (item.itemGroup === '20' || item.itemGroup === '74');
+                    
+                    const isPotentiallySuspicious = item.isInconsistent && status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status);
 
-                        if (!isStatutoryExcluded && !isWh290SpecialExclusion) {
-                            summary[whId].filteredSuspiciousCounts[status] = (summary[whId].filteredSuspiciousCounts[status] || 0) + 1;
+                    if (isPotentiallySuspicious) {
+                        if (exclusionList.list.has(item.productId)) {
+                            summary[whId].filteredExcludedSuspiciousCount++;
+                        } else {
+                            const isStatutoryExcluded = STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup);
+                            const isWh290SpecialExclusion = whId === '290' && (item.itemGroup === '20' || item.itemGroup === '74');
+
+                            if (!isStatutoryExcluded && !isWh290SpecialExclusion) {
+                                summary[whId].filteredSuspiciousCounts[status] = (summary[whId].filteredSuspiciousCounts[status] || 0) + 1;
+                            }
                         }
                     }
                 }
@@ -665,6 +671,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                         <th rowSpan={2}>{t('statusReport.summary.warehouse')}</th>
                                         <th rowSpan={2}>{t('statusReport.summary.itemsChecked')}</th>
                                         <th class="group-header" colSpan={foundSuspiciousStatuses.length || 1}>{t('statusReport.summary.suspiciousStatuses')}</th>
+                                        <th rowSpan={2}>{t('statusReport.summary.excluded')}</th>
                                         <th rowSpan={2}>{t('statusReport.summary.status8Items')}</th>
                                     </tr>
                                     <tr>
@@ -694,6 +701,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                                 );
                                             })}
                                             {foundSuspiciousStatuses.length === 0 && <td>0</td>}
+                                            <td>{data.filteredExcludedSuspiciousCount.toLocaleString()}</td>
                                             <td>{data.filteredStatus8Items.toLocaleString()}</td>
                                         </tr>
                                     ))}
