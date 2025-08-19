@@ -23,6 +23,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const [reportResults, setReportResults] = useState<StatusReportResultItem[] | null>(null);
     
     const [productIdFilter, setProductIdFilter] = useState('');
+    const [pastedProductIds, setPastedProductIds] = useState<string[]>([]);
     const [dominantStatusFilter, setDominantStatusFilter] = useState('');
     const [dispoGroupFilter, setDispoGroupFilter] = useState('');
     const [itemGroupFilter, setItemGroupFilter] = useState('');
@@ -106,7 +107,11 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         }
         
         return results.filter(item => {
-            if (productIdFilter && !item.productId.toLowerCase().includes(productIdFilter.toLowerCase())) {
+            if (pastedProductIds.length > 0) {
+                if (!pastedProductIds.includes(item.productId)) {
+                    return false;
+                }
+            } else if (productIdFilter && !item.productId.toLowerCase().includes(productIdFilter.toLowerCase())) {
                 return false;
             }
             if (dominantStatusFilter && item.dominantStatusInfo.status !== dominantStatusFilter) {
@@ -130,7 +135,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
             }
             return true;
         });
-    }, [reportResults, productIdFilter, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, showOnlyUndetermined, excludedDominantStatuses, includeConsistent]);
+    }, [reportResults, productIdFilter, pastedProductIds, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, showOnlyUndetermined, excludedDominantStatuses, includeConsistent]);
     
     const combinedSummaryData = useMemo(() => {
         if (!filteredResults) return null;
@@ -233,6 +238,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
 
     const handleClearFilters = () => {
         setProductIdFilter('');
+        setPastedProductIds([]);
         setDominantStatusFilter('');
         setDispoGroupFilter('');
         setItemGroupFilter('');
@@ -250,6 +256,18 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                 return prev.filter(s => s !== status);
             }
         });
+    };
+
+    const handlePaste = (e: ClipboardEvent) => {
+        e.preventDefault();
+        const pastedText = e.clipboardData?.getData('text');
+        if (pastedText) {
+            const ids = pastedText.split(/[\s,;\t\n]+/).map(s => s.trim()).filter(Boolean);
+            if (ids.length > 0) {
+                setPastedProductIds(ids);
+                setProductIdFilter(''); 
+            }
+        }
     };
     
     const handleCellMouseEnter = (
@@ -492,9 +510,11 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                             <input
                                 id="sr-productId"
                                 type="text"
-                                value={productIdFilter}
+                                value={pastedProductIds.length > 0 ? t('statusReport.filters.pastedInfo', { count: pastedProductIds.length }) : productIdFilter}
                                 onInput={(e) => setProductIdFilter((e.target as HTMLInputElement).value)}
+                                onPaste={handlePaste}
                                 placeholder={t('dataPreview.filters.productIdPlaceholder')}
+                                disabled={pastedProductIds.length > 0}
                             />
                         </div>
                         <div class="filter-group">
