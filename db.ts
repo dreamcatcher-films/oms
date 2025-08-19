@@ -657,6 +657,21 @@ const getAllFromIndex = async <T>(storeName: string, indexName: string, key: IDB
     });
 };
 
+export const getAllProducts = async (): Promise<Product[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(PRODUCTS_STORE_NAME);
+    const request = store.getAll();
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+            resolve(request.result ?? []);
+        };
+        request.onerror = () => {
+            reject(request.error);
+        };
+    });
+};
+
 export const getAllGoodsReceiptsForProduct = (warehouseId: string, fullProductId: string): Promise<GoodsReceipt[]> => {
     return getAllFromIndex<GoodsReceipt>(GOODS_RECEIPTS_STORE_NAME, 'productIndex', [warehouseId, fullProductId]);
 };
