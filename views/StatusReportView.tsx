@@ -41,10 +41,12 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortByWarehouse, setSortByWarehouse] = useState<string | null>(null);
 
-    const [productNameWidth, setProductNameWidth] = useState<number | null>(300);
+    const [productNameWidth, setProductNameWidth] = useState<number | null>(200);
     const resizerRef = useRef<HTMLDivElement>(null);
     const thRef = useRef<HTMLTableCellElement>(null);
     const isResizingRef = useRef(false);
+    
+    const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
 
     const rdcNameMap = useMemo(() => new Map(rdcList.map(r => [r.id, r.name])), [rdcList]);
 
@@ -457,44 +459,49 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
 
             {reportResults && !isLoading && summaryData && (
                  <div class="status-report-summary">
-                    <h3>{t('statusReport.summary.title')}</h3>
-                    <div class="summary-table-container">
-                        <table class="summary-table">
-                            <thead>
-                                <tr>
-                                    <th rowSpan={2}>{t('statusReport.summary.warehouse')}</th>
-                                    <th rowSpan={2}>{t('statusReport.summary.itemsChecked')}</th>
-                                    <th class="group-header" colSpan={foundSuspiciousStatuses.length || 1}>{t('statusReport.summary.suspiciousStatuses')}</th>
-                                    <th rowSpan={2}>{t('statusReport.summary.status8Items')}</th>
-                                </tr>
-                                <tr>
-                                    {foundSuspiciousStatuses.map(status => <th key={status}>{status}</th>)}
-                                    {foundSuspiciousStatuses.length === 0 && <th>-</th>}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {Object.entries(summaryData)
-                                    .filter(([whId, data]) => rdcNameMap.has(whId) && data.itemsChecked > 0)
-                                    .map(([whId, data]) => (
-                                    <tr key={whId}>
-                                        <td><strong>{whId}</strong> - {rdcNameMap.get(whId) || ''}</td>
-                                        <td>{data.itemsChecked.toLocaleString()}</td>
-                                        {foundSuspiciousStatuses.map(status => {
-                                            const count = data.suspiciousStatusCounts[status] || 0;
-                                            const isHighlighted = highlightedValues.get(status)?.has(count) && count > 0;
-                                            return (
-                                                <td key={status} class={isHighlighted ? 'highlighted-suspicious-cell' : ''}>
-                                                    {count.toLocaleString()}
-                                                </td>
-                                            );
-                                        })}
-                                        {foundSuspiciousStatuses.length === 0 && <td>0</td>}
-                                        <td>{data.status8Items.toLocaleString()}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                     <div class={`summary-header ${!isSummaryExpanded ? 'collapsed' : ''}`} onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
+                        <h3>{t('statusReport.summary.title')}</h3>
+                        <span class="arrow">▼</span>
                     </div>
+                    {isSummaryExpanded && (
+                        <div class="summary-table-container">
+                            <table class="summary-table">
+                                <thead>
+                                    <tr>
+                                        <th rowSpan={2}>{t('statusReport.summary.warehouse')}</th>
+                                        <th rowSpan={2}>{t('statusReport.summary.itemsChecked')}</th>
+                                        <th class="group-header" colSpan={foundSuspiciousStatuses.length || 1}>{t('statusReport.summary.suspiciousStatuses')}</th>
+                                        <th rowSpan={2}>{t('statusReport.summary.status8Items')}</th>
+                                    </tr>
+                                    <tr>
+                                        {foundSuspiciousStatuses.map(status => <th key={status}>{status}</th>)}
+                                        {foundSuspiciousStatuses.length === 0 && <th>-</th>}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Object.entries(summaryData)
+                                        .filter(([whId, data]) => rdcNameMap.has(whId) && data.itemsChecked > 0)
+                                        .map(([whId, data]) => (
+                                        <tr key={whId}>
+                                            <td><strong>{whId}</strong> - {rdcNameMap.get(whId) || ''}</td>
+                                            <td>{data.itemsChecked.toLocaleString()}</td>
+                                            {foundSuspiciousStatuses.map(status => {
+                                                const count = data.suspiciousStatusCounts[status] || 0;
+                                                const isHighlighted = highlightedValues.get(status)?.has(count) && count > 0;
+                                                return (
+                                                    <td key={status} class={isHighlighted ? 'highlighted-suspicious-cell' : ''}>
+                                                        {count.toLocaleString()}
+                                                    </td>
+                                                );
+                                            })}
+                                            {foundSuspiciousStatuses.length === 0 && <td>0</td>}
+                                            <td>{data.status8Items.toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -508,7 +515,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                 <thead>
                                     <tr>
                                         <th>{t('columns.product.productId')}</th>
-                                        <th ref={thRef} class="resizable" style={{ width: productNameWidth ? `${productNameWidth}px` : 'auto', minWidth: '200px' }}>
+                                        <th ref={thRef} class="resizable" style={{ width: productNameWidth ? `${productNameWidth}px` : 'auto', minWidth: '150px' }}>
                                             {t('columns.product.name')}
                                             <div ref={resizerRef} class="resizer" onMouseDown={handleMouseDown} />
                                         </th>
