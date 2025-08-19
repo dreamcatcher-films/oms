@@ -474,6 +474,7 @@ const App = () => {
   const handleExportConfig = () => {
     const config = {
         rdcList: rdcList,
+        exclusionList: Array.from(exclusionList),
     };
     const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -498,10 +499,24 @@ const App = () => {
     try {
         const text = await file.text();
         const config = JSON.parse(text);
+        let importedSomething = false;
+
         if (config.rdcList && Array.isArray(config.rdcList)) {
-            setRdcList(config.rdcList);
-            await saveRdcList(config.rdcList);
-            setStatusMessage({ text: t('settings.configManagement.importSuccess'), type: 'success' });
+            const rdcs = config.rdcList as RDC[];
+            setRdcList(rdcs);
+            await saveRdcList(rdcs);
+            importedSomething = true;
+        }
+
+        if (config.exclusionList && Array.isArray(config.exclusionList)) {
+            const exclusions = config.exclusionList as string[];
+            setExclusionList(new Set(exclusions));
+            await saveExclusionList(exclusions);
+            importedSomething = true;
+        }
+        
+        if (importedSomething) {
+             setStatusMessage({ text: t('settings.configManagement.importSuccess'), type: 'success' });
         } else {
             throw new Error("Invalid config file format");
         }
