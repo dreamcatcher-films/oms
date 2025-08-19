@@ -298,8 +298,8 @@ export default {
       "productId": "Artikel-Nr.",
       "dominantStatus": "Status",
       "excludeNoStock": "Artikel ohne Lagerbestand ausschließen",
-      "requireActiveStatus": "Nur Artikel mit aktivem Status (6-8) anzeigen",
       "showOnlyUndetermined": "Nur Artikel ohne dominanten Status anzeigen",
+      "includeConsistent": "Konsistente Artikel einbeziehen",
       "excludeWhenDominantIs": "Ausschließen, wenn dominanter Status:",
       "apply": "Filter anwenden",
       "clear": "Filter löschen",
@@ -329,7 +329,15 @@ export default {
     "pdf": {
       "summaryTitle": "Zusammenfassung pro Lager",
       "inconsistentProductsTitle": "Inkonsistente Produkte",
-      "groupedByStatus": "Gruppiert nach verdächtigem Status: {{status}}"
+      "groupedByStatus": "Gruppiert nach verdächtigem Status: {{status}}",
+      "exportOptionsTitle": "Exportoptionen",
+      "selectWarehouse": "Lager für den Export auswählen",
+      "allWarehouses": "Alle Lager",
+      "exportButton": "Exportieren",
+      "cancelButton": "Abbrechen",
+      "reportForWarehouse": "Bericht für Lager",
+      "noInconsistencies": "Für dieses Lager wurden in den aktuellen gefilterten Ergebnissen keine Inkonsistenzen gefunden.",
+      "statusIn": "Status in"
     }
   },
   "columns": {
