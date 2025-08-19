@@ -322,14 +322,22 @@ export default {
       "noResults": "No products with inconsistent statuses were found.",
       "productId": "Product No.",
       "productName": "Product Name",
-      "caseSize": "Case Size",
+      "caseSize": "Pcs/Case",
       "dominantStatus": "Determined Status",
       "exportPdf": "Export to PDF"
     },
     "pdf": {
       "summaryTitle": "Summary per Warehouse",
       "inconsistentProductsTitle": "Inconsistent Products",
-      "groupedByStatus": "Grouped by Suspicious Status: {{status}}"
+      "groupedByStatus": "Grouped by Suspicious Status: {{status}}",
+      "exportOptionsTitle": "Export Options",
+      "selectWarehouse": "Select Warehouse for Export",
+      "allWarehouses": "All Warehouses",
+      "exportButton": "Export",
+      "cancelButton": "Cancel",
+      "reportForWarehouse": "Report for Warehouse",
+      "noInconsistencies": "No inconsistencies found for this warehouse in the current filtered results.",
+      "statusIn": "Status in"
     }
   },
   "columns": {
