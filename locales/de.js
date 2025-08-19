@@ -293,13 +293,42 @@ export default {
     "runReport": "Bericht erstellen",
     "runningTitle": "Bericht wird erstellt...",
     "runningDescription": "Analysiere {{processed}} von {{total}} Produktgruppen.",
+     "filters": {
+      "title": "Filter",
+      "productId": "Artikel-Nr.",
+      "dominantStatus": "Status",
+      "excludeNoStock": "Artikel ohne Lagerbestand ausschließen",
+      "requireActiveStatus": "Nur Artikel mit aktivem Status (6-8) anzeigen",
+      "showOnlyUndetermined": "Nur Artikel ohne dominanten Status anzeigen",
+      "apply": "Filter anwenden",
+      "clear": "Filter löschen",
+      "all": "Alle"
+    },
+    "summary": {
+      "title": "Berichtszusammenfassung",
+      "warehouse": "Lager",
+      "itemsChecked": "Geprüfte Artikel",
+      "suspiciousStatuses": "Verdächtige Status",
+      "status8Items": "Artikel mit Status 8"
+    },
+    "statusTypes": {
+      "dominant": "Dominant",
+      "mostFrequent": "Häufigster",
+      "none": "Unbestimmt"
+    },
     "results": {
       "title": "Inkonsistente Produkte",
       "noResults": "Es wurden keine Produkte mit inkonsistenten Status gefunden.",
       "productId": "Artikel-Nr.",
       "productName": "Produktname",
       "caseSize": "VE-Größe",
-      "dominantStatus": "Dominanter Status"
+      "dominantStatus": "Ermittelter Status",
+      "exportPdf": "Als PDF exportieren"
+    },
+    "pdf": {
+      "summaryTitle": "Zusammenfassung pro Lager",
+      "inconsistentProductsTitle": "Inkonsistente Produkte",
+      "groupedByStatus": "Gruppiert nach verdächtigem Status: {{status}}"
     }
   },
   "columns": {
