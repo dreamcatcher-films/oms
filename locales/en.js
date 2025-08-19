@@ -38,13 +38,13 @@ export default {
         "cleared": "Data '{{dataTypeName}}' has been cleared.",
         "clearError": "Error while clearing data: {{dataTypeName}}.",
         "clearingAll": "Clearing all data...",
-        "clearedAll": "All data has been cleared. You can now load new files.",
+        "clearedAll": "All data has been cleared. You can load new files.",
         "clearAllError": "Error while clearing data."
     }
   },
   "import": {
     "products": {
-        "title": "1. Master Data for Products",
+        "title": "1. Product Master Data",
         "description": "File with product information. Requires two header rows."
     },
     "goodsReceipts": {
@@ -83,7 +83,7 @@ export default {
       "filters": {
           "warehouse": "Warehouse",
           "all": "All",
-          "productId": "Product No.",
+          "productId": "Product ID",
           "productIdPlaceholder": "e.g. 40006",
           "status": "Status",
           "apply": "Filter",
@@ -103,21 +103,21 @@ export default {
   "placeholders": {
     "report": {
         "title": "Threat Report",
-        "description": "A list of products with potential risk of loss will be here, sorted by urgency. This feature is under construction.",
+        "description": "Here will be a list of items with potential risk of write-off, sorted by urgency. This feature is under construction.",
         "accessDenied": "This feature is only available for HQ users."
     },
     "dashboard": {
         "title": "Dashboard",
-        "description": "The main dashboard with key performance indicators (KPIs), charts, and a summary of the warehouse status. This feature is under construction."
+        "description": "Main dashboard with key performance indicators (KPIs), charts, and warehouse status summary. This feature is under construction."
     }
   },
-  "simulations": {
+   "simulations": {
     "controls": {
-      "title": "Simulation Controls",
+      "title": "Simulation Control Panel",
       "warehouse": "Warehouse",
-      "selectWarehouse": "Select a warehouse",
-      "productId": "Product No.",
-      "productIdPlaceholder": "Type to search for product...",
+      "selectWarehouse": "Select warehouse",
+      "productId": "Product ID",
+      "productIdPlaceholder": "Type to search for a product...",
       "run": "Run Simulation"
     },
     "details": {
@@ -126,7 +126,7 @@ export default {
       "locked": "Locked"
     },
     "overrides": {
-        "title": "RLZ (Shelf Life) Overrides"
+        "title": "Modify Shelf Life (RLZ)"
     },
     "results": {
       "title": "Simulation Results",
@@ -155,10 +155,10 @@ export default {
     },
     "initialStock": {
       "title": "Initial Stock Composition",
-      "warning": "Initial stock on hand could not be fully matched with goods receipts. The simulation assumes this unmatched portion is the oldest stock and may be subject to earlier write-offs.",
+      "warning": "The initial stock on hand could not be fully matched with goods receipts. The simulation assumes this unmatched portion is the oldest stock and may be subject to earlier write-offs.",
       "deliveryDate": "Delivery Date",
       "bestBeforeDate": "Best Before Date",
-      "daysForSale": "Days For Sale",
+      "daysForSale": "Days to Sell",
       "regulationBreached": "Breached (Y/N)",
       "quantity": "Quantity",
       "unknownBatch": "Unknown Batch",
@@ -172,23 +172,23 @@ export default {
     "log": {
       "title": "Simulation Log",
       "date": "Date",
-      "stockStart": "Stock Start",
+      "stockStart": "Start Stock",
       "sales": "Sales",
       "receipts": "Receipts",
       "writeOffs": "Write-Offs",
       "ald": "ALD",
-      "stockEnd": "Stock End",
+      "stockEnd": "End Stock",
       "notes": "Notes"
     },
     "chart": {
-      "title": "Stock Level Forecast (14 days)"
+      "title": "Stock Forecast (14 days)"
     },
     "buttons": {
         "add": "Add",
-        "resetDefaults": "Reset to Defaults",
-        "showMore": "Show More",
-        "showLess": "Show Less",
-        "rerun": "Rerun Simulation",
+        "resetDefaults": "Reset",
+        "showMore": "Show more",
+        "showLess": "Show less",
+        "rerun": "Rerun",
         "showChart": "Show Chart",
         "hideChart": "Hide Chart"
     },
@@ -200,7 +200,7 @@ export default {
     "title": "Settings",
     "dataSources": {
         "title": "Data Sources",
-        "description": "Link your local data files for quick reloading. The application will remember your selection across sessions.",
+        "description": "Link your local data files to enable quick reloading. The application will remember your selection.",
         "dataType": "Data Type",
         "linkedFile": "Linked File",
         "actions": "Actions",
@@ -208,7 +208,7 @@ export default {
         "linkFile": "Link File",
         "clearLink": "Clear",
         "linkSuccess": "File linked successfully.",
-        "linkError": "Failed to link file.",
+        "linkError": "Error linking file.",
         "permissionDenied": "Permission to read the file was denied.",
         "permissionNeeded": "Permission to read the file was not granted.",
         "reloadError": "Could not read the file. It may have been moved or deleted."
@@ -220,7 +220,7 @@ export default {
         "importButton": "Import Configuration",
         "exportSuccess": "Configuration exported successfully.",
         "importSuccess": "Configuration imported successfully.",
-        "importError": "Failed to import configuration file."
+        "importError": "Error importing configuration file."
     },
     "rdcManagement": {
         "title": "RDC Management",
@@ -235,13 +235,13 @@ export default {
     },
     "exclusionList": {
       "title": "Exclusion List Management",
-      "description": "Import a list of product numbers to be excluded from the 'Suspicious Statuses' calculations in the Status Report. The products will still be visible in the report but highlighted.",
-      "importButton": "Import List (.txt)",
-      "clearButton": "Clear List",
+      "description": "Import a list of product numbers to be excluded from 'Suspicious Statuses' calculations in the Status Report. These products will still be visible in the report but will be highlighted.",
+      "importButton": "Import list (.txt)",
+      "clearButton": "Clear list",
       "currentCount": "There are {{count}} items on the exclusion list.",
-      "importSuccess": "Exclusion list imported successfully. {{count}} items loaded.",
-      "importError": "Failed to import exclusion list.",
-      "clearSuccess": "Exclusion list cleared.",
+      "importSuccess": "Exclusion list imported successfully. Loaded {{count}} items.",
+      "importError": "Error importing exclusion list.",
+      "clearSuccess": "Exclusion list has been cleared.",
       "clearConfirm": "Are you sure you want to clear the entire exclusion list?"
     },
     "watchlists": {
@@ -251,16 +251,16 @@ export default {
   },
   "loginModal": {
       "title": "Select Operating Mode",
-      "hqButton": "Central (HQ)",
+      "hqButton": "Headquarters (HQ)",
       "rdcButton": "Warehouse (RDC)",
       "password": "Password",
-      "selectRdc": "Select Warehouse",
+      "selectRdc": "Select warehouse",
       "loginButton": "Login",
       "invalidPassword": "Password is incorrect."
   },
   "common": {
-      "yesShort": "Y",
-      "noShort": "N"
+    "yesShort": "Y",
+    "noShort": "N"
   },
   "dataType": {
     "products": "Master Data",
@@ -270,7 +270,7 @@ export default {
   },
   "threatReport": {
     "title": "Threat Report",
-    "description": "Run a bulk simulation on products based on selected criteria to identify items with the highest risk of write-offs.",
+    "description": "Run a bulk simulation for products based on selected criteria to identify items with the highest write-off risk.",
     "controls": {
       "title": "Report Parameters",
       "warehouses": "Warehouses",
@@ -280,37 +280,37 @@ export default {
       "selectAll": "Select All",
       "deselectAll": "Deselect All",
       "runningTitle": "Generating Report...",
-      "runningDescription": "Analyzing {{processed}} of {{total}} products. This may take some time."
+      "runningDescription": "Analyzing {{processed}} of {{total}} products. This may take a moment."
     },
     "results": {
       "title": "Report Results",
-      "noResults": "No products match the selected criteria, or no risks were found.",
+      "noResults": "No products match the selected criteria, or no threats were found.",
       "goToSimulation": "Analyze",
       "analyzeSelected": "Analyze Selected ({{count}})",
-      "warehouseId": "WH",
+      "warehouseId": "Warehouse",
       "productId": "Product",
       "caseSize": "Case Size",
       "palletFactor": "Pallet Factor",
-      "daysOfStock": "DoS (RW)",
+      "daysOfStock": "Days of Stock",
       "aldValue": "ALD Value",
       "avgDailySales": "Avg. Sales",
-      "nonCompliantReceipts": "Non-Compl. Rec.",
+      "nonCompliantReceipts": "Non-Compliant Rec.",
       "writeOffValue": "Write-Off Value"
     }
   },
   "statusReport": {
     "title": "Status Consistency Report",
-    "description": "Run a report to find products with inconsistent statuses across different warehouses. The report will only show products where a status mismatch is detected.",
+    "description": "Run a report to find products with inconsistent statuses across different warehouses. The report will only show products where a status inconsistency was detected.",
     "runReport": "Run Report",
     "runningTitle": "Generating Report...",
     "runningDescription": "Analyzing {{processed}} of {{total}} product groups.",
     "filters": {
       "title": "Filters",
-      "productId": "Product No.",
+      "productId": "Product ID",
       "dominantStatus": "Status",
       "excludeNoStock": "Exclude items with no stock",
-      "showOnlyUndetermined": "Show only items without dominant status",
-      "includeConsistent": "Include consistent items",
+      "showOnlyUndetermined": "Show only items without a dominant status",
+      "includeConsistent": "Also show consistent items",
       "excludeWhenDominantIs": "Exclude when dominant status is:",
       "apply": "Apply Filters",
       "clear": "Clear Filters",
@@ -318,15 +318,15 @@ export default {
       "pastedInfo": "Filtering by {{count}} pasted items"
     },
     "exclusionInfo": {
-        "info": "Excluded items uploaded on {{date}} at {{time}}. Items loaded: {{count}}",
-        "updateButton": "Update List"
+      "info": "Excluded items uploaded on {{date}} at {{time}}. Items loaded: {{count}}",
+      "updateButton": "Update list"
     },
     "summary": {
       "title": "Report Summary",
       "warehouse": "Warehouse",
       "itemsChecked": "Items Checked",
       "suspiciousStatuses": "Suspicious Statuses",
-      "status8Items": "Status 8 Items"
+      "status8Items": "Items with status 8"
     },
     "statusTypes": {
       "dominant": "Dominant",
@@ -335,11 +335,11 @@ export default {
     },
     "results": {
       "title": "Inconsistent Products",
-      "titleWithConsistent": "Results ({{count}}) incl. Consistent Items",
+      "titleWithConsistent": "Results ({{count}}) incl. Consistent",
       "noResults": "No products with inconsistent statuses were found.",
-      "productId": "Product No.",
+      "productId": "Product ID",
       "productName": "Product Name",
-      "caseSize": "Pcs/Case",
+      "caseSize": "Case Size",
       "dominantStatus": "Determined Status",
       "exportPdf": "Export to PDF"
     },
@@ -347,16 +347,16 @@ export default {
       "excluded": "Excluded from analysis"
     },
     "pdf": {
-      "summaryTitle": "Summary per Warehouse",
+      "summaryTitle": "Warehouse Summary",
       "inconsistentProductsTitle": "Inconsistent Products",
-      "groupedByStatus": "Grouped by Suspicious Status: {{status}}",
+      "groupedByStatus": "Grouped by suspicious status: {{status}}",
       "exportOptionsTitle": "Export Options",
-      "selectWarehouse": "Select Warehouse for Export",
-      "allWarehouses": "All Warehouses",
+      "selectWarehouse": "Select warehouse to export",
+      "allWarehouses": "All warehouses",
       "exportButton": "Export",
       "cancelButton": "Cancel",
-      "reportForWarehouse": "Report for Warehouse",
-      "noInconsistencies": "No inconsistencies found for this warehouse in the current filtered results.",
+      "reportForWarehouse": "Report for warehouse",
+      "noInconsistencies": "No inconsistencies found for this warehouse in the current results.",
       "statusIn": "Status in"
     }
   },
@@ -366,8 +366,8 @@ export default {
       "dispoGroup": "Dispo Group",
       "itemGroup": "Item Group",
       "orderArea": "Order Area",
-      "productId": "Product No. (Short)",
-      "fullProductId": "Product No. (Full)",
+      "productId": "Product ID (Short)",
+      "fullProductId": "Product ID (Full)",
       "name": "Name",
       "caseSize": "Pcs/Case",
       "cartonsPerLayer": "Cases/Layer",
@@ -380,7 +380,7 @@ export default {
       "status": "Status",
       "itemLocked": "Locked",
       "slotNr": "Slot",
-      "unprocessedDeliveryQty": "Unproc. Qty",
+      "unprocessedDeliveryQty": "Unproc. Deliv.",
       "supplierId": "Supplier ID",
       "supplierName": "Supplier Name",
       "stockOnHand": "Stock on Hand",
@@ -391,47 +391,47 @@ export default {
     },
     "goodsReceipt": {
       "warehouseId": "Warehouse",
-      "productId": "Product No. (Short)",
-      "fullProductId": "Product No. (Full)",
+      "productId": "Product ID (Short)",
+      "fullProductId": "Product ID (Full)",
       "name": "Name",
       "deliveryUnit": "Delivery Unit",
       "deliveryQtyUom": "Qty (UoM)",
       "caseSize": "Pcs/Case",
       "deliveryQtyPcs": "Qty (Pcs)",
-      "poNr": "PO No.",
+      "poNr": "PO Nr.",
       "deliveryDate": "Delivery Date",
       "bestBeforeDate": "Best Before Date",
       "supplierId": "Supplier ID",
       "supplierName": "Supplier Name",
-      "bolNr": "BOL No.",
+      "bolNr": "BOL Nr.",
       "deliveryNote": "Delivery Note",
-      "intSupplierNr": "Int. Supplier No.",
-      "intItemNr": "Int. Item No.",
+      "intSupplierNr": "Int. Supplier Nr.",
+      "intItemNr": "Int. Item Nr.",
       "caseGtin": "Case GTIN",
       "liaReference": "LIA Ref"
     },
     "openOrder": {
       "warehouseId": "Warehouse",
-      "productId": "Product No. (Short)",
-      "fullProductId": "Product No. (Full)",
+      "productId": "Product ID (Short)",
+      "fullProductId": "Product ID (Full)",
       "name": "Name",
       "orderUnit": "Order Unit",
       "orderQtyUom": "Qty (UoM)",
       "caseSize": "Pcs/Case",
       "orderQtyPcs": "Qty (Pcs)",
-      "poNr": "PO No.",
+      "poNr": "PO Nr.",
       "supplierId": "Supplier ID",
       "supplierName": "Supplier Name",
-      "deliveryDate": "Est. Delivery Date",
+      "deliveryDate": "Planned Deliv. Date",
       "creationDate": "Creation Date",
       "deliveryLeadTime": "Lead Time (days)"
     },
     "sale": {
       "resaleDate": "Resale Date",
       "warehouseId": "Warehouse",
-      "productId": "Product No.",
+      "productId": "Product ID",
       "productName": "Product Name",
-      "quantity": "Quantity Sold"
+      "quantity": "Sold Quantity"
     }
   }
 }
