@@ -10,6 +10,7 @@ export default {
     "import": "Datenimport",
     "dataPreview": "Datenvorschau",
     "threatReport": "Risikobericht",
+    "statusReport": "Statusbericht",
     "dashboard": "Dashboard",
     "simulations": "Simulationen",
     "settings": "Einstellungen"
@@ -284,6 +285,21 @@ export default {
       "avgDailySales": "Ø Verkauf",
       "nonCompliantReceipts": "N-konf. Eing.",
       "writeOffValue": "Abschr.-Wert"
+    }
+  },
+  "statusReport": {
+    "title": "Status-Konsistenzbericht",
+    "description": "Führen Sie einen Bericht aus, um Produkte mit inkonsistenten Status in verschiedenen Lagern zu finden. Der Bericht zeigt nur Produkte an, bei denen eine Statusabweichung festgestellt wurde.",
+    "runReport": "Bericht erstellen",
+    "runningTitle": "Bericht wird erstellt...",
+    "runningDescription": "Analysiere {{processed}} von {{total}} Produktgruppen.",
+    "results": {
+      "title": "Inkonsistente Produkte",
+      "noResults": "Es wurden keine Produkte mit inkonsistenten Status gefunden.",
+      "productId": "Artikel-Nr.",
+      "productName": "Produktname",
+      "caseSize": "VE-Größe",
+      "dominantStatus": "Dominanter Status"
     }
   },
   "columns": {
