@@ -1702,14 +1702,39 @@ tr:hover {
 
 .status-report-results th.item-group-col,
 .status-report-results td.item-group-col {
-    max-width: 150px;
-    width: 150px;
+    max-width: 120px;
+    width: 120px;
 }
 
 .truncated-cell-content {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.status-report-tooltip {
+    position: fixed;
+    background-color: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    pointer-events: none;
+    z-index: 1000;
+    transform: translateY(-100%);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    white-space: nowrap;
+    line-height: 1.5;
+}
+
+.status-report-tooltip p {
+    margin: 0;
+    color: white;
+}
+
+.status-report-tooltip p strong {
+    color: #a0c8f0;
+    margin-right: 0.5em;
 }
 
 
