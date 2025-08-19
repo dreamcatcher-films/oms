@@ -300,6 +300,7 @@ export default {
       "excludeNoStock": "Wyklucz art. bez stanu mag.",
       "requireActiveStatus": "Pokaż tylko art. ze statusem aktywnym (6-8)",
       "showOnlyUndetermined": "Pokaż tylko art. bez statusu dominującego",
+      "excludeWhenDominantIs": "Wyklucz, gdy status dominujący to:",
       "apply": "Filtruj",
       "clear": "Wyczyść filtry",
       "all": "Wszystkie"
