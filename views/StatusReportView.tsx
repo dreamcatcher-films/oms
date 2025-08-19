@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'preact/hooks';
+import type { VNode } from 'preact';
 import { useTranslation } from '../i18n';
 import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, RDC } from '../utils/types';
 import { itemGroupMap } from '../utils/itemGroups';
@@ -47,6 +48,10 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const isResizingRef = useRef(false);
     
     const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+
+    const [tooltip, setTooltip] = useState<{ visible: boolean; content: VNode | null; x: number; y: number; }>({
+        visible: false, content: null, x: 0, y: 0,
+    });
 
     const rdcNameMap = useMemo(() => new Map(rdcList.map(r => [r.id, r.name])), [rdcList]);
 
@@ -99,10 +104,13 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const filteredResults = useMemo(() => {
         if (!reportResults) return [];
         
-        return reportResults.filter(item => {
-            if (!includeConsistent && !item.isInconsistent) {
-                return false;
-            }
+        let results = reportResults;
+
+        if (!includeConsistent) {
+            results = results.filter(item => item.isInconsistent);
+        }
+        
+        return results.filter(item => {
             if (productIdFilter && !item.productId.toLowerCase().includes(productIdFilter.toLowerCase())) {
                 return false;
             }
@@ -237,6 +245,37 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
             }
         });
     };
+    
+    const handleCellMouseEnter = (
+        e: MouseEvent,
+        item: StatusReportResultItem,
+        warehouseId: string
+    ) => {
+        const stock = item.stockByWarehouse[warehouseId];
+        const orderInfo = item.openOrdersByWarehouse[warehouseId];
+
+        const content = (
+            <div>
+                <p><strong>{t('columns.product.stockOnHand')}:</strong> {stock !== undefined ? stock.toLocaleString(language) : 'N/A'}</p>
+                <p><strong>{t('dataType.openOrders')}:</strong> {orderInfo?.hasFutureOrders ? t('common.yesShort') : t('common.noShort')}</p>
+                {orderInfo?.hasFutureOrders && orderInfo.nextOrderDate && (
+                    <p><strong>{t('columns.openOrder.deliveryDate')}:</strong> {orderInfo.nextOrderDate}</p>
+                )}
+            </div>
+        );
+        
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setTooltip({
+            visible: true,
+            content,
+            x: rect.left,
+            y: rect.top
+        });
+    };
+
+    const handleCellMouseLeave = () => {
+        setTooltip(prev => ({ ...prev, visible: false }));
+    };
 
     const handleExportToPdf = () => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
@@ -358,6 +397,17 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
 
     return (
         <div class="status-report-view">
+             {tooltip.visible && (
+                <div 
+                    class="status-report-tooltip"
+                    style={{
+                        left: `${tooltip.x}px`,
+                        top: `${tooltip.y}px`,
+                    }}
+                >
+                    {tooltip.content}
+                </div>
+            )}
             <div class="status-report-controls">
                 <h3>{t('statusReport.title')}</h3>
                 <p>{t('statusReport.description')}</p>
@@ -565,6 +615,8 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                                     <td 
                                                         key={wh} 
                                                         class={status && !isConsistent ? 'status-inconsistent' : ''}
+                                                        onMouseEnter={(e) => handleCellMouseEnter(e, item, wh)}
+                                                        onMouseLeave={handleCellMouseLeave}
                                                     >
                                                         {status ?? '-'}
                                                     </td>
