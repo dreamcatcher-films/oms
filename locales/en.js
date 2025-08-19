@@ -300,6 +300,7 @@ export default {
       "excludeNoStock": "Exclude items with no stock",
       "requireActiveStatus": "Show only items with active status (6-8)",
       "showOnlyUndetermined": "Show only items without dominant status",
+      "excludeWhenDominantIs": "Exclude when dominant status is:",
       "apply": "Apply Filters",
       "clear": "Clear Filters",
       "all": "All"
