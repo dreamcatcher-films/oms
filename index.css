@@ -1299,7 +1299,7 @@ tr:hover {
     max-width: 450px;
     text-align: center;
 }
-.login-modal h2 {
+.login-modal h2, .login-modal h3 {
     font-size: 1.5rem;
     color: var(--text-color);
     margin-bottom: 2rem;
