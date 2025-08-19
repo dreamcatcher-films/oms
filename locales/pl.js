@@ -293,13 +293,42 @@ export default {
     "runReport": "Uruchom Raport",
     "runningTitle": "Generowanie Raportu...",
     "runningDescription": "Analizowanie {{processed}} z {{total}} grup produktów.",
+    "filters": {
+      "title": "Filtry",
+      "productId": "Nr artykułu",
+      "dominantStatus": "Status",
+      "excludeNoStock": "Wyklucz art. bez stanu mag.",
+      "requireActiveStatus": "Pokaż tylko art. ze statusem aktywnym (6-8)",
+      "showOnlyUndetermined": "Pokaż tylko art. bez statusu dominującego",
+      "apply": "Filtruj",
+      "clear": "Wyczyść filtry",
+      "all": "Wszystkie"
+    },
+    "summary": {
+      "title": "Podsumowanie Raportu",
+      "warehouse": "Magazyn",
+      "itemsChecked": "Sprawdzone art.",
+      "suspiciousStatuses": "Podejrzane statusy",
+      "status8Items": "Artykuły ze stat. 8"
+    },
+    "statusTypes": {
+      "dominant": "Dominujący",
+      "mostFrequent": "Najczęstszy",
+      "none": "Nieokreślony"
+    },
     "results": {
       "title": "Niespójne Produkty",
       "noResults": "Nie znaleziono produktów z niespójnymi statusami.",
       "productId": "Nr artykułu",
       "productName": "Nazwa produktu",
       "caseSize": "Szt. w kart.",
-      "dominantStatus": "Status dominujący"
+      "dominantStatus": "Ustalony Status",
+      "exportPdf": "Eksportuj do PDF"
+    },
+    "pdf": {
+      "summaryTitle": "Podsumowanie dla magazynów",
+      "inconsistentProductsTitle": "Niespójne Produkty",
+      "groupedByStatus": "Grupowane wg podejrzanego statusu: {{status}}"
     }
   },
   "columns": {
