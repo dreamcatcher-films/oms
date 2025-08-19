@@ -233,6 +233,17 @@ export default {
         "deleteSuccess": "RDC deleted successfully.",
         "deleteConfirm": "Are you sure you want to delete this RDC?"
     },
+    "exclusionList": {
+      "title": "Exclusion List Management",
+      "description": "Import a list of product numbers to be excluded from the 'Suspicious Statuses' calculations in the Status Report. The products will still be visible in the report but highlighted.",
+      "importButton": "Import List (.txt)",
+      "clearButton": "Clear List",
+      "currentCount": "There are {{count}} items on the exclusion list.",
+      "importSuccess": "Exclusion list imported successfully. {{count}} items loaded.",
+      "importError": "Failed to import exclusion list.",
+      "clearSuccess": "Exclusion list cleared.",
+      "clearConfirm": "Are you sure you want to clear the entire exclusion list?"
+    },
     "watchlists": {
         "title": "Watchlists",
         "description": "Create and manage lists of products to monitor. (Feature under construction)"
@@ -327,6 +338,9 @@ export default {
       "caseSize": "Pcs/Case",
       "dominantStatus": "Determined Status",
       "exportPdf": "Export to PDF"
+    },
+    "tooltips": {
+      "excluded": "Excluded from analysis"
     },
     "pdf": {
       "summaryTitle": "Summary per Warehouse",
