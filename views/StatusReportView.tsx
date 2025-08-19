@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'preact/hooks';
 import type { VNode } from 'preact';
-import { useTranslation } from '../i1n';
+import { useTranslation } from '../i18n';
 import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, RDC } from '../utils/types';
 import { itemGroupMap } from '../utils/itemGroups';
 // @ts-ignore
