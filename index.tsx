@@ -22,12 +22,12 @@ import {
   saveRdcList,
   loadExclusionList,
   saveExclusionList,
-  clearExclusionList
+  clearExclusionList,
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
 import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper } from './utils/parsing';
-import { Status, View, DataType, RDC, UserSession, ReportResultItem } from './utils/types';
+import { Status, View, DataType, RDC, UserSession, ReportResultItem, ExclusionListData } from './utils/types';
 
 import { LanguageSelector } from './components/LanguageSelector';
 import { LoginModal } from './components/LoginModal';
@@ -57,7 +57,7 @@ const App = () => {
   const [simulationContext, setSimulationContext] = useState<{ warehouseId: string; fullProductId: string; } | null>(null);
   const [watchlist, setWatchlist] = useState<ReportResultItem[]>([]);
   const [watchlistIndex, setWatchlistIndex] = useState<number | null>(null);
-  const [exclusionList, setExclusionList] = useState<Set<string>>(new Set());
+  const [exclusionList, setExclusionList] = useState<ExclusionListData>({ list: new Set(), lastUpdated: null });
 
   const importFileInputRef = useRef<HTMLInputElement>(null);
   const exclusionFileInputRef = useRef<HTMLInputElement>(null);
@@ -474,7 +474,10 @@ const App = () => {
   const handleExportConfig = () => {
     const config = {
         rdcList: rdcList,
-        exclusionList: Array.from(exclusionList),
+        exclusionList: {
+            list: Array.from(exclusionList.list),
+            lastUpdated: exclusionList.lastUpdated,
+        },
     };
     const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -508,11 +511,17 @@ const App = () => {
             importedSomething = true;
         }
 
-        if (config.exclusionList && Array.isArray(config.exclusionList)) {
-            const exclusions = config.exclusionList as string[];
-            setExclusionList(new Set(exclusions));
-            await saveExclusionList(exclusions);
-            importedSomething = true;
+        if (config.exclusionList) {
+            const exclusionArray = Array.isArray(config.exclusionList) 
+                ? config.exclusionList 
+                : (config.exclusionList.list || []);
+
+            if (Array.isArray(exclusionArray)) {
+                await saveExclusionList(exclusionArray as string[]);
+                const reloadedList = await loadExclusionList();
+                setExclusionList(reloadedList);
+                importedSomething = true;
+            }
         }
         
         if (importedSomething) {
@@ -544,7 +553,8 @@ const App = () => {
         const uniqueIds = new Set(productIds);
         const idArray = Array.from(uniqueIds);
         await saveExclusionList(idArray);
-        setExclusionList(new Set(idArray));
+        const reloadedList = await loadExclusionList();
+        setExclusionList(reloadedList);
         setStatusMessage({ text: t('settings.exclusionList.importSuccess', { count: idArray.length }), type: 'success' });
     } catch (e) {
         console.error("Exclusion list import failed", e);
@@ -559,7 +569,8 @@ const App = () => {
   const handleClearExclusionList = async () => {
     if (confirm(t('settings.exclusionList.clearConfirm'))) {
         await clearExclusionList();
-        setExclusionList(new Set());
+        const reloadedList = await loadExclusionList();
+        setExclusionList(reloadedList);
         setStatusMessage({ text: t('settings.exclusionList.clearSuccess'), type: 'success' });
     }
   }
@@ -617,7 +628,11 @@ const App = () => {
             onStartWatchlist={handleStartWatchlist}
         />;
       case 'status-report':
-        return <StatusReportView rdcList={rdcList} exclusionList={exclusionList} />;
+        return <StatusReportView 
+            rdcList={rdcList} 
+            exclusionList={exclusionList}
+            onUpdateExclusionList={handleExclusionImportClick} 
+        />;
       case 'dashboard':
         return (
           <div class="placeholder-view">
@@ -649,7 +664,7 @@ const App = () => {
                 onDeleteRdc={handleDeleteRdc}
                 onExportConfig={handleExportConfig}
                 onImportClick={handleImportClick}
-                exclusionListSize={exclusionList.size}
+                exclusionList={exclusionList}
                 onImportExclusionListClick={handleExclusionImportClick}
                 onClearExclusionList={handleClearExclusionList}
             />
