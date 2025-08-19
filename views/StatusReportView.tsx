@@ -617,7 +617,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                                     <td key={status} class={isHighlighted ? 'highlighted-suspicious-cell' : ''}>
                                                         <div class="suspicious-status-cell-content">
                                                             {count.toLocaleString()}
-                                                            <span class="suspicious-status-percent">({percentage}%)</span>
+                                                             <span class="suspicious-status-percent">({percentage}%)</span>
                                                         </div>
                                                     </td>
                                                 );
