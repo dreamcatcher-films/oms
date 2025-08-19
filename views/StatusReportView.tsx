@@ -10,7 +10,7 @@ import autoTable from 'jspdf-autotable';
 
 const PAGE_SIZE = 20;
 const SUSPICIOUS_STATUSES = ['5', '6', '7', '9', '10', '11', '12'];
-
+const EXCLUDABLE_STATUSES = ['5', '6', '7', '8', '9', '10', '11', '12','-'];
 
 type DetailedSummaryData = {
     [warehouseId: string]: {
@@ -36,6 +36,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const [excludeNoStock, setExcludeNoStock] = useState(true);
     const [requireActiveStatus, setRequireActiveStatus] = useState(true);
     const [showOnlyUndetermined, setShowOnlyUndetermined] = useState(false);
+    const [excludedDominantStatuses, setExcludedDominantStatuses] = useState<string[]>([]);
     
     const [currentPage, setCurrentPage] = useState(1);
     const [sortByWarehouse, setSortByWarehouse] = useState<string | null>(null);
@@ -118,9 +119,12 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
             if (showOnlyUndetermined && item.dominantStatusInfo.type !== 'none') {
                 return false;
             }
+            if (excludedDominantStatuses.length > 0 && excludedDominantStatuses.includes(item.dominantStatusInfo.status)) {
+                return false;
+            }
             return true;
         });
-    }, [reportResults, productIdFilter, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, requireActiveStatus, showOnlyUndetermined]);
+    }, [reportResults, productIdFilter, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, requireActiveStatus, showOnlyUndetermined, excludedDominantStatuses]);
     
     const summaryData = useMemo<DetailedSummaryData | null>(() => {
         if (!filteredResults) return null;
@@ -201,6 +205,17 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         setExcludeNoStock(true);
         setRequireActiveStatus(true);
         setShowOnlyUndetermined(false);
+        setExcludedDominantStatuses([]);
+    };
+
+    const handleExcludeStatusChange = (status: string, isChecked: boolean) => {
+        setExcludedDominantStatuses(prev => {
+            if (isChecked) {
+                return [...prev, status];
+            } else {
+                return prev.filter(s => s !== status);
+            }
+        });
     };
 
     const handleExportToPdf = () => {
@@ -386,6 +401,21 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                         <div class="filter-actions">
                             <button class="button-secondary" onClick={handleClearFilters}>{t('dataPreview.filters.clear')}</button>
                         </div>
+                        <div class="dominant-status-exclude-filter">
+                            <label class="filter-group-label">{t('statusReport.filters.excludeWhenDominantIs')}</label>
+                            <div class="checkbox-group">
+                                {EXCLUDABLE_STATUSES.map(status => (
+                                    <label key={status}>
+                                        <input
+                                            type="checkbox"
+                                            checked={excludedDominantStatuses.includes(status)}
+                                            onChange={(e) => handleExcludeStatusChange(status, (e.target as HTMLInputElement).checked)}
+                                        />
+                                        {status}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                  )}
             </div>
@@ -455,9 +485,9 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                             {t('columns.product.name')}
                                             <div ref={resizerRef} class="resizer" onMouseDown={handleMouseDown} />
                                         </th>
-                                        <th>{t('columns.product.dispoGroup')}</th>
-                                        <th>{t('columns.product.itemGroup')}</th>
-                                        <th>{t('columns.product.caseSize')}</th>
+                                        <th class="small-font-cell">{t('columns.product.dispoGroup')}</th>
+                                        <th class="small-font-cell">{t('columns.product.itemGroup')}</th>
+                                        <th class="small-font-cell">{t('columns.product.caseSize')}</th>
                                         <th>{t('statusReport.results.dominantStatus')}</th>
                                         {warehouseColumns.map(wh => (
                                             <th 
