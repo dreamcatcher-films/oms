@@ -13,14 +13,6 @@ const PAGE_SIZE = 20;
 const SUSPICIOUS_STATUSES = ['5', '6', '7', '9', '10', '11', '12'];
 const EXCLUDABLE_STATUSES = ['5', '6', '7', '8', '9', '10', '11', '12','-'];
 
-type DetailedSummaryData = {
-    [warehouseId: string]: {
-        itemsChecked: number;
-        status8Items: number;
-        suspiciousStatusCounts: { [status: string]: number };
-    }
-};
-
 export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const { t, language } = useTranslation();
     const { rdcList } = props;
@@ -140,49 +132,70 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         });
     }, [reportResults, productIdFilter, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, showOnlyUndetermined, excludedDominantStatuses, includeConsistent]);
     
-    const summaryData = useMemo<DetailedSummaryData | null>(() => {
-        if (!filteredResults) return null;
+    const combinedSummaryData = useMemo(() => {
+        if (!reportResults) return null;
 
-        const summary: DetailedSummaryData = {};
-        
+        const summary: {
+            [whId: string]: {
+                totalItemsChecked: number;
+                filteredStatus8Items: number;
+                filteredSuspiciousCounts: { [status: string]: number };
+            }
+        } = {};
+
         rdcList.forEach(rdc => {
-             summary[rdc.id] = { itemsChecked: 0, status8Items: 0, suspiciousStatusCounts: {} };
+            summary[rdc.id] = {
+                totalItemsChecked: 0,
+                filteredStatus8Items: 0,
+                filteredSuspiciousCounts: {},
+            };
         });
+
+        // First pass over ALL results for total counts
+        for (const item of reportResults) {
+            for (const rdc of rdcList) {
+                const whId = rdc.id;
+                if (item.statusesByWarehouse[whId] !== undefined) {
+                    summary[whId].totalItemsChecked++;
+                }
+            }
+        }
         
+        // Second pass over FILTERED results for suspicious counts
         for (const item of filteredResults) {
             for (const rdc of rdcList) {
                 const whId = rdc.id;
                 if (item.statusesByWarehouse[whId] !== undefined) {
-                    summary[whId].itemsChecked++;
-                    const status = item.statusesByWarehouse[whId];
+                     const status = item.statusesByWarehouse[whId];
                     if (status === '8') {
-                        summary[whId].status8Items++;
+                        summary[whId].filteredStatus8Items++;
                     }
                     if (status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status)) {
-                        summary[whId].suspiciousStatusCounts[status] = (summary[whId].suspiciousStatusCounts[status] || 0) + 1;
+                        summary[whId].filteredSuspiciousCounts[status] = (summary[whId].filteredSuspiciousCounts[status] || 0) + 1;
                     }
                 }
             }
         }
+
         return summary;
-    }, [filteredResults, rdcList]);
+    }, [reportResults, filteredResults, rdcList]);
     
     const foundSuspiciousStatuses = useMemo(() => {
-        if (!summaryData) return [];
+        if (!combinedSummaryData) return [];
         const statuses = new Set<string>();
-        Object.values(summaryData).forEach(whData => {
-            Object.keys(whData.suspiciousStatusCounts).forEach(status => statuses.add(status));
+        Object.values(combinedSummaryData).forEach(whData => {
+            Object.keys(whData.filteredSuspiciousCounts).forEach(status => statuses.add(status));
         });
         return Array.from(statuses).sort((a,b) => parseInt(a, 10) - parseInt(b, 10));
-    }, [summaryData]);
+    }, [combinedSummaryData]);
 
     const highlightedValues = useMemo(() => {
-        if (!summaryData) return new Map<string, Set<number>>();
+        if (!combinedSummaryData) return new Map<string, Set<number>>();
         const topValuesMap = new Map<string, Set<number>>();
 
         for (const status of foundSuspiciousStatuses) {
-            const values = Object.values(summaryData)
-                .map(whData => whData.suspiciousStatusCounts[status] || 0)
+            const values = Object.values(combinedSummaryData)
+                .map(whData => whData.filteredSuspiciousCounts[status] || 0)
                 .filter(count => count > 0)
                 .sort((a, b) => b - a);
             
@@ -190,7 +203,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
             topValuesMap.set(status, top3Values);
         }
         return topValuesMap;
-    }, [summaryData, foundSuspiciousStatuses]);
+    }, [combinedSummaryData, foundSuspiciousStatuses]);
 
     const sortedAndFilteredResults = useMemo(() => {
         if (!filteredResults) return [];
@@ -567,7 +580,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                 </div>
             )}
 
-            {reportResults && !isLoading && summaryData && (
+            {reportResults && !isLoading && combinedSummaryData && (
                  <div class="status-report-summary">
                      <div class={`summary-header ${!isSummaryExpanded ? 'collapsed' : ''}`} onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
                         <h3>{t('statusReport.summary.title')}</h3>
@@ -589,23 +602,28 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {Object.entries(summaryData)
-                                        .filter(([whId, data]) => rdcNameMap.has(whId) && data.itemsChecked > 0)
+                                    {Object.entries(combinedSummaryData)
+                                        .filter(([whId, data]) => rdcNameMap.has(whId) && data.totalItemsChecked > 0)
                                         .map(([whId, data]) => (
                                         <tr key={whId}>
                                             <td><strong>{whId}</strong> - {rdcNameMap.get(whId) || ''}</td>
-                                            <td>{data.itemsChecked.toLocaleString()}</td>
+                                            <td>{data.totalItemsChecked.toLocaleString()}</td>
                                             {foundSuspiciousStatuses.map(status => {
-                                                const count = data.suspiciousStatusCounts[status] || 0;
+                                                const count = data.filteredSuspiciousCounts[status] || 0;
+                                                const total = data.totalItemsChecked;
+                                                const percentage = total > 0 ? (count / total * 100).toFixed(1) : '0.0';
                                                 const isHighlighted = highlightedValues.get(status)?.has(count) && count > 0;
                                                 return (
                                                     <td key={status} class={isHighlighted ? 'highlighted-suspicious-cell' : ''}>
-                                                        {count.toLocaleString()}
+                                                        <div class="suspicious-status-cell-content">
+                                                            {count.toLocaleString()}
+                                                            <span class="suspicious-status-percent">({percentage}%)</span>
+                                                        </div>
                                                     </td>
                                                 );
                                             })}
                                             {foundSuspiciousStatuses.length === 0 && <td>0</td>}
-                                            <td>{data.status8Items.toLocaleString()}</td>
+                                            <td>{data.filteredStatus8Items.toLocaleString()}</td>
                                         </tr>
                                     ))}
                                 </tbody>
