@@ -142,7 +142,8 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<str
 
         const summary: {
             [whId: string]: {
-                totalItemsChecked: number;
+                totalItemsInReport: number;
+                filteredItemsChecked: number;
                 filteredStatus8Items: number;
                 filteredSuspiciousCounts: { [status: string]: number };
             }
@@ -150,7 +151,8 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<str
 
         rdcList.forEach(rdc => {
             summary[rdc.id] = {
-                totalItemsChecked: 0,
+                totalItemsInReport: 0,
+                filteredItemsChecked: 0,
                 filteredStatus8Items: 0,
                 filteredSuspiciousCounts: {},
             };
@@ -161,7 +163,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<str
             for (const rdc of rdcList) {
                 const whId = rdc.id;
                 if (item.statusesByWarehouse[whId] !== undefined) {
-                    summary[whId].totalItemsChecked++;
+                    summary[whId].totalItemsInReport++;
                 }
             }
         }
@@ -171,6 +173,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<str
              for (const rdc of rdcList) {
                 const whId = rdc.id;
                  if (item.statusesByWarehouse[whId] !== undefined) {
+                    summary[whId].filteredItemsChecked++;
                     const status = item.statusesByWarehouse[whId];
                     if (status === '8') {
                         summary[whId].filteredStatus8Items++;
@@ -273,7 +276,16 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<str
         e.preventDefault();
         const pastedText = e.clipboardData?.getData('text');
         if (pastedText) {
-            const ids = pastedText.split(/[\s,;\t\n]+/).map(s => s.trim()).filter(Boolean);
+            const ids = pastedText
+                .split(/[\s,;\t\n]+/)
+                .map(s => {
+                    const trimmed = s.trim();
+                    if (/^\d+$/.test(trimmed)) {
+                        return String(parseInt(trimmed, 10));
+                    }
+                    return trimmed;
+                })
+                .filter(Boolean);
             if (ids.length > 0) {
                 setPastedProductIds(ids);
                 setProductIdFilter(''); 
@@ -630,14 +642,14 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Set<str
                                 </thead>
                                 <tbody>
                                     {Object.entries(combinedSummaryData)
-                                        .filter(([whId, data]) => rdcNameMap.has(whId) && data.totalItemsChecked > 0)
+                                        .filter(([whId, data]) => rdcNameMap.has(whId) && data.totalItemsInReport > 0)
                                         .map(([whId, data]) => (
                                         <tr key={whId}>
                                             <td><strong>{whId}</strong> - {rdcNameMap.get(whId) || ''}</td>
-                                            <td>{data.totalItemsChecked.toLocaleString()}</td>
+                                            <td>{data.filteredItemsChecked.toLocaleString()}</td>
                                             {foundSuspiciousStatuses.map(status => {
                                                 const count = data.filteredSuspiciousCounts[status] || 0;
-                                                const total = data.totalItemsChecked;
+                                                const total = data.totalItemsInReport;
                                                 const percentage = total > 0 ? (count / total * 100).toFixed(1) : '0.0';
                                                 const isHighlighted = highlightedValues.get(status)?.has(count) && count > 0;
                                                 return (
