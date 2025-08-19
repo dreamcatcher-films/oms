@@ -160,6 +160,21 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         return Array.from(statuses).sort((a,b) => parseInt(a, 10) - parseInt(b, 10));
     }, [summaryData]);
 
+    const highlightedValues = useMemo(() => {
+        if (!summaryData) return new Map<string, Set<number>>();
+        const topValuesMap = new Map<string, Set<number>>();
+
+        for (const status of foundSuspiciousStatuses) {
+            const values = Object.values(summaryData)
+                .map(whData => whData.suspiciousStatusCounts[status] || 0)
+                .filter(count => count > 0)
+                .sort((a, b) => b - a);
+            
+            const top3Values = new Set(values.slice(0, 3));
+            topValuesMap.set(status, top3Values);
+        }
+        return topValuesMap;
+    }, [summaryData, foundSuspiciousStatuses]);
 
     const sortedAndFilteredResults = useMemo(() => {
         if (!filteredResults) return [];
@@ -460,7 +475,15 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                     <tr key={whId}>
                                         <td><strong>{whId}</strong> - {rdcNameMap.get(whId) || ''}</td>
                                         <td>{data.itemsChecked.toLocaleString()}</td>
-                                        {foundSuspiciousStatuses.map(status => <td key={status}>{(data.suspiciousStatusCounts[status] || 0).toLocaleString()}</td>)}
+                                        {foundSuspiciousStatuses.map(status => {
+                                            const count = data.suspiciousStatusCounts[status] || 0;
+                                            const isHighlighted = highlightedValues.get(status)?.has(count) && count > 0;
+                                            return (
+                                                <td key={status} class={isHighlighted ? 'highlighted-suspicious-cell' : ''}>
+                                                    {count.toLocaleString()}
+                                                </td>
+                                            );
+                                        })}
                                         {foundSuspiciousStatuses.length === 0 && <td>0</td>}
                                         <td>{data.status8Items.toLocaleString()}</td>
                                     </tr>
@@ -481,12 +504,12 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                 <thead>
                                     <tr>
                                         <th>{t('columns.product.productId')}</th>
-                                        <th ref={thRef} class="resizable" style={{ width: productNameWidth ? `${productNameWidth}px` : 'auto', minWidth: '150px' }}>
+                                        <th ref={thRef} class="resizable" style={{ width: productNameWidth ? `${productNameWidth}px` : 'auto', minWidth: '200px' }}>
                                             {t('columns.product.name')}
                                             <div ref={resizerRef} class="resizer" onMouseDown={handleMouseDown} />
                                         </th>
                                         <th class="small-font-cell">{t('columns.product.dispoGroup')}</th>
-                                        <th class="small-font-cell">{t('columns.product.itemGroup')}</th>
+                                        <th class="small-font-cell item-group-col">{t('columns.product.itemGroup')}</th>
                                         <th class="small-font-cell">{t('columns.product.caseSize')}</th>
                                         <th>{t('statusReport.results.dominantStatus')}</th>
                                         {warehouseColumns.map(wh => (
@@ -505,9 +528,17 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                     {paginatedResults.map(item => (
                                         <tr key={`${item.productId}-${item.caseSize}`}>
                                             <td>{item.productId}</td>
-                                            <td style={{whiteSpace: 'normal'}}>{item.productName}</td>
+                                            <td title={item.productName}>
+                                                <div class="truncated-cell-content">
+                                                    {item.productName}
+                                                </div>
+                                            </td>
                                             <td class="small-font-cell">{item.dispoGroup}</td>
-                                            <td class="small-font-cell">{item.itemGroup} - {itemGroupMap[item.itemGroup] || ''}</td>
+                                            <td class="small-font-cell item-group-col" title={`${item.itemGroup} - ${itemGroupMap[item.itemGroup] || ''}`}>
+                                                <div class="truncated-cell-content">
+                                                    {item.itemGroup} - {itemGroupMap[item.itemGroup] || ''}
+                                                </div>
+                                            </td>
                                             <td class="small-font-cell">{item.caseSize}</td>
                                             <td>
                                                 <strong>{item.dominantStatusInfo.status}</strong>
