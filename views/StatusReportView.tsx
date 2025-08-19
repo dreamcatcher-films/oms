@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'preact/hooks';
 import { useTranslation } from '../i18n';
 import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, RDC } from '../utils/types';
+// @ts-ignore
 import jsPDF from 'jspdf';
+// @ts-ignore
 import autoTable from 'jspdf-autotable';
 
 
@@ -234,7 +236,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                             }
                         }
                     },
-                    didDrawPage: (data) => {
+                    didDrawPage: (data: any) => {
                         doc.setFontSize(12);
                         doc.text(t('statusReport.pdf.groupedByStatus', { status: status }), 40, data.cursor?.y ? data.cursor.y - 15 : 40);
                     },
