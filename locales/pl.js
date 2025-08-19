@@ -10,6 +10,7 @@ export default {
     "import": "Import Danych",
     "dataPreview": "Przeglądanie Danych",
     "threatReport": "Raport Zagrożeń",
+    "statusReport": "Raport Statusów",
     "dashboard": "Dashboard",
     "simulations": "Symulacje",
     "settings": "Ustawienia"
@@ -284,6 +285,21 @@ export default {
       "avgDailySales": "Śr. Sprzedaż",
       "nonCompliantReceipts": "Niezgodne Przyj.",
       "writeOffValue": "Wartość Odpisu"
+    }
+  },
+  "statusReport": {
+    "title": "Raport Spójności Statusów",
+    "description": "Uruchom raport, aby znaleźć produkty z niespójnymi statusami w różnych magazynach. Raport pokaże tylko produkty, w których wykryto niezgodność statusu.",
+    "runReport": "Uruchom Raport",
+    "runningTitle": "Generowanie Raportu...",
+    "runningDescription": "Analizowanie {{processed}} z {{total}} grup produktów.",
+    "results": {
+      "title": "Niespójne Produkty",
+      "noResults": "Nie znaleziono produktów z niespójnymi statusami.",
+      "productId": "Nr artykułu",
+      "productName": "Nazwa produktu",
+      "caseSize": "Szt. w kart.",
+      "dominantStatus": "Status dominujący"
     }
   },
   "columns": {
