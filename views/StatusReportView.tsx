@@ -11,11 +11,11 @@ const PAGE_SIZE = 20;
 const SUSPICIOUS_STATUSES = ['5', '6', '7', '9', '10', '11', '12'];
 
 
-type SummaryData = {
+type DetailedSummaryData = {
     [warehouseId: string]: {
         itemsChecked: number;
-        suspiciousStatuses: number;
         status8Items: number;
+        suspiciousStatusCounts: { [status: string]: number };
     }
 };
 
@@ -35,6 +35,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const [showOnlyUndetermined, setShowOnlyUndetermined] = useState(false);
     
     const [currentPage, setCurrentPage] = useState(1);
+    const [sortByWarehouse, setSortByWarehouse] = useState<string | null>(null);
 
     const [productNameWidth, setProductNameWidth] = useState<number | null>(null);
     const resizerRef = useRef<HTMLDivElement>(null);
@@ -100,19 +101,14 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         });
     }, [reportResults, productIdFilter, dominantStatusFilter, excludeNoStock, requireActiveStatus, showOnlyUndetermined]);
     
-    const summaryData = useMemo<SummaryData | null>(() => {
+    const summaryData = useMemo<DetailedSummaryData | null>(() => {
         if (!reportResults) return null;
 
-        const summary: SummaryData = {};
-        const allWarehouseIds = new Set<string>();
+        const summary: DetailedSummaryData = {};
         
-        reportResults.forEach(item => {
-            Object.keys(item.statusesByWarehouse).forEach(wh => allWarehouseIds.add(wh));
+        rdcList.forEach(rdc => {
+             summary[rdc.id] = { itemsChecked: 0, status8Items: 0, suspiciousStatusCounts: {} };
         });
-
-        for (const whId of Array.from(allWarehouseIds).sort()) {
-            summary[whId] = { itemsChecked: 0, suspiciousStatuses: 0, status8Items: 0 };
-        }
         
         for (const item of reportResults) {
             for (const [whId, status] of Object.entries(item.statusesByWarehouse)) {
@@ -121,26 +117,51 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                     if (status === '8') {
                         summary[whId].status8Items++;
                     }
-                    if (SUSPICIOUS_STATUSES.includes(status) && status !== item.dominantStatusInfo.status) {
-                        summary[whId].suspiciousStatuses++;
+                    if (status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status)) {
+                        summary[whId].suspiciousStatusCounts[status] = (summary[whId].suspiciousStatusCounts[status] || 0) + 1;
                     }
                 }
             }
         }
         return summary;
-    }, [reportResults]);
+    }, [reportResults, rdcList]);
+    
+    const foundSuspiciousStatuses = useMemo(() => {
+        if (!summaryData) return [];
+        const statuses = new Set<string>();
+        Object.values(summaryData).forEach(whData => {
+            Object.keys(whData.suspiciousStatusCounts).forEach(status => statuses.add(status));
+        });
+        return Array.from(statuses).sort((a,b) => parseInt(a, 10) - parseInt(b, 10));
+    }, [summaryData]);
+
+
+    const sortedAndFilteredResults = useMemo(() => {
+        if (!filteredResults) return [];
+        if (!sortByWarehouse) return filteredResults;
+        
+        return [...filteredResults].sort((a, b) => {
+            const aHasInconsistency = a.statusesByWarehouse[sortByWarehouse] && a.statusesByWarehouse[sortByWarehouse] !== a.dominantStatusInfo.status;
+            const bHasInconsistency = b.statusesByWarehouse[sortByWarehouse] && b.statusesByWarehouse[sortByWarehouse] !== b.dominantStatusInfo.status;
+
+            if (aHasInconsistency && !bHasInconsistency) return -1;
+            if (!aHasInconsistency && bHasInconsistency) return 1;
+            
+            return a.productId.localeCompare(b.productId);
+        });
+    }, [filteredResults, sortByWarehouse]);
 
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [filteredResults]);
+    }, [filteredResults, sortByWarehouse]);
 
     const paginatedResults = useMemo(() => {
         const startIndex = (currentPage - 1) * PAGE_SIZE;
-        return filteredResults.slice(startIndex, startIndex + PAGE_SIZE);
-    }, [filteredResults, currentPage]);
+        return sortedAndFilteredResults.slice(startIndex, startIndex + PAGE_SIZE);
+    }, [sortedAndFilteredResults, currentPage]);
     
-    const totalPages = Math.ceil(filteredResults.length / PAGE_SIZE);
+    const totalPages = Math.ceil(sortedAndFilteredResults.length / PAGE_SIZE);
 
     const warehouseColumns = useMemo(() => {
         if (!reportResults) return [];
@@ -148,8 +169,8 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         reportResults.forEach(item => {
             Object.keys(item.statusesByWarehouse).forEach(wh => allWarehouses.add(wh));
         });
-        return Array.from(allWarehouses).sort();
-    }, [reportResults]);
+        return Array.from(allWarehouses).filter(wh => rdcNameMap.has(wh)).sort();
+    }, [reportResults, rdcNameMap]);
 
     const handleClearFilters = () => {
         setProductIdFilter('');
@@ -172,13 +193,15 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
             const summaryHead = [[
                 t('statusReport.summary.warehouse'),
                 t('statusReport.summary.itemsChecked'),
-                t('statusReport.summary.suspiciousStatuses'),
+                ...foundSuspiciousStatuses.map(s => `Status ${s}`),
                 t('statusReport.summary.status8Items'),
             ]];
-            const summaryBody = Object.entries(summaryData).map(([whId, data]) => [
+            const summaryBody = Object.entries(summaryData)
+              .filter(([whId, data]) => rdcNameMap.has(whId) && data.itemsChecked > 0)
+              .map(([whId, data]) => [
                 `${whId} - ${rdcNameMap.get(whId) || ''}`,
                 data.itemsChecked,
-                data.suspiciousStatuses,
+                ...foundSuspiciousStatuses.map(s => data.suspiciousStatusCounts[s] || 0),
                 data.status8Items,
             ]);
             autoTable(doc, {
@@ -205,7 +228,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         ];
 
         for (const status of SUSPICIOUS_STATUSES) {
-            const itemsForStatus = filteredResults.filter(item => {
+            const itemsForStatus = sortedAndFilteredResults.filter(item => {
                 const whStatuses = Object.values(item.statusesByWarehouse);
                 return whStatuses.includes(status) && item.dominantStatusInfo.status !== status;
             });
@@ -281,7 +304,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                         {reportResults ? t('simulations.buttons.rerun') : t('statusReport.runReport')}
                     </button>
                     {reportResults && (
-                         <button class="button-secondary" onClick={handleExportToPdf} disabled={filteredResults.length === 0}>
+                         <button class="button-secondary" onClick={handleExportToPdf} disabled={sortedAndFilteredResults.length === 0}>
                             {t('statusReport.results.exportPdf')}
                         </button>
                     )}
@@ -351,16 +374,18 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                 <tr>
                                     <th>{t('statusReport.summary.warehouse')}</th>
                                     <th>{t('statusReport.summary.itemsChecked')}</th>
-                                    <th>{t('statusReport.summary.suspiciousStatuses')}</th>
+                                    {foundSuspiciousStatuses.map(status => <th key={status}>{status}</th>)}
                                     <th>{t('statusReport.summary.status8Items')}</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {Object.entries(summaryData).map(([whId, data]) => (
+                                {Object.entries(summaryData)
+                                    .filter(([whId, data]) => rdcNameMap.has(whId) && data.itemsChecked > 0)
+                                    .map(([whId, data]) => (
                                     <tr key={whId}>
                                         <td><strong>{whId}</strong> - {rdcNameMap.get(whId) || ''}</td>
                                         <td>{data.itemsChecked.toLocaleString()}</td>
-                                        <td>{data.suspiciousStatuses.toLocaleString()}</td>
+                                        {foundSuspiciousStatuses.map(status => <td key={status}>{(data.suspiciousStatusCounts[status] || 0).toLocaleString()}</td>)}
                                         <td>{data.status8Items.toLocaleString()}</td>
                                     </tr>
                                 ))}
@@ -372,8 +397,8 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
 
             {reportResults && !isLoading && (
                 <div class="status-report-results">
-                    <h3>{t('statusReport.results.title')} ({filteredResults.length})</h3>
-                    {filteredResults.length > 0 ? (
+                    <h3>{t('statusReport.results.title')} ({sortedAndFilteredResults.length})</h3>
+                    {sortedAndFilteredResults.length > 0 ? (
                         <>
                         <div class="table-container">
                             <table>
@@ -387,7 +412,11 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                         <th>{t('statusReport.results.caseSize')}</th>
                                         <th>{t('statusReport.results.dominantStatus')}</th>
                                         {warehouseColumns.map(wh => (
-                                            <th key={wh} class="warehouse-header">
+                                            <th 
+                                                key={wh} 
+                                                class={`warehouse-header clickable ${sortByWarehouse === wh ? 'sorted' : ''}`}
+                                                onClick={() => setSortByWarehouse(sortByWarehouse === wh ? null : wh)}
+                                            >
                                                 {wh}
                                                 <span class="rdc-name">{rdcNameMap.get(wh) || ''}</span>
                                             </th>
@@ -426,7 +455,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                             </table>
                         </div>
                         <div class="pagination">
-                            <span>{filteredResults.length.toLocaleString(language)} {t('dataPreview.pagination.records')}</span>
+                            <span>{sortedAndFilteredResults.length.toLocaleString(language)} {t('dataPreview.pagination.records')}</span>
                             <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>{t('dataPreview.pagination.previous')}</button>
                             <span>{t('dataPreview.pagination.page', { currentPage, totalPages })}</span>
                             <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>{t('dataPreview.pagination.next')}</button>
