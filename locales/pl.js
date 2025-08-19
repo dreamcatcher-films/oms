@@ -298,8 +298,8 @@ export default {
       "productId": "Nr artykułu",
       "dominantStatus": "Status",
       "excludeNoStock": "Wyklucz art. bez stanu mag.",
-      "requireActiveStatus": "Pokaż tylko art. ze statusem aktywnym (6-8)",
       "showOnlyUndetermined": "Pokaż tylko art. bez statusu dominującego",
+      "includeConsistent": "Pokaż także spójne pozycje",
       "excludeWhenDominantIs": "Wyklucz, gdy status dominujący to:",
       "apply": "Filtruj",
       "clear": "Wyczyść filtry",
@@ -329,7 +329,15 @@ export default {
     "pdf": {
       "summaryTitle": "Podsumowanie dla magazynów",
       "inconsistentProductsTitle": "Niespójne Produkty",
-      "groupedByStatus": "Grupowane wg podejrzanego statusu: {{status}}"
+      "groupedByStatus": "Grupowane wg podejrzanego statusu: {{status}}",
+      "exportOptionsTitle": "Opcje Eksportu",
+      "selectWarehouse": "Wybierz magazyn do eksportu",
+      "allWarehouses": "Wszystkie magazyny",
+      "exportButton": "Eksportuj",
+      "cancelButton": "Anuluj",
+      "reportForWarehouse": "Raport dla magazynu",
+      "noInconsistencies": "Nie znaleziono niespójności dla tego magazynu w bieżących wynikach.",
+      "statusIn": "Status w"
     }
   },
   "columns": {
