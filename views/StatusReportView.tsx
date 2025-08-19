@@ -12,6 +12,7 @@ import autoTable from 'jspdf-autotable';
 const PAGE_SIZE = 20;
 const SUSPICIOUS_STATUSES = ['5', '6', '7', '9', '10', '11', '12'];
 const EXCLUDABLE_STATUSES = ['5', '6', '7', '8', '9', '10', '11', '12','-'];
+const STATUTORY_EXCLUDED_ITEM_GROUPS = new Set(['10', '11', '12', '13', '73', '90', '91', '92']);
 
 export const StatusReportView = (props: { rdcList: RDC[], exclusionList: ExclusionListData, onUpdateExclusionList: () => void }) => {
     const { t, language } = useTranslation();
@@ -180,7 +181,12 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                     }
                     // Only count as suspicious if inconsistent AND NOT on the exclusion list
                     if (item.isInconsistent && !exclusionList.list.has(item.productId) && status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status)) {
-                        summary[whId].filteredSuspiciousCounts[status] = (summary[whId].filteredSuspiciousCounts[status] || 0) + 1;
+                        const isStatutoryExcluded = STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup);
+                        const isWh290SpecialExclusion = whId === '290' && (item.itemGroup === '20' || item.itemGroup === '74');
+
+                        if (!isStatutoryExcluded && !isWh290SpecialExclusion) {
+                            summary[whId].filteredSuspiciousCounts[status] = (summary[whId].filteredSuspiciousCounts[status] || 0) + 1;
+                        }
                     }
                 }
             }
@@ -293,15 +299,17 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
         }
     };
     
-    const handleCellMouseEnter = (
+    const handleCellMouseEnter = useCallback((
         e: MouseEvent,
         item: StatusReportResultItem,
-        warehouseId: string
+        warehouseId: string,
+        isWh290SpecialExclusion: boolean
     ) => {
         const isExcluded = exclusionList.list.has(item.productId);
+        const isStatutoryExcluded = STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup);
 
-        let content: VNode;
-        if (isExcluded) {
+        let content: VNode | null = null;
+        if (isWh290SpecialExclusion || isExcluded || isStatutoryExcluded) {
             content = <div><strong>{t('statusReport.tooltips.excluded')}</strong></div>;
         } else {
             const stock = item.stockByWarehouse[warehouseId];
@@ -324,7 +332,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
             x: rect.left,
             y: rect.top
         });
-    };
+    }, [exclusionList, language, t]);
 
     const handleCellMouseLeave = () => {
         setTooltip(prev => ({ ...prev, visible: false }));
@@ -724,8 +732,9 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                 <tbody>
                                     {paginatedResults.map(item => {
                                         const isExcluded = exclusionList.list.has(item.productId);
+                                        const isStatutoryExcluded = STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup);
                                         return (
-                                        <tr key={`${item.productId}-${item.caseSize}`} class={isExcluded ? 'excluded-row' : ''}>
+                                        <tr key={`${item.productId}-${item.caseSize}`} class={isExcluded || isStatutoryExcluded ? 'excluded-row' : ''}>
                                             <td>{item.productId}</td>
                                             <td title={item.productName}>
                                                 <div class="truncated-cell-content" style={{width: `${(productNameWidth || 200) - 24}px`}}>
@@ -750,11 +759,12 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                             {warehouseColumns.map(wh => {
                                                 const status = item.statusesByWarehouse[wh];
                                                 const isConsistent = status === item.dominantStatusInfo.status;
+                                                const isWh290SpecialExclusion = wh === '290' && (item.itemGroup === '20' || item.itemGroup === '74');
                                                 return (
                                                     <td 
                                                         key={wh} 
-                                                        class={status && !isConsistent ? 'status-inconsistent' : ''}
-                                                        onMouseEnter={(e) => handleCellMouseEnter(e, item, wh)}
+                                                        class={`${status && !isConsistent && !isWh290SpecialExclusion ? 'status-inconsistent' : ''} ${isWh290SpecialExclusion ? 'special-exclusion-cell' : ''}`}
+                                                        onMouseEnter={(e) => handleCellMouseEnter(e, item, wh, isWh290SpecialExclusion)}
                                                         onMouseLeave={handleCellMouseLeave}
                                                     >
                                                         {status ?? '-'}
