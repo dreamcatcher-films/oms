@@ -357,11 +357,21 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
             doc.setFontSize(18);
             doc.text(`${t('statusReport.pdf.reportForWarehouse')}: ${warehouse.id} - ${warehouse.name}`, 40, 60);
 
-            const itemsForWarehouse = sortedAndFilteredResults.filter(item =>
-                item.statusesByWarehouse[warehouse.id] &&
-                item.statusesByWarehouse[warehouse.id] !== item.dominantStatusInfo.status &&
-                SUSPICIOUS_STATUSES.includes(item.statusesByWarehouse[warehouse.id])
-            );
+            const itemsForWarehouse = sortedAndFilteredResults.filter(item => {
+                const whId = warehouse.id;
+                const status = item.statusesByWarehouse[whId];
+            
+                if (!status || !item.isInconsistent || status === item.dominantStatusInfo.status || !SUSPICIOUS_STATUSES.includes(status)) {
+                    return false;
+                }
+            
+                // Apply exclusion logic
+                if (exclusionList.list.has(item.productId)) return false;
+                if (STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup)) return false;
+                if (whId === '290' && (item.itemGroup === '20' || item.itemGroup === '74')) return false;
+            
+                return true;
+            });
 
             if (itemsForWarehouse.length === 0) {
                 doc.setFontSize(10);
