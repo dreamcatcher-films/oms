@@ -448,8 +448,11 @@ export const getUniqueItemGroups = async (): Promise<string[]> => {
             const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
             if (cursor) {
                 const product: Product = cursor.value;
-                if(product.itemGroup) {
-                    itemGroups.add(product.itemGroup);
+                if (product.itemGroup) {
+                    const itemGroupId = parseInt(product.itemGroup, 10);
+                    if (!isNaN(itemGroupId) && itemGroupId <= 95) {
+                        itemGroups.add(product.itemGroup);
+                    }
                 }
                 cursor.continue();
             } else {
