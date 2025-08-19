@@ -19,7 +19,10 @@ import {
   loadAllSettings,
   deleteSetting,
   loadRdcList,
-  saveRdcList
+  saveRdcList,
+  loadExclusionList,
+  saveExclusionList,
+  clearExclusionList
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
@@ -54,8 +57,10 @@ const App = () => {
   const [simulationContext, setSimulationContext] = useState<{ warehouseId: string; fullProductId: string; } | null>(null);
   const [watchlist, setWatchlist] = useState<ReportResultItem[]>([]);
   const [watchlistIndex, setWatchlistIndex] = useState<number | null>(null);
+  const [exclusionList, setExclusionList] = useState<Set<string>>(new Set());
 
   const importFileInputRef = useRef<HTMLInputElement>(null);
+  const exclusionFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const splashScreen = document.getElementById('splash-screen');
@@ -92,8 +97,9 @@ const App = () => {
             console.error("Error loading settings:", e);
         }
     }
-    const rdcs = await loadRdcList();
+    const [rdcs, exclusions] = await Promise.all([loadRdcList(), loadExclusionList()]);
     setRdcList(rdcs);
+    setExclusionList(exclusions);
   }, []);
   
   const performInitialCheck = useCallback(async () => {
@@ -508,6 +514,40 @@ const App = () => {
         }
     }
   };
+  
+  const handleExclusionImportClick = () => {
+    exclusionFileInputRef.current?.click();
+  };
+  
+  const handleImportExclusionList = async (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    try {
+        const text = await file.text();
+        const productIds = text.split(/[\r\n]+/).map(line => line.trim()).filter(Boolean);
+        const uniqueIds = new Set(productIds);
+        const idArray = Array.from(uniqueIds);
+        await saveExclusionList(idArray);
+        setExclusionList(new Set(idArray));
+        setStatusMessage({ text: t('settings.exclusionList.importSuccess', { count: idArray.length }), type: 'success' });
+    } catch (e) {
+        console.error("Exclusion list import failed", e);
+        setStatusMessage({ text: t('settings.exclusionList.importError'), type: 'error' });
+    } finally {
+        if(exclusionFileInputRef.current) {
+            exclusionFileInputRef.current.value = '';
+        }
+    }
+  }
+  
+  const handleClearExclusionList = async () => {
+    if (confirm(t('settings.exclusionList.clearConfirm'))) {
+        await clearExclusionList();
+        setExclusionList(new Set());
+        setStatusMessage({ text: t('settings.exclusionList.clearSuccess'), type: 'success' });
+    }
+  }
 
   const handleNavigateToSimulation = (warehouseId: string, fullProductId: string) => {
     setSimulationContext({ warehouseId, fullProductId });
@@ -562,7 +602,7 @@ const App = () => {
             onStartWatchlist={handleStartWatchlist}
         />;
       case 'status-report':
-        return <StatusReportView rdcList={rdcList} />;
+        return <StatusReportView rdcList={rdcList} exclusionList={exclusionList} />;
       case 'dashboard':
         return (
           <div class="placeholder-view">
@@ -594,6 +634,9 @@ const App = () => {
                 onDeleteRdc={handleDeleteRdc}
                 onExportConfig={handleExportConfig}
                 onImportClick={handleImportClick}
+                exclusionListSize={exclusionList.size}
+                onImportExclusionListClick={handleExclusionImportClick}
+                onClearExclusionList={handleClearExclusionList}
             />
         );
       default:
@@ -641,6 +684,7 @@ const App = () => {
         </nav>
         <main class="main-content">
           <input type="file" ref={importFileInputRef} style={{ display: 'none' }} onChange={handleImportConfig} accept=".json" />
+          <input type="file" ref={exclusionFileInputRef} style={{ display: 'none' }} onChange={handleImportExclusionList} accept=".txt" />
           {statusMessage && (
               <div class={`status-container ${statusMessage.type}`} role="status">
                 <div class="status-info">
