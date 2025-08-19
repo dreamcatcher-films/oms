@@ -549,7 +549,17 @@ const App = () => {
 
     try {
         const text = await file.text();
-        const productIds = text.split(/[\r\n]+/).map(line => line.trim()).filter(Boolean);
+        const productIds = text.split(/[\r\n]+/)
+            .map(line => {
+                const trimmed = line.trim();
+                // Strip leading zeros from purely numeric IDs to match DB format
+                if (/^\d+$/.test(trimmed)) {
+                    return String(parseInt(trimmed, 10));
+                }
+                return trimmed;
+            })
+            .filter(Boolean);
+            
         const uniqueIds = new Set(productIds);
         const idArray = Array.from(uniqueIds);
         await saveExclusionList(idArray);
