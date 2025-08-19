@@ -233,6 +233,17 @@ export default {
         "deleteSuccess": "RDC erfolgreich gelöscht.",
         "deleteConfirm": "Möchten Sie dieses RDC wirklich löschen?"
     },
+    "exclusionList": {
+      "title": "Ausschlusslisten-Verwaltung",
+      "description": "Importieren Sie eine Liste von Artikelnummern, die von den Berechnungen der 'Verdächtigen Status' im Statusbericht ausgeschlossen werden sollen. Die Produkte werden im Bericht weiterhin sichtbar, aber hervorgehoben sein.",
+      "importButton": "Liste importieren (.txt)",
+      "clearButton": "Liste löschen",
+      "currentCount": "Es befinden sich {{count}} Artikel auf der Ausschlussliste.",
+      "importSuccess": "Ausschlussliste erfolgreich importiert. {{count}} Artikel geladen.",
+      "importError": "Fehler beim Import der Ausschlussliste.",
+      "clearSuccess": "Ausschlussliste gelöscht.",
+      "clearConfirm": "Möchten Sie die gesamte Ausschlussliste wirklich löschen?"
+    },
     "watchlists": {
         "title": "Watchlists",
         "description": "Erstellen und verwalten Sie Produktlisten zur Überwachung. (Funktion in Entwicklung)"
@@ -303,13 +314,19 @@ export default {
       "excludeWhenDominantIs": "Ausschließen, wenn dominanter Status:",
       "apply": "Filter anwenden",
       "clear": "Filter löschen",
-      "all": "Alle"
+      "all": "Alle",
+      "pastedInfo": "Filterung nach {{count}} eingefügten Artikeln"
+    },
+    "exclusionInfo": {
+      "info": "Ausgeschlossene Artikel hochgeladen am {{date}} um {{time}}. Geladene Artikel: {{count}}",
+      "updateButton": "Liste aktualisieren"
     },
     "summary": {
       "title": "Berichtszusammenfassung",
       "warehouse": "Lager",
       "itemsChecked": "Geprüfte Artikel",
       "suspiciousStatuses": "Verdächtige Status",
+      "excluded": "Ausgen.",
       "status8Items": "Artikel mit Status 8"
     },
     "statusTypes": {
@@ -319,12 +336,16 @@ export default {
     },
     "results": {
       "title": "Inkonsistente Produkte",
+      "titleWithConsistent": "Ergebnisse ({{count}}) inkl. konsistenter Artikel",
       "noResults": "Es wurden keine Produkte mit inkonsistenten Status gefunden.",
       "productId": "Artikel-Nr.",
       "productName": "Produktname",
       "caseSize": "VE-Größe",
       "dominantStatus": "Ermittelter Status",
       "exportPdf": "Als PDF exportieren"
+    },
+    "tooltips": {
+      "excluded": "Von der Analyse ausgeschlossen"
     },
     "pdf": {
       "summaryTitle": "Zusammenfassung pro Lager",
