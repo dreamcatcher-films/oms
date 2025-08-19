@@ -1,4 +1,4 @@
-import { RDC, DataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale } from './utils/types';
+import { RDC, DataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData } from './utils/types';
 
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
@@ -801,11 +801,23 @@ export const loadRdcList = async (): Promise<RDC[]> => {
 };
 
 // --- Exclusion List Functions ---
-export const saveExclusionList = (list: string[]): Promise<void> => saveSetting(EXCLUSION_LIST_KEY, list);
+export const saveExclusionList = (list: string[]): Promise<void> => {
+    const data = {
+        list,
+        lastUpdated: new Date(),
+    };
+    return saveSetting(EXCLUSION_LIST_KEY, data);
+};
 
-export const loadExclusionList = async (): Promise<Set<string>> => {
-    const list = await loadSetting<string[]>(EXCLUSION_LIST_KEY);
-    return new Set(list || []);
+export const loadExclusionList = async (): Promise<ExclusionListData> => {
+    const data = await loadSetting<{ list: string[], lastUpdated: string }>(EXCLUSION_LIST_KEY);
+    if (data && Array.isArray(data.list)) {
+        return {
+            list: new Set(data.list),
+            lastUpdated: data.lastUpdated ? new Date(data.lastUpdated) : null,
+        };
+    }
+    return { list: new Set(), lastUpdated: null };
 };
 
 export const clearExclusionList = (): Promise<void> => deleteSetting(EXCLUSION_LIST_KEY);
