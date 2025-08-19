@@ -133,7 +133,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     }, [reportResults, productIdFilter, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, showOnlyUndetermined, excludedDominantStatuses, includeConsistent]);
     
     const combinedSummaryData = useMemo(() => {
-        if (!reportResults) return null;
+        if (!filteredResults) return null;
 
         const summary: {
             [whId: string]: {
@@ -150,27 +150,17 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                 filteredSuspiciousCounts: {},
             };
         });
-
-        // First pass over ALL results for total counts
-        for (const item of reportResults) {
-            for (const rdc of rdcList) {
-                const whId = rdc.id;
-                if (item.statusesByWarehouse[whId] !== undefined) {
-                    summary[whId].totalItemsChecked++;
-                }
-            }
-        }
         
-        // Second pass over FILTERED results for suspicious counts
         for (const item of filteredResults) {
             for (const rdc of rdcList) {
                 const whId = rdc.id;
                 if (item.statusesByWarehouse[whId] !== undefined) {
-                     const status = item.statusesByWarehouse[whId];
+                    summary[whId].totalItemsChecked++;
+                    const status = item.statusesByWarehouse[whId];
                     if (status === '8') {
                         summary[whId].filteredStatus8Items++;
                     }
-                    if (status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status)) {
+                    if (item.isInconsistent && status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status)) {
                         summary[whId].filteredSuspiciousCounts[status] = (summary[whId].filteredSuspiciousCounts[status] || 0) + 1;
                     }
                 }
@@ -178,7 +168,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         }
 
         return summary;
-    }, [reportResults, filteredResults, rdcList]);
+    }, [filteredResults, rdcList]);
     
     const foundSuspiciousStatuses = useMemo(() => {
         if (!combinedSummaryData) return [];
@@ -635,7 +625,12 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
 
             {reportResults && !isLoading && (
                 <div class="status-report-results">
-                    <h3>{t('statusReport.results.title')} ({sortedAndFilteredResults.length})</h3>
+                    <h3>
+                        {includeConsistent
+                            ? t('statusReport.results.titleWithConsistent', { count: sortedAndFilteredResults.length.toLocaleString(language) })
+                            : `${t('statusReport.results.title')} (${sortedAndFilteredResults.length.toLocaleString(language)})`
+                        }
+                    </h3>
                     {sortedAndFilteredResults.length > 0 ? (
                         <>
                         <div class="table-container">
