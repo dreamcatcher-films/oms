@@ -1568,6 +1568,12 @@ tr:hover {
     border-bottom: 1px solid var(--border-color);
 }
 
+.highlighted-suspicious-cell {
+    background-color: #fffbe6;
+    font-weight: bold;
+    color: #d46b08;
+    border: 1px solid #ffe58f;
+}
 
 .status-report-filters {
     display: grid;
@@ -1681,6 +1687,19 @@ tr:hover {
     font-size: 0.85em;
     color: var(--text-light-color);
 }
+
+.status-report-results th.item-group-col,
+.status-report-results td.item-group-col {
+    max-width: 170px;
+    width: 170px;
+}
+
+.truncated-cell-content {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 
 @media (max-width: 900px) {
   .app-layout {
