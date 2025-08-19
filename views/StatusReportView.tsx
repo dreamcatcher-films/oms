@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'preact/hooks';
 import type { VNode } from 'preact';
-import { useTranslation } from '../i18n';
+import { useTranslation } from '../i1n';
 import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, RDC } from '../utils/types';
 import { itemGroupMap } from '../utils/itemGroups';
 // @ts-ignore
@@ -137,8 +137,27 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         });
     }, [reportResults, productIdFilter, pastedProductIds, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, showOnlyUndetermined, excludedDominantStatuses, includeConsistent]);
     
+    const fullReportSummary = useMemo(() => {
+        if (!reportResults) return null;
+
+        const summary: { [whId: string]: { totalItems: number } } = {};
+        rdcList.forEach(rdc => {
+            summary[rdc.id] = { totalItems: 0 };
+        });
+
+        for (const item of reportResults) {
+            for (const rdc of rdcList) {
+                const whId = rdc.id;
+                if (item.statusesByWarehouse[whId] !== undefined) {
+                    summary[whId].totalItems++;
+                }
+            }
+        }
+        return summary;
+    }, [reportResults, rdcList]);
+    
     const combinedSummaryData = useMemo(() => {
-        if (!filteredResults) return null;
+        if (!filteredResults || !fullReportSummary) return null;
 
         const summary: {
             [whId: string]: {
@@ -150,7 +169,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
 
         rdcList.forEach(rdc => {
             summary[rdc.id] = {
-                totalItemsChecked: 0,
+                totalItemsChecked: fullReportSummary[rdc.id]?.totalItems || 0,
                 filteredStatus8Items: 0,
                 filteredSuspiciousCounts: {},
             };
@@ -160,7 +179,6 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
             for (const rdc of rdcList) {
                 const whId = rdc.id;
                 if (item.statusesByWarehouse[whId] !== undefined) {
-                    summary[whId].totalItemsChecked++;
                     const status = item.statusesByWarehouse[whId];
                     if (status === '8') {
                         summary[whId].filteredStatus8Items++;
@@ -173,7 +191,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         }
 
         return summary;
-    }, [filteredResults, rdcList]);
+    }, [filteredResults, fullReportSummary, rdcList]);
     
     const foundSuspiciousStatuses = useMemo(() => {
         if (!combinedSummaryData) return [];
