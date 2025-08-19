@@ -41,7 +41,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortByWarehouse, setSortByWarehouse] = useState<string | null>(null);
 
-    const [productNameWidth, setProductNameWidth] = useState<number | null>(null);
+    const [productNameWidth, setProductNameWidth] = useState<number | null>(300);
     const resizerRef = useRef<HTMLDivElement>(null);
     const thRef = useRef<HTMLTableCellElement>(null);
     const isResizingRef = useRef(false);
@@ -70,7 +70,9 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         setIsLoading(true);
         setReportResults(null);
         setProgress({ processed: 0, total: 0 });
-        const request: StatusReportWorkerRequest = {};
+        const request: StatusReportWorkerRequest = {
+            allWarehouseIds: rdcList.map(r => r.id),
+        };
         workerRef.current.postMessage(request);
     };
     
@@ -136,9 +138,11 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         });
         
         for (const item of filteredResults) {
-            for (const [whId, status] of Object.entries(item.statusesByWarehouse)) {
-                if (summary[whId]) {
+            for (const rdc of rdcList) {
+                const whId = rdc.id;
+                if (item.statusesByWarehouse[whId] !== undefined) {
                     summary[whId].itemsChecked++;
+                    const status = item.statusesByWarehouse[whId];
                     if (status === '8') {
                         summary[whId].status8Items++;
                     }
@@ -529,7 +533,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                                         <tr key={`${item.productId}-${item.caseSize}`}>
                                             <td>{item.productId}</td>
                                             <td title={item.productName}>
-                                                <div class="truncated-cell-content">
+                                                <div class="truncated-cell-content" style={{width: `${(productNameWidth || 200) - 24}px`}}>
                                                     {item.productName}
                                                 </div>
                                             </td>
