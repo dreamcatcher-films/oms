@@ -1544,13 +1544,24 @@ tr:hover {
     margin-top: 1rem;
     max-height: 250px;
     overflow-y: auto;
+    overflow-x: auto;
 }
 .summary-table-container table {
     font-size: 0.9rem;
+    white-space: nowrap;
 }
 .summary-table-container th {
     font-size: 0.8rem;
+    text-align: center;
 }
+.summary-table-container td {
+    text-align: center;
+}
+.summary-table-container td:first-child,
+.summary-table-container th:first-child {
+    text-align: left;
+}
+
 
 .status-report-filters {
     display: grid;
@@ -1585,6 +1596,20 @@ tr:hover {
 }
 .status-report-results .warehouse-header {
     line-height: 1.2;
+}
+.status-report-results .warehouse-header.clickable {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.status-report-results .warehouse-header.clickable:hover {
+    background-color: #e9ecef;
+}
+.status-report-results .warehouse-header.sorted {
+    background-color: var(--primary-color);
+    color: white;
+}
+.status-report-results .warehouse-header.sorted .rdc-name {
+    color: #f0f4f8;
 }
 .status-report-results .rdc-name {
     display: block;
