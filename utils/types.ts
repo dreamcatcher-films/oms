@@ -4,7 +4,7 @@ export type Status = {
   progress?: number;
 };
 
-export type View = 'import' | 'report' | 'dashboard' | 'simulations' | 'data-preview' | 'settings';
+export type View = 'import' | 'report' | 'dashboard' | 'simulations' | 'data-preview' | 'settings' | 'status-report';
 
 export type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales';
 
@@ -147,3 +147,24 @@ export type ProgressPayload = {
 export type WorkerMessage = 
     | { type: 'progress', payload: ProgressPayload }
     | { type: 'complete', payload: ReportResultItem[] };
+
+// --- Status Report Worker Types ---
+export type StatusReportWorkerRequest = {}; // No params needed for now
+
+export type StatusReportResultItem = {
+    productId: string;
+    productName: string;
+    caseSize: number;
+    dominantStatus: string;
+    // e.g. { '220': '8', '250': '11' }
+    statusesByWarehouse: Record<string, string>; 
+};
+
+export type StatusReportProgressPayload = {
+    processed: number;
+    total: number;
+};
+
+export type StatusReportWorkerMessage = 
+    | { type: 'progress', payload: StatusReportProgressPayload }
+    | { type: 'complete', payload: StatusReportResultItem[] };
