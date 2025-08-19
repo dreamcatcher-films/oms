@@ -167,6 +167,10 @@ export type StatusReportResultItem = {
     dominantStatusInfo: DominantStatusInfo;
     statusesByWarehouse: Record<string, string>; 
     stockByWarehouse: Record<string, number>;
+    openOrdersByWarehouse: Record<string, {
+        hasFutureOrders: boolean;
+        nextOrderDate: string | null;
+    }>;
     isInconsistent: boolean;
 };
 
