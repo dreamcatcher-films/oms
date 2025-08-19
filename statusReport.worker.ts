@@ -1,22 +1,42 @@
-import { Product, getAllProducts } from './db';
+import { Product, getAllProducts, OpenOrder, getAllOpenOrders } from './db';
 import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, DominantStatusInfo } from './utils/types';
 
 // --- Worker Main Logic ---
 onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
     try {
         const { allWarehouseIds } = e.data;
-        let allProducts = await getAllProducts();
+        const [allProducts, allOpenOrders] = await Promise.all([
+            getAllProducts(),
+            getAllOpenOrders()
+        ]);
 
-        // Exclude item groups with ID > 95
-        allProducts = allProducts.filter(product => {
+        // Filter products to only include those from official RDC warehouses
+        // and also exclude item groups with ID > 95.
+        const filteredProducts = allProducts.filter(product => {
+            // Check 1: Must be in an official RDC warehouse
+            if (!allWarehouseIds.includes(product.warehouseId)) {
+                return false;
+            }
+
+            // Check 2: Item group must be <= 95
             if (!product.itemGroup) return true; // Keep if no item group
             const itemGroupId = parseInt(product.itemGroup, 10);
             return isNaN(itemGroupId) || itemGroupId <= 95;
         });
         
+        // Process open orders into a map for quick lookup
+        const openOrdersMap = new Map<string, OpenOrder[]>();
+        for (const order of allOpenOrders) {
+            const key = `${order.warehouseId}-${order.fullProductId}`;
+            if (!openOrdersMap.has(key)) {
+                openOrdersMap.set(key, []);
+            }
+            openOrdersMap.get(key)!.push(order);
+        }
+
         // 1. Group products by a unique key (productId + caseSize)
         const productGroups = new Map<string, Product[]>();
-        for (const product of allProducts) {
+        for (const product of filteredProducts) {
             const key = `${product.productId}-${product.caseSize}`;
             if (!productGroups.has(key)) {
                 productGroups.set(key, []);
@@ -27,6 +47,7 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
         const totalGroups = productGroups.size;
         const results: StatusReportResultItem[] = [];
         let processedCount = 0;
+        const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
         // 2. Analyze each group for inconsistencies
         for (const [key, productsInGroup] of productGroups.entries()) {
@@ -61,12 +82,32 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
 
             const statusesByWarehouse: Record<string, string> = {};
             const stockByWarehouse: Record<string, number> = {};
+            const openOrdersByWarehouse: StatusReportResultItem['openOrdersByWarehouse'] = {};
+            
             productsInGroup.forEach(p => {
                 statusesByWarehouse[p.warehouseId] = p.status;
                 stockByWarehouse[p.warehouseId] = p.stockOnHand;
             });
             
             const firstProduct = productsInGroup[0];
+
+            for (const warehouseId of allWarehouseIds) {
+                const productInWarehouse = productsInGroup.find(p => p.warehouseId === warehouseId);
+                const fullProductId = productInWarehouse?.fullProductId || firstProduct.fullProductId;
+
+                const orderKey = `${warehouseId}-${fullProductId}`;
+                const productOrders = openOrdersMap.get(orderKey) || [];
+
+                const futureOrders = productOrders
+                    .filter(order => order.deliveryDateSortable >= todayStr)
+                    .sort((a, b) => a.deliveryDateSortable.localeCompare(b.deliveryDateSortable));
+                
+                openOrdersByWarehouse[warehouseId] = {
+                    hasFutureOrders: futureOrders.length > 0,
+                    nextOrderDate: futureOrders.length > 0 ? futureOrders[0].deliveryDate : null
+                };
+            }
+
             results.push({
                 productId: firstProduct.productId,
                 productName: firstProduct.name,
@@ -76,6 +117,7 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
                 dominantStatusInfo,
                 statusesByWarehouse,
                 stockByWarehouse,
+                openOrdersByWarehouse,
                 isInconsistent,
             });
 
