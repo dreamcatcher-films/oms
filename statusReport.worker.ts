@@ -1,5 +1,5 @@
 import { Product, getAllProducts } from './db';
-import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest } from './utils/types';
+import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, DominantStatusInfo } from './utils/types';
 
 // --- Worker Main Logic ---
 onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
@@ -25,25 +25,36 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
             const statusSet = new Set(productsInGroup.map(p => p.status));
 
             if (statusSet.size > 1) { // Found an inconsistency
-                // 3. Find the dominant status
                 const statusCounts: Record<string, number> = {};
+                const totalWarehouses = productsInGroup.length;
                 productsInGroup.forEach(p => {
                     statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
                 });
 
-                let dominantStatus = '';
-                let maxCount = 0;
-                for (const status in statusCounts) {
-                    if (statusCounts[status] > maxCount) {
-                        maxCount = statusCounts[status];
-                        dominantStatus = status;
+                let dominantStatusInfo: DominantStatusInfo = { status: '-', type: 'none' };
+
+                const sortedStatuses = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]);
+
+                if (sortedStatuses.length > 0) {
+                    const [topStatus, topCount] = sortedStatuses[0];
+
+                    if (topCount > totalWarehouses / 2) {
+                        dominantStatusInfo = { status: topStatus, type: 'dominant' };
+                    } else {
+                        const isTie = sortedStatuses.length > 1 && sortedStatuses[1][1] === topCount;
+                        if (isTie) {
+                            dominantStatusInfo = { status: '-', type: 'none' };
+                        } else {
+                            dominantStatusInfo = { status: topStatus, type: 'most_frequent' };
+                        }
                     }
                 }
 
-                // 4. Build the result item
                 const statusesByWarehouse: Record<string, string> = {};
+                const stockByWarehouse: Record<string, number> = {};
                 productsInGroup.forEach(p => {
                     statusesByWarehouse[p.warehouseId] = p.status;
+                    stockByWarehouse[p.warehouseId] = p.stockOnHand;
                 });
                 
                 const firstProduct = productsInGroup[0];
@@ -51,8 +62,9 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
                     productId: firstProduct.productId,
                     productName: firstProduct.name,
                     caseSize: firstProduct.caseSize,
-                    dominantStatus,
-                    statusesByWarehouse
+                    dominantStatusInfo,
+                    statusesByWarehouse,
+                    stockByWarehouse
                 });
             }
 
@@ -66,7 +78,6 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
             }
         }
 
-        // Sort results by product ID
         results.sort((a, b) => a.productId.localeCompare(b.productId));
 
         const finalMessage: StatusReportWorkerMessage = {
@@ -77,10 +88,9 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
 
     } catch (error) {
         console.error("Status Report worker failed:", error);
-        // Optionally, send an error message back to the main thread
         const errorMessage: StatusReportWorkerMessage = {
             type: 'complete',
-            payload: [], // Send empty results on error
+            payload: [],
         };
         postMessage(errorMessage);
     }
