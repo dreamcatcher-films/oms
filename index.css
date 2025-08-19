@@ -1685,6 +1685,16 @@ tr:hover {
     color: #721c24;
     font-weight: bold;
 }
+.status-report-results .excluded-row {
+    background-color: #d4edda;
+}
+.status-report-results .excluded-row:hover {
+    background-color: #c3e6cb;
+}
+.status-report-results .excluded-row .status-inconsistent {
+    background-color: #a3d9a5; /* Darker green for inconsistent but excluded cells */
+    color: #1e4620;
+}
 .status-report-results th.resizable {
     position: relative;
     overflow: visible;
