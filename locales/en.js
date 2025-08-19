@@ -303,7 +303,8 @@ export default {
       "excludeWhenDominantIs": "Exclude when dominant status is:",
       "apply": "Apply Filters",
       "clear": "Clear Filters",
-      "all": "All"
+      "all": "All",
+      "pastedInfo": "Filtering by {{count}} pasted items"
     },
     "summary": {
       "title": "Report Summary",
