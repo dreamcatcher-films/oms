@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { useTranslation } from '../i18n';
-import { DataType, RDC, UserSession } from '../utils/types';
+import { DataType, RDC, UserSession, ExclusionListData } from '../utils/types';
 
 type SettingsViewProps = {
     linkedFiles: Map<DataType, FileSystemFileHandle>;
@@ -14,7 +14,7 @@ type SettingsViewProps = {
     onDeleteRdc: (rdcId: string) => void;
     onExportConfig: () => void;
     onImportClick: () => void;
-    exclusionListSize: number;
+    exclusionList: ExclusionListData;
     onImportExclusionListClick: () => void;
     onClearExclusionList: () => void;
 };
@@ -32,7 +32,7 @@ export const SettingsView = (props: SettingsViewProps) => {
         onDeleteRdc,
         onExportConfig,
         onImportClick,
-        exclusionListSize,
+        exclusionList,
         onImportExclusionListClick,
         onClearExclusionList
     } = props;
@@ -42,6 +42,7 @@ export const SettingsView = (props: SettingsViewProps) => {
     const dataTypes: DataType[] = ['products', 'goodsReceipts', 'openOrders', 'sales'];
     const isApiSupported = 'showOpenFilePicker' in window;
     const isHq = userSession?.mode === 'hq';
+    const exclusionListSize = exclusionList.list.size;
 
     const handleAddRdc = (e: Event) => {
         e.preventDefault();
