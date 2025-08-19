@@ -45,7 +45,7 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
                         if (isTie) {
                             dominantStatusInfo = { status: '-', type: 'none' };
                         } else {
-                            dominantStatusInfo = { status: topStatus, type: 'most_frequent' };
+                            dominantStatusInfo = { status: topStatus, type: 'mostFrequent' };
                         }
                     }
                 }
