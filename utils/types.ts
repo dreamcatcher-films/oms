@@ -25,6 +25,11 @@ export type UserSession = {
     rdc?: RDC;
 };
 
+export type ExclusionListData = {
+  list: Set<string>;
+  lastUpdated: Date | null;
+};
+
 export type Product = {
     warehouseId: string;
     productId: string;
