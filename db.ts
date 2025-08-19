@@ -675,6 +675,21 @@ export const getAllProducts = async (): Promise<Product[]> => {
     });
 };
 
+export const getAllOpenOrders = async (): Promise<OpenOrder[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(OPEN_ORDERS_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(OPEN_ORDERS_STORE_NAME);
+    const request = store.getAll();
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+            resolve(request.result ?? []);
+        };
+        request.onerror = () => {
+            reject(request.error);
+        };
+    });
+};
+
 export const getAllGoodsReceiptsForProduct = (warehouseId: string, fullProductId: string): Promise<GoodsReceipt[]> => {
     return getAllFromIndex<GoodsReceipt>(GOODS_RECEIPTS_STORE_NAME, 'productIndex', [warehouseId, fullProductId]);
 };
