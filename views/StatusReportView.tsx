@@ -2,10 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'preact/hooks'
 import { useTranslation } from '../i18n';
 import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, RDC } from '../utils/types';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-
-// This is a workaround for jspdf-autotable's esm module issues
-const autoTable = (jsPDF as any).default.autoTable;
+import autoTable from 'jspdf-autotable';
 
 
 const PAGE_SIZE = 20;
