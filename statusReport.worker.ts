@@ -61,6 +61,8 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
                 results.push({
                     productId: firstProduct.productId,
                     productName: firstProduct.name,
+                    dispoGroup: firstProduct.dispoGroup,
+                    itemGroup: firstProduct.itemGroup,
                     caseSize: firstProduct.caseSize,
                     dominantStatusInfo,
                     statusesByWarehouse,
