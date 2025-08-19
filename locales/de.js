@@ -300,6 +300,7 @@ export default {
       "excludeNoStock": "Artikel ohne Lagerbestand ausschließen",
       "requireActiveStatus": "Nur Artikel mit aktivem Status (6-8) anzeigen",
       "showOnlyUndetermined": "Nur Artikel ohne dominanten Status anzeigen",
+      "excludeWhenDominantIs": "Ausschließen, wenn dominanter Status:",
       "apply": "Filter anwenden",
       "clear": "Filter löschen",
       "all": "Alle"
