@@ -317,6 +317,10 @@ export default {
       "all": "All",
       "pastedInfo": "Filtering by {{count}} pasted items"
     },
+    "exclusionInfo": {
+        "info": "Excluded items uploaded on {{date}} at {{time}}. Items loaded: {{count}}",
+        "updateButton": "Update List"
+    },
     "summary": {
       "title": "Report Summary",
       "warehouse": "Warehouse",
