@@ -14,6 +14,9 @@ type SettingsViewProps = {
     onDeleteRdc: (rdcId: string) => void;
     onExportConfig: () => void;
     onImportClick: () => void;
+    exclusionListSize: number;
+    onImportExclusionListClick: () => void;
+    onClearExclusionList: () => void;
 };
 
 export const SettingsView = (props: SettingsViewProps) => {
@@ -28,7 +31,10 @@ export const SettingsView = (props: SettingsViewProps) => {
         onAddRdc,
         onDeleteRdc,
         onExportConfig,
-        onImportClick
+        onImportClick,
+        exclusionListSize,
+        onImportExclusionListClick,
+        onClearExclusionList
     } = props;
     const { t } = useTranslation();
     const [newRdc, setNewRdc] = useState({ id: '', name: '' });
@@ -116,6 +122,16 @@ export const SettingsView = (props: SettingsViewProps) => {
                             })}
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+             <div class="settings-section">
+                <h3>{t('settings.exclusionList.title')}</h3>
+                <p>{t('settings.exclusionList.description')}</p>
+                <p><strong>{t('settings.exclusionList.currentCount', { count: exclusionListSize })}</strong></p>
+                <div class="filter-actions">
+                    <button class="button-primary" onClick={onImportExclusionListClick}>{t('settings.exclusionList.importButton')}</button>
+                    <button class="button-secondary" onClick={onClearExclusionList} disabled={exclusionListSize === 0}>{t('settings.exclusionList.clearButton')}</button>
                 </div>
             </div>
 
