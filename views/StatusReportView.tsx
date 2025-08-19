@@ -34,9 +34,8 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const [dispoGroupFilter, setDispoGroupFilter] = useState('');
     const [itemGroupFilter, setItemGroupFilter] = useState('');
     const [excludeNoStock, setExcludeNoStock] = useState(true);
-    const [requireActiveStatus, setRequireActiveStatus] = useState(true);
     const [showOnlyUndetermined, setShowOnlyUndetermined] = useState(false);
-    const [excludedDominantStatuses, setExcludedDominantStatuses] = useState<string[]>([]);
+    const [excludedDominantStatuses, setExcludedDominantStatuses] = useState<string[]>(EXCLUDABLE_STATUSES.filter(s => s !== '8'));
     
     const [currentPage, setCurrentPage] = useState(1);
     const [sortByWarehouse, setSortByWarehouse] = useState<string | null>(null);
@@ -46,7 +45,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
     const thRef = useRef<HTMLTableCellElement>(null);
     const isResizingRef = useRef(false);
     
-    const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
+    const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
     const rdcNameMap = useMemo(() => new Map(rdcList.map(r => [r.id, r.name])), [rdcList]);
 
@@ -116,10 +115,6 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                 const totalStock = Object.values(item.stockByWarehouse).reduce((sum, stock) => sum + stock, 0);
                 if (totalStock <= 0) return false;
             }
-            if (requireActiveStatus) {
-                const hasActiveStatus = Object.values(item.statusesByWarehouse).some(status => ['6', '7', '8'].includes(status));
-                if (!hasActiveStatus) return false;
-            }
             if (showOnlyUndetermined && item.dominantStatusInfo.type !== 'none') {
                 return false;
             }
@@ -128,7 +123,7 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
             }
             return true;
         });
-    }, [reportResults, productIdFilter, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, requireActiveStatus, showOnlyUndetermined, excludedDominantStatuses]);
+    }, [reportResults, productIdFilter, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, showOnlyUndetermined, excludedDominantStatuses]);
     
     const summaryData = useMemo<DetailedSummaryData | null>(() => {
         if (!filteredResults) return null;
@@ -224,9 +219,8 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
         setDispoGroupFilter('');
         setItemGroupFilter('');
         setExcludeNoStock(true);
-        setRequireActiveStatus(true);
         setShowOnlyUndetermined(false);
-        setExcludedDominantStatuses([]);
+        setExcludedDominantStatuses(EXCLUDABLE_STATUSES.filter(s => s !== '8'));
     };
 
     const handleExcludeStatusChange = (status: string, isChecked: boolean) => {
@@ -409,10 +403,6 @@ export const StatusReportView = (props: { rdcList: RDC[] }) => {
                              <label>
                                 <input type="checkbox" checked={excludeNoStock} onChange={(e) => setExcludeNoStock((e.target as HTMLInputElement).checked)} />
                                 {t('statusReport.filters.excludeNoStock')}
-                            </label>
-                            <label>
-                                <input type="checkbox" checked={requireActiveStatus} onChange={(e) => setRequireActiveStatus((e.target as HTMLInputElement).checked)} />
-                                {t('statusReport.filters.requireActiveStatus')}
                             </label>
                             <label>
                                 <input type="checkbox" checked={showOnlyUndetermined} onChange={(e) => setShowOnlyUndetermined((e.target as HTMLInputElement).checked)} />
