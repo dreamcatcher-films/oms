@@ -1679,7 +1679,7 @@ tr:hover {
     overflow-x: auto;
 }
 .status-report-results table th, .status-report-results table td {
-    padding: 10px 12px;
+    padding: 6px 10px;
     text-align: center;
     white-space: nowrap;
 }
