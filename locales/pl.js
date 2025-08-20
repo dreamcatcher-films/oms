@@ -1,467 +1,474 @@
 export default {
   "header": {
     "title": "OMS",
-    "session": {
-        "mode": "Modus",
-        "logout": "Abmelden"
+     "session": {
+        "mode": "Tryb",
+        "logout": "Wyloguj"
     },
     "autoRefresh": {
-        "title": "Auto-Aktualisierung",
-        "interval": "Intervall",
-        "minutes": "Min",
-        "nextRefreshIn": "Nächste Aktualisierung in..."
+        "title": "Auto-odświeżanie",
+        "interval": "Interwał",
+        "minutes": "min",
+        "nextRefreshIn": "Następne odświeżenie za..."
     }
   },
   "sidebar": {
-    "import": "Datenimport",
-    "dataPreview": "Datenvorschau",
-    "threatReport": "Risikobericht",
-    "statusReport": "Statusbericht",
+    "import": "Import Danych",
+    "dataPreview": "Przeglądanie Danych",
+    "threatReport": "Raport Zagrożeń",
+    "statusReport": "Raport Statusów",
     "dashboard": "Dashboard",
-    "simulations": "Simulationen",
-    "settings": "Einstellungen"
+    "simulations": "Symulacje",
+    "settings": "Ustawienia",
+    "footer": {
+      "version": "Wersja {{version}}"
+    }
   },
   "actions": {
-    "runAnalysis": "Analyse starten",
-    "clearAll": "Alle Daten löschen"
+    "runAnalysis": "Uruchom Analizę",
+    "clearAll": "Wyczyść Wszystkie Dane"
   },
   "status": {
-    "checkingDb": "Lokale Datenbank wird geprüft...",
-    "dbOk": "Daten gefunden. Bereit zur Analyse.",
-    "dbEmpty": "Wählen Sie Datendateien, um zu beginnen.",
-    "dbError": "Fehler beim Prüfen der Datenbank.",
-    "close": "Benachrichtigung schließen",
+    "checkingDb": "Sprawdzanie lokalnej bazy danych...",
+    "dbOk": "Dane gotowe do analizy.",
+    "dbEmpty": "Wybierz pliki z danymi, aby rozpocząć.",
+    "dbError": "Błąd podczas sprawdzania bazy danych.",
+    "close": "Zamknij powiadomienie",
     "import": {
-        "preparing": "Vorbereitung für den Import: {{dataTypeName}}...",
-        "clearError": "Fehler beim Löschen der Datenbank.",
-        "starting": "Dateiimport wird gestartet: {{dataTypeName}}...",
-        "processing": "Datei wird verarbeitet... {{processedCount}} Datensätze gespeichert.",
-        "complete": "Import abgeschlossen. {{processedCount}} Datensätze gespeichert ({{dataTypeName}}).",
-        "parseError": "Kritischer Fehler beim Parsen der Datei: {{dataTypeName}}."
+        "preparing": "Przygotowywanie do importu: {{dataTypeName}}...",
+        "clearError": "Błąd podczas czyszczenia bazy danych.",
+        "starting": "Rozpoczynanie importu pliku: {{dataTypeName}}...",
+        "processing": "Przetwarzanie pliku... Zapisano {{processedCount}} rekordów.",
+        "complete": "Import zakończony. Zapisano {{processedCount}} rekordów ({{dataTypeName}}).",
+        "parseError": "Błąd krytyczny podczas parsowania pliku: {{dataTypeName}}."
     },
     "clear": {
-        "clearing": "Daten werden gelöscht: {{dataTypeName}}...",
-        "cleared": "Daten '{{dataTypeName}}' wurden gelöscht.",
-        "clearError": "Fehler beim Löschen der Daten: {{dataTypeName}}.",
-        "clearingAll": "Alle Daten werden gelöscht...",
-        "clearedAll": "Alle Daten wurden gelöscht. Sie können jetzt neue Dateien laden.",
-        "clearAllError": "Fehler beim Löschen der Daten."
+        "clearing": "Usuwanie danych: {{dataTypeName}}...",
+        "cleared": "Dane '{{dataTypeName}}' zostały usunięte.",
+        "clearError": "Błąd podczas usuwania danych: {{dataTypeName}}.",
+        "clearingAll": "Usuwanie wszystkich danych...",
+        "clearedAll": "Wszystkie dane zostały usunięte. Możesz załadować nowe pliki.",
+        "clearAllError": "Błąd podczas usuwania danych."
     },
-     "autoRefresh": {
-        "starting": "Automatische Aktualisierung der verknüpften Dateien wird gestartet...",
-        "complete": "Automatische Aktualisierung abgeschlossen. Alle verknüpften Dateien neu geladen.",
-        "cancelled": "Automatische Aktualisierung abgebrochen."
+    "autoRefresh": {
+        "starting": "Rozpoczynanie automatycznego odświeżania połączonych plików...",
+        "complete": "Automatyczne odświeżanie zakończone. Wszystkie pliki załadowano ponownie.",
+        "cancelled": "Automatyczne odświeżanie anulowane."
     }
   },
   "import": {
     "products": {
-        "title": "1. Artikelstammdaten",
-        "description": "Datei mit Produktinformationen. Benötigt zwei Kopfzeilen."
+        "title": "1. Dane Podstawowe Artykułów",
+        "description": "Plik z informacjami o produktach. Wymaga dwóch wierszy nagłówka."
     },
     "goodsReceipts": {
-        "title": "2. Wareneingang (eGIN)",
-        "description": "Datei mit Informationen zum Wareneingang. Benötigt zwei Kopfzeilen."
+        "title": "2. Przyjęcie Towaru (eGIN)",
+        "description": "Plik z informacjami o przyjęciach towaru. Wymaga dwóch wierszy nagłówka."
     },
     "openOrders": {
-        "title": "3. Offene Bestellungen",
-        "description": "Datei mit offenen Bestellungen, die noch nicht im Lager eingetroffen sind."
+        "title": "3. Otwarte Zamówienia",
+        "description": "Plik z otwartymi zamówieniami, które nie dotarły jeszcze do magazynu."
     },
     "sales": {
-        "title": "4. Verkaufsdaten",
-        "description": "Datei mit historischen Verkaufsdaten. Akzeptiert .csv oder .txt."
+        "title": "4. Dane o Odsprzedaży",
+        "description": "Plik z historycznymi danymi o odsprzedaży. Akceptuje .csv lub .txt."
     },
     "status": {
-        "updated": "Aktualisiert",
-        "todayAt": "heute um",
-        "noData": "Keine Daten",
-        "records": "Datensätze",
-        "linkedTo": "Verknüpft mit"
+        "updated": "Zaktualizowano",
+        "todayAt": "dzisiaj o",
+        "noData": "Brak danych",
+        "records": "rekordów",
+        "linkedTo": "Połączono z",
+        "noLinkedFile": "Brak połączonego pliku."
     },
     "buttons": {
-        "selectFile": "Datei wählen",
-        "change": "Ändern",
-        "reload": "Neu laden",
-        "clear": "Löschen"
+        "selectFile": "Wybierz plik",
+        "change": "Zmień",
+        "reload": "Załaduj ponownie",
+        "clear": "Wyczyść Dane"
     }
   },
   "dataPreview": {
       "tabs": {
-          "products": "Produkte",
-          "goodsReceipts": "Wareneingang (eGIN)",
-          "openOrders": "Offene Bestellungen",
-          "sales": "Verkäufe"
+          "products": "Produkty",
+          "goodsReceipts": "Przyjęcie Towaru (eGIN)",
+          "openOrders": "Otwarte Zamówienia",
+          "sales": "Odsprzedaże"
       },
       "filters": {
-          "warehouse": "Lager",
-          "all": "Alle",
-          "productId": "Artikel-Nr.",
-          "productIdPlaceholder": "z.B. 40006",
+          "warehouse": "Magazyn",
+          "all": "Wszystkie",
+          "productId": "Nr artykułu",
+          "productIdPlaceholder": "np. 40006",
           "status": "Status",
-          "apply": "Filtern",
-          "clear": "Zurücksetzen"
+          "apply": "Filtruj",
+          "clear": "Wyczyść"
       },
       "table": {
-          "deliveries": "Lieferungen",
-          "none": "Keine"
+          "deliveries": "dostaw",
+          "none": "Brak"
       },
       "pagination": {
-          "records": "Datensätze",
-          "previous": "Zurück",
-          "next": "Weiter",
-          "page": "Seite {{currentPage}} von {{totalPages}}"
+          "records": "rekordów",
+          "previous": "Poprzednia",
+          "next": "Następna",
+          "page": "Strona {{currentPage}} z {{totalPages}}"
       }
   },
   "placeholders": {
     "report": {
-        "title": "Risikobericht",
-        "description": "Hier wird eine Liste der Produkte mit potenziellem Verlustrisiko angezeigt, sortiert nach Dringlichkeit. Diese Funktion ist in Entwicklung.",
-        "accessDenied": "Diese Funktion ist nur für HQ-Benutzer verfügbar."
+        "title": "Raport Zagrożeń",
+        "description": "Tutaj znajdzie się lista artykułów z potencjalnym ryzykiem strat, posortowana według pilności. Ta funkcjonalność jest w budowie.",
+        "accessDenied": "Ta funkcjonalność jest dostępna tylko dla użytkowników Centrali (HQ)."
     },
     "dashboard": {
         "title": "Dashboard",
-        "description": "Das Haupt-Dashboard mit den wichtigsten Leistungsindikatoren (KPIs), Diagrammen und einer Zusammenfassung des Lagerstatus. Diese Funktion ist in Entwicklung."
+        "description": "Główny pulpit z kluczowymi wskaźnikami (KPI), wykresami i podsumowaniem stanu magazynu. Ta funkcjonalność jest w budowie."
     }
   },
-  "simulations": {
+   "simulations": {
     "controls": {
-      "title": "Simulationssteuerung",
-      "warehouse": "Lager",
-      "selectWarehouse": "Lager auswählen",
-      "productId": "Artikel-Nr.",
-      "productIdPlaceholder": "Artikel suchen...",
-      "run": "Simulation starten"
+      "title": "Panel Sterowania Symulacją",
+      "warehouse": "Magazyn",
+      "selectWarehouse": "Wybierz magazyn",
+      "productId": "Nr artykułu",
+      "productIdPlaceholder": "Wpisz, aby wyszukać produkt...",
+      "run": "Uruchom Symulację"
     },
     "details": {
-      "title": "Produktdetails",
-      "days": "Tage",
-      "locked": "Gesperrt"
+      "title": "Szczegóły Produktu",
+      "days": "dni",
+      "locked": "Zablokowany"
     },
     "overrides": {
-        "title": "RLZ (Restlaufzeit) anpassen"
+        "title": "Modyfikacja RLZ (Restlaufzeit)"
     },
     "results": {
-      "title": "Simulationsergebnisse",
-      "calculating": "Simulation wird berechnet, dies kann einen Moment dauern...",
-      "none": "Keine"
+      "title": "Wyniki Symulacji",
+      "calculating": "Obliczanie symulacji, to może chwilę potrwać...",
+      "none": "Brak"
     },
     "kpi": {
-      "totalWriteOffValue": "Gesamtwert der Abschreibung",
-      "daysOfStock": "Lagerreichweite (Tage)",
-      "avgDailySales": "Ø Tägl. Verkauf",
-      "nonCompliantReceipts": "Regelwidrige Eingänge",
-      "firstWriteOffDate": "Erstes Abschr.-Datum",
-      "aldValue": "ALD-Wert",
-      "aldDescription": "Wert der vom ALD betroffenen Ware.",
-      "salesAdjustUp": "Verkauf um 10% erhöhen",
-      "salesAdjustDown": "Verkauf um 10% verringern",
-      "original": "Original",
-      "salesResetTooltip": "Klicken, um Originalwert wiederherzustellen"
+      "totalWriteOffValue": "Łączna Wartość Odpisu",
+      "daysOfStock": "Dni Zapasu",
+      "avgDailySales": "Śr. Sprzedaż Dzienna",
+      "nonCompliantReceipts": "Niezgodne Przyjęcia",
+      "firstWriteOffDate": "Data Pierwszego Odpisu",
+      "aldValue": "Wartość ALD",
+      "aldDescription": "Wartość towaru, który jest dotknięty ALD.",
+      "salesAdjustUp": "Zwiększ sprzedaż o 10%",
+      "salesAdjustDown": "Zmniejsz sprzedaż o 10%",
+      "original": "Oryginalna",
+      "salesResetTooltip": "Kliknij, aby przywrócić oryginalną wartość"
     },
     "manualDelivery": {
-        "title": "Manuelle Lieferung hinzufügen",
-        "addedTitle": "Hinzugefügte Lieferungen",
-        "date": "Lieferdatum",
-        "quantity": "Menge",
-        "bestBeforeDate": "Mindesthaltbarkeitsdatum"
+        "title": "Dodaj Ręczną Dostawę",
+        "addedTitle": "Dodane Dostawy",
+        "date": "Data Dostawy",
+        "quantity": "Ilość",
+        "bestBeforeDate": "Data Przydatności"
     },
     "initialStock": {
-      "title": "Zusammensetzung des Anfangsbestands",
-      "warning": "Der Anfangsbestand konnte nicht vollständig mit den Wareneingängen abgeglichen werden. Die Simulation geht davon aus, dass dieser nicht zugeordnete Teil der älteste Bestand ist und früher abgeschrieben werden könnte.",
-      "deliveryDate": "Lieferdatum",
-      "bestBeforeDate": "MHD",
-      "daysForSale": "Tage zum Verkauf",
-      "regulationBreached": "Verstoß (J/N)",
-      "quantity": "Menge",
-      "unknownBatch": "Unbekannte Charge",
+      "title": "Skład Początkowego Stanu Magazynowego",
+      "warning": "Początkowy stan magazynowy nie mógł być w pełni dopasowany do przyjęć towaru. Symulacja zakłada, że ta niedopasowana część jest najstarszym towarem i może podlegać wcześniejszym odpisom.",
+      "deliveryDate": "Data Dostawy",
+      "bestBeforeDate": "Data Przydatności",
+      "daysForSale": "Dni na Sprzedaż",
+      "regulationBreached": "Przekroczone (T/N)",
+      "quantity": "Ilość",
+      "unknownBatch": "Nieznana Partia",
       "legend": {
-        "ald": "ALD-Risiko",
-        "writeOff": "Abschreibungsrisiko",
-        "nonCompliant": "Regelwidriger Eingang",
-        "manual": "Manuelle Lieferung"
+        "ald": "Ryzyko ALD",
+        "writeOff": "Zagrożenie Odpisem",
+        "nonCompliant": "Niezgodne Przyjęcie",
+        "manual": "Dostawa Ręczna"
       }
     },
     "log": {
-      "title": "Simulationsprotokoll",
-      "date": "Datum",
-      "stockStart": "Anfangsbestand",
-      "sales": "Verkauf",
-      "receipts": "Eingänge",
-      "writeOffs": "Abschreibungen",
+      "title": "Dziennik Symulacji",
+      "date": "Data",
+      "stockStart": "Stan Początkowy",
+      "sales": "Sprzedaż",
+      "receipts": "Przyjęcia",
+      "writeOffs": "Odpisy",
       "ald": "ALD",
-      "stockEnd": "Endbestand",
-      "notes": "Notizen"
+      "stockEnd": "Stan Końcowy",
+      "notes": "Notatki"
     },
     "chart": {
-      "title": "Bestandsprognose (14 Tage)"
+      "title": "Prognoza Stanu Magazynowego (14 dni)"
     },
     "buttons": {
-        "add": "Hinzufügen",
-        "resetDefaults": "Zurücksetzen",
-        "showMore": "Mehr anzeigen",
-        "showLess": "Weniger anzeigen",
-        "rerun": "Neu starten",
-        "showChart": "Diagramm anzeigen",
-        "hideChart": "Diagramm ausblenden"
+        "add": "Dodaj",
+        "resetDefaults": "Resetuj",
+        "showMore": "Pokaż więcej",
+        "showLess": "Pokaż mniej",
+        "rerun": "Uruchom Ponownie",
+        "showChart": "Pokaż Wykres",
+        "hideChart": "Ukryj Wykres"
     },
     "watchlist": {
-        "viewing": "Artikel {{current}} von {{total}} wird angezeigt"
+        "viewing": "Przeglądany artykuł {{current}} z {{total}}"
     }
   },
   "settings": {
-    "title": "Einstellungen",
+    "title": "Ustawienia",
     "dataSources": {
-        "title": "Datenquellen",
-        "description": "Verknüpfen Sie Ihre lokalen Datendateien für ein schnelles Neuladen. Die Anwendung merkt sich Ihre Auswahl.",
-        "dataType": "Datentyp",
-        "linkedFile": "Verknüpfte Datei",
-        "actions": "Aktionen",
-        "notLinked": "Nicht verknüpft",
-        "linkFile": "Datei verknüpfen",
-        "clearLink": "Löschen",
-        "linkSuccess": "Datei erfolgreich verknüpft.",
-        "linkError": "Fehler beim Verknüpfen der Datei.",
-        "permissionDenied": "Berechtigung zum Lesen der Datei verweigert.",
-        "permissionNeeded": "Berechtigung zum Lesen der Datei nicht erteilt.",
-        "reloadError": "Datei konnte nicht gelesen werden. Sie wurde möglicherweise verschoben oder gelöscht."
+        "title": "Źródła Danych",
+        "description": "Połącz swoje lokalne pliki z danymi, aby umożliwić ich szybkie ponowne ładowanie. Aplikacja zapamięta Twój wybór.",
+        "dataType": "Typ Danych",
+        "linkedFile": "Połączony Plik",
+        "actions": "Akcje",
+        "notLinked": "Nie połączono",
+        "linkFile": "Połącz Plik",
+        "clearLink": "Usuń Połączenie",
+        "linkSuccess": "Plik połączono pomyślnie.",
+        "linkError": "Błąd podczas łączenia pliku.",
+        "permissionDenied": "Odmówiono uprawnień do odczytu pliku.",
+        "permissionNeeded": "Nie udzielono uprawnień do odczytu pliku.",
+        "reloadError": "Nie można odczytać pliku. Mógł zostać przeniesiony lub usunięty.",
+        "linkClearedSuccess": "Połączenie z plikiem usunięte.",
+        "linkClearedError": "Błąd podczas usuwania połączenia z plikiem.",
+        "clearLinkConfirm": "Czy na pewno chcesz usunąć to połączenie? Dane z bazy nie zostaną usunięte."
     },
     "configManagement": {
-        "title": "Konfigurationsverwaltung",
-        "description": "Exportieren Sie Ihre Einstellungen (wie die RDC-Liste) in eine Datei oder importieren Sie sie auf einem anderen Gerät. Verknüpfte Dateien sind nicht enthalten.",
-        "exportButton": "Konfiguration exportieren",
-        "importButton": "Konfiguration importieren",
-        "exportSuccess": "Konfiguration erfolgreich exportiert.",
-        "importSuccess": "Konfiguration erfolgreich importiert.",
-        "importError": "Fehler beim Importieren der Konfigurationsdatei."
+        "title": "Zarządzanie Konfiguracją",
+        "description": "Eksportuj swoje ustawienia (jak lista RDC) do pliku lub importuj je na innym urządzeniu. Ta opcja nie obejmuje połączonych plików.",
+        "exportButton": "Eksportuj Konfigurację",
+        "importButton": "Importuj Konfigurację",
+        "exportSuccess": "Konfiguracja wyeksportowana pomyślnie.",
+        "importSuccess": "Konfiguracja zaimportowana pomyślnie.",
+        "importError": "Błąd podczas importu pliku konfiguracyjnego."
     },
     "rdcManagement": {
-        "title": "RDC-Verwaltung",
-        "description": "Fügen Sie Regionale Distributionszentren (RDCs) zur Anmeldeliste hinzu oder entfernen Sie sie.",
-        "rdcId": "RDC-ID",
-        "rdcName": "RDC-Name",
-        "addRdc": "RDC hinzufügen",
-        "deleteRdc": "Löschen",
-        "addSuccess": "RDC erfolgreich hinzugefügt.",
-        "deleteSuccess": "RDC erfolgreich gelöscht.",
-        "deleteConfirm": "Möchten Sie dieses RDC wirklich löschen?"
+        "title": "Zarządzanie Magazynami (RDC)",
+        "description": "Dodawaj lub usuwaj Regionalne Centra Dystrybucyjne (RDC) z listy dostępnej przy logowaniu.",
+        "rdcId": "ID Magazynu",
+        "rdcName": "Nazwa Magazynu",
+        "addRdc": "Dodaj Magazyn",
+        "deleteRdc": "Usuń",
+        "addSuccess": "Magazyn dodany pomyślnie.",
+        "deleteSuccess": "Magazyn usunięty pomyślnie.",
+        "deleteConfirm": "Czy na pewno chcesz usunąć ten magazyn?"
     },
     "exclusionList": {
-      "title": "Ausschlusslisten-Verwaltung",
-      "description": "Importieren Sie eine Liste von Artikelnummern, die von den Berechnungen der 'Verdächtigen Status' im Statusbericht ausgeschlossen werden sollen. Die Produkte werden im Bericht weiterhin sichtbar, aber hervorgehoben sein.",
-      "importButton": "Liste importieren (.txt)",
-      "clearButton": "Liste löschen",
-      "currentCount": "Es befinden sich {{count}} Artikel auf der Ausschlussliste.",
-      "importSuccess": "Ausschlussliste erfolgreich importiert. {{count}} Artikel geladen.",
-      "importError": "Fehler beim Import der Ausschlussliste.",
-      "clearSuccess": "Ausschlussliste gelöscht.",
-      "clearConfirm": "Möchten Sie die gesamte Ausschlussliste wirklich löschen?"
+      "title": "Zarządzanie Listą Wykluczeń",
+      "description": "Zaimportuj listę numerów produktów, które mają być wykluczone z obliczeń 'Podejrzanych statusów' w Raporcie Statusów. Produkty te nadal będą widoczne w raporcie, ale zostaną podświetlone.",
+      "importButton": "Importuj listę (.txt)",
+      "clearButton": "Wyczyść listę",
+      "currentCount": "Na liście wykluczeń znajduje się {{count}} pozycji.",
+      "importSuccess": "Lista wykluczeń zaimportowana pomyślnie. Załadowano {{count}} pozycji.",
+      "importError": "Błąd podczas importu listy wykluczeń.",
+      "clearSuccess": "Lista wykluczeń została wyczyszczona.",
+      "clearConfirm": "Czy na pewno chcesz wyczyścić całą listę wykluczeń?"
     },
     "watchlists": {
-        "title": "Watchlists",
-        "description": "Erstellen und verwalten Sie Produktlisten zur Überwachung. (Funktion in Entwicklung)"
+        "title": "Listy Obserwowane",
+        "description": "Twórz i zarządzaj listami produktów do monitorowania. (Funkcja w budowie)"
     }
   },
   "loginModal": {
-      "title": "Betriebsmodus auswählen",
-      "hqButton": "Zentrale (HQ)",
-      "rdcButton": "Lager (RDC)",
-      "password": "Passwort",
-      "selectRdc": "Lager auswählen",
-      "loginButton": "Anmelden",
-      "invalidPassword": "Passwort ist falsch."
+      "title": "Wybierz Tryb Pracy",
+      "hqButton": "Centrala (HQ)",
+      "rdcButton": "Magazyn (RDC)",
+      "password": "Hasło",
+      "selectRdc": "Wybierz magazyn",
+      "loginButton": "Zaloguj",
+      "invalidPassword": "Hasło jest nieprawidłowe."
   },
   "modals": {
     "refresh": {
-        "title": "Automatische Datenaktualisierung",
-        "message": "Daten werden in {{seconds}} Sekunden neu geladen.",
-        "cancel": "Aktualisierung abbrechen"
+        "title": "Automatyczne odświeżanie danych",
+        "message": "Dane zostaną ponownie załadowane za {{seconds}} sekund.",
+        "cancel": "Anuluj odświeżanie"
     },
     "idle": {
-        "title": "Sitzung wegen Inaktivität abgelaufen",
-        "continue": "Sitzung fortsetzen"
+        "title": "Sesja wygasła z powodu braku aktywności",
+        "continue": "Kontynuuj sesję"
     }
   },
   "common": {
-      "yesShort": "J",
-      "noShort": "N"
+    "yesShort": "T",
+    "noShort": "N"
   },
   "dataType": {
-    "products": "Stammdaten",
-    "goodsReceipts": "Wareneingänge",
-    "openOrders": "Offene Bestellungen",
-    "sales": "Verkaufsdaten"
+    "products": "Dane podstawowe",
+    "goodsReceipts": "Przyjęcia towaru",
+    "openOrders": "Otwarte zamówienia",
+    "sales": "Dane o odsprzedaży"
   },
   "threatReport": {
-    "title": "Risikobericht",
-    "description": "Führen Sie eine Massensimulation für Produkte basierend auf ausgewählten Kriterien durch, um Artikel mit dem höchsten Abschreibungsrisiko zu identifizieren.",
+    "title": "Raport Zagrożeń",
+    "description": "Uruchom symulację zbiorczą dla produktów na podstawie wybranych kryteriów, aby zidentyfikować pozycje o najwyższym ryzyku odpisu.",
     "controls": {
-      "title": "Berichtsparameter",
-      "warehouses": "Lager",
-      "itemGroups": "Artikelgruppen",
-      "statuses": "Status",
-      "runReport": "Bericht erstellen",
-      "selectAll": "Alle auswählen",
-      "deselectAll": "Alle abwählen",
-      "runningTitle": "Bericht wird erstellt...",
-      "runningDescription": "Analysiere {{processed}} von {{total}} Produkten. Dies kann einen Moment dauern."
+      "title": "Parametry Raportu",
+      "warehouses": "Magazyny",
+      "itemGroups": "Grupy Artykułów",
+      "statuses": "Statusy",
+      "runReport": "Uruchom Raport",
+      "selectAll": "Zaznacz wszystko",
+      "deselectAll": "Odznacz wszystko",
+      "runningTitle": "Generowanie Raportu...",
+      "runningDescription": "Analizowanie {{processed}} z {{total}} produktów. To może chwilę potrwać."
     },
     "results": {
-      "title": "Berichtsergebnisse",
-      "noResults": "Keine Produkte entsprechen den ausgewählten Kriterien, oder es wurden keine Risiken gefunden.",
-      "goToSimulation": "Analysieren",
-      "analyzeSelected": "Ausgewählte analysieren ({{count}})",
-      "warehouseId": "Lager",
-      "productId": "Artikel",
-      "caseSize": "VE-Größe",
-      "palletFactor": "Pal.-Faktor",
-      "daysOfStock": "Reichweite",
-      "aldValue": "ALD-Wert",
-      "avgDailySales": "Ø Verkauf",
-      "nonCompliantReceipts": "N-konf. Eing.",
-      "writeOffValue": "Abschr.-Wert"
+      "title": "Wyniki Raportu",
+      "noResults": "Żadne produkty nie pasują do wybranych kryteriów lub nie znaleziono żadnych zagrożeń.",
+      "goToSimulation": "Analizuj",
+      "analyzeSelected": "Analizuj zaznaczone ({{count}})",
+      "warehouseId": "Magazyn",
+      "productId": "Artykuł",
+      "caseSize": "Szt. w kart.",
+      "palletFactor": "Kart. na pal.",
+      "daysOfStock": "Dni Zapasu (RW)",
+      "aldValue": "Wartość ALD",
+      "avgDailySales": "Śr. Sprzedaż",
+      "nonCompliantReceipts": "Niezgodne Przyj.",
+      "writeOffValue": "Wartość Odpisu"
     }
   },
   "statusReport": {
-    "title": "Status-Konsistenzbericht",
-    "description": "Führen Sie einen Bericht aus, um Produkte mit inkonsistenten Status in verschiedenen Lagern zu finden. Der Bericht zeigt nur Produkte an, bei denen eine Statusabweichung festgestellt wurde.",
-    "runReport": "Bericht erstellen",
-    "runningTitle": "Bericht wird erstellt...",
-    "runningDescription": "Analysiere {{processed}} von {{total}} Produktgruppen.",
-     "filters": {
-      "title": "Filter",
-      "productId": "Artikel-Nr.",
+    "title": "Raport Spójności Statusów",
+    "description": "Uruchom raport, aby znaleźć produkty z niespójnymi statusami w różnych magazynach. Raport pokaże tylko produkty, w których wykryto niezgodność statusu.",
+    "runReport": "Uruchom Raport",
+    "runningTitle": "Generowanie Raportu...",
+    "runningDescription": "Analizowanie {{processed}} z {{total}} grup produktów.",
+    "filters": {
+      "title": "Filtry",
+      "productId": "Nr artykułu",
       "dominantStatus": "Status",
-      "excludeNoStock": "Artikel ohne Lagerbestand ausschließen",
-      "showOnlyUndetermined": "Nur Artikel ohne dominanten Status anzeigen",
-      "includeConsistent": "Konsistente Artikel einbeziehen",
-      "excludeWhenDominantIs": "Ausschließen, wenn dominanter Status:",
-      "apply": "Filter anwenden",
-      "clear": "Filter löschen",
-      "all": "Alle",
-      "pastedInfo": "Filterung nach {{count}} eingefügten Artikeln"
+      "excludeNoStock": "Wyklucz art. bez stanu mag.",
+      "showOnlyUndetermined": "Pokaż tylko art. bez statusu dominującego",
+      "includeConsistent": "Pokaż także spójne pozycje",
+      "excludeWhenDominantIs": "Wyklucz, gdy status dominujący to:",
+      "apply": "Filtruj",
+      "clear": "Wyczyść filtry",
+      "all": "Wszystkie",
+      "pastedInfo": "Filtrowanie wg {{count}} wklejonych pozycji"
     },
     "exclusionInfo": {
-      "info": "Ausgeschlossene Artikel hochgeladen am {{date}} um {{time}}. Geladene Artikel: {{count}}",
-      "updateButton": "Liste aktualisieren"
+      "info": "Wykluczone pozycje wgrano {{date}} o {{time}}. Załadowano pozycji: {{count}}",
+      "updateButton": "Zaktualizuj listę"
     },
     "summary": {
-      "title": "Berichtszusammenfassung",
-      "warehouse": "Lager",
-      "itemsChecked": "Geprüfte Artikel",
-      "suspiciousStatuses": "Verdächtige Status",
-      "excluded": "Ausgen.",
-      "status8Items": "Artikel mit Status 8"
+      "title": "Podsumowanie Raportu",
+      "warehouse": "Magazyn",
+      "itemsChecked": "Sprawdzone art.",
+      "suspiciousStatuses": "Podejrzane statusy",
+      "excluded": "Wykluczone",
+      "status8Items": "Artykuły ze stat. 8"
     },
     "statusTypes": {
-      "dominant": "Dominant",
-      "mostFrequent": "Häufigster",
-      "none": "Unbestimmt"
+      "dominant": "Dominujący",
+      "mostFrequent": "Najczęstszy",
+      "none": "Nieokreślony"
     },
     "results": {
-      "title": "Inkonsistente Produkte",
-      "titleWithConsistent": "Ergebnisse ({{count}}) inkl. konsistenter Artikel",
-      "noResults": "Es wurden keine Produkte mit inkonsistenten Status gefunden.",
-      "productId": "Artikel-Nr.",
-      "productName": "Produktname",
-      "caseSize": "VE-Größe",
-      "dominantStatus": "Ermittelter Status",
-      "exportPdf": "Als PDF exportieren"
+      "title": "Niespójne Produkty",
+      "titleWithConsistent": "Wyniki ({{count}}) z uwzgl. Spójnych",
+      "noResults": "Nie znaleziono produktów z niespójnymi statusami.",
+      "productId": "Nr artykułu",
+      "productName": "Nazwa produktu",
+      "caseSize": "Szt. w kart.",
+      "dominantStatus": "Ustalony Status",
+      "exportPdf": "Eksportuj do PDF"
     },
     "tooltips": {
-      "excluded": "Von der Analyse ausgeschlossen"
+      "excluded": "Wykluczony z analizy"
     },
     "pdf": {
-      "summaryTitle": "Zusammenfassung pro Lager",
-      "inconsistentProductsTitle": "Inkonsistente Produkte",
-      "groupedByStatus": "Gruppiert nach verdächtigem Status: {{status}}",
-      "exportOptionsTitle": "Exportoptionen",
-      "selectWarehouse": "Lager für den Export auswählen",
-      "allWarehouses": "Alle Lager",
-      "exportButton": "Exportieren",
-      "cancelButton": "Abbrechen",
-      "reportForWarehouse": "Bericht für Lager",
-      "noInconsistencies": "Für dieses Lager wurden in den aktuellen gefilterten Ergebnissen keine Inkonsistenzen gefunden.",
-      "statusIn": "Status in",
-      "generatedOn": "Erstellt am",
-      "activeFilters": "Aktive Filter",
-      "format": "Berichtsformat",
-      "summaryFormat": "Detaillierte Zusammenfassung (pro Lager)",
-      "comparativeFormat": "Vergleichstabelle (wie auf dem Bildschirm)",
-      "filterByStatus": "Nach verdächtigem Status filtern",
-      "allStatuses": "Alle verdächtigen Status"
+      "summaryTitle": "Podsumowanie dla magazynów",
+      "inconsistentProductsTitle": "Niespójne Produkty",
+      "groupedByStatus": "Grupowane wg podejrzanego statusu: {{status}}",
+      "exportOptionsTitle": "Opcje Eksportu",
+      "selectWarehouse": "Wybierz magazyn do eksportu",
+      "allWarehouses": "Wszystkie magazyny",
+      "exportButton": "Eksportuj",
+      "cancelButton": "Anuluj",
+      "reportForWarehouse": "Raport dla magazynu",
+      "noInconsistencies": "Nie znaleziono niespójności dla tego magazynu w bieżących wynikach.",
+      "statusIn": "Status w",
+      "generatedOn": "Wygenerowano",
+      "activeFilters": "Aktywne Filtry",
+      "format": "Format Raportu",
+      "summaryFormat": "Podsumowanie Szczegółowe (wg Magazynu)",
+      "comparativeFormat": "Tabela Porównawcza (jak na Ekranie)",
+      "filterByStatus": "Filtruj wg Podejrzanego Statusu",
+      "allStatuses": "Wszystkie Podejrzane Statusy"
     }
   },
   "columns": {
     "product": {
-      "warehouseId": "Lager",
-      "dispoGroup": "Dispo-Gruppe",
-      "itemGroup": "Art.-Gruppe",
-      "orderArea": "Bestellber.",
-      "productId": "Artikel-Nr. (Kurz)",
-      "fullProductId": "Artikel-Nr. (Voll)",
-      "name": "Name",
-      "caseSize": "Stk./Karton",
-      "cartonsPerLayer": "Kart./Lage",
+      "warehouseId": "Magazyn",
+      "dispoGroup": "Grupa Dispo",
+      "itemGroup": "Grupa Tow.",
+      "orderArea": "Obszar Zam.",
+      "productId": "Nr art. krótki",
+      "fullProductId": "Nr art. pełny",
+      "name": "Nazwa",
+      "caseSize": "Szt. w kart.",
+      "cartonsPerLayer": "Kart. na war.",
       "duessFactor": "DD",
-      "cartonsPerPallet": "Kart./Palette",
-      "shelfLifeAtReceiving": "W-DATE Tage",
-      "shelfLifeAtStore": "S-DATE Tage",
-      "customerShelfLife": "C-DATE Tage",
-      "price": "Preis",
+      "cartonsPerPallet": "Kart. na pal.",
+      "shelfLifeAtReceiving": "W-DATE dni",
+      "shelfLifeAtStore": "S-DATE dni",
+      "customerShelfLife": "C-DATE dni",
+      "price": "Cena",
       "status": "Status",
-      "itemLocked": "Gesperrt",
+      "itemLocked": "Zablokowany",
       "slotNr": "Slot",
-      "unprocessedDeliveryQty": "Unbearb. Menge",
-      "supplierId": "Lieferanten-ID",
-      "supplierName": "Lieferantenname",
-      "stockOnHand": "Lagerbestand",
-      "storeAllocationToday": "Heutige Zuordnung",
-      "storeAllocationTotal": "Gesamtzuordnung",
-      "promoDate": "Promo-Datum",
-      "estimatedReceivings": "Erw. Eingänge"
+      "unprocessedDeliveryQty": "Nieroz. dost.",
+      "supplierId": "ID Dostawcy",
+      "supplierName": "Nazwa Dostawcy",
+      "stockOnHand": "Stan mag.",
+      "storeAllocationToday": "Alok. dzisiaj",
+      "storeAllocationTotal": "Alok. łączna",
+      "promoDate": "Data promo",
+      "estimatedReceivings": "Szac. dostawy"
     },
     "goodsReceipt": {
-      "warehouseId": "Lager",
-      "productId": "Artikel-Nr. (Kurz)",
-      "fullProductId": "Artikel-Nr. (Voll)",
-      "name": "Name",
-      "deliveryUnit": "Liefereinheit",
-      "deliveryQtyUom": "Menge (ME)",
-      "caseSize": "Stk./Karton",
-      "deliveryQtyPcs": "Menge (Stk.)",
-      "poNr": "Bestell-Nr.",
-      "deliveryDate": "Lieferdatum",
-      "bestBeforeDate": "MHD",
-      "supplierId": "Lieferanten-ID",
-      "supplierName": "Lieferantenname",
-      "bolNr": "BOL-Nr.",
-      "deliveryNote": "Lieferschein",
-      "intSupplierNr": "Int. Liefer.-Nr.",
-      "intItemNr": "Int. Artikel-Nr.",
-      "caseGtin": "Karton-GTIN",
-      "liaReference": "LIA-Ref"
+      "warehouseId": "Magazyn",
+      "productId": "Nr art. krótki",
+      "fullProductId": "Nr art. pełny",
+      "name": "Nazwa",
+      "deliveryUnit": "Jedn. dostawy",
+      "deliveryQtyUom": "Ilość (J.m.)",
+      "caseSize": "Szt. w kart.",
+      "deliveryQtyPcs": "Ilość (szt.)",
+      "poNr": "Nr zamówienia",
+      "deliveryDate": "Data dostawy",
+      "bestBeforeDate": "Data przydatności",
+      "supplierId": "ID Dostawcy",
+      "supplierName": "Nazwa Dostawcy",
+      "bolNr": "BOL Nr",
+      "deliveryNote": "Nota dostawy",
+      "intSupplierNr": "Międz. ID Dostawcy",
+      "intItemNr": "Międz. nr art.",
+      "caseGtin": "GTIN kartonu",
+      "liaReference": "LIA Ref"
     },
     "openOrder": {
-      "warehouseId": "Lager",
-      "productId": "Artikel-Nr. (Kurz)",
-      "fullProductId": "Artikel-Nr. (Voll)",
-      "name": "Name",
-      "orderUnit": "Bestelleinheit",
-      "orderQtyUom": "Menge (ME)",
-      "caseSize": "Stk./Karton",
-      "orderQtyPcs": "Menge (Stk.)",
-      "poNr": "Bestell-Nr.",
-      "supplierId": "Lieferanten-ID",
-      "supplierName": "Lieferantenname",
-      "deliveryDate": "Gepl. Lieferdatum",
-      "creationDate": "Erstelldatum",
-      "deliveryLeadTime": "Vorlaufzeit (Tage)"
+      "warehouseId": "Magazyn",
+      "productId": "Nr art. krótki",
+      "fullProductId": "Nr art. pełny",
+      "name": "Nazwa",
+      "orderUnit": "Jedn. zamówienia",
+      "orderQtyUom": "Ilość (J.m.)",
+      "caseSize": "Szt. w kart.",
+      "orderQtyPcs": "Ilość (szt.)",
+      "poNr": "Nr zamówienia",
+      "supplierId": "ID Dostawcy",
+      "supplierName": "Nazwa Dostawcy",
+      "deliveryDate": "Plan. data dostawy",
+      "creationDate": "Data utworzenia",
+      "deliveryLeadTime": "Czas realizacji (dni)"
     },
     "sale": {
-      "resaleDate": "Verkaufsdatum",
-      "warehouseId": "Lager",
-      "productId": "Artikel-Nr.",
-      "productName": "Produktname",
-      "quantity": "Verkaufte Menge"
+      "resaleDate": "Data odsprzedaży",
+      "warehouseId": "Magazyn",
+      "productId": "Nr artykułu",
+      "productName": "Nazwa produktu",
+      "quantity": "Sprzedana ilość"
     }
   }
 }
