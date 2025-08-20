@@ -4,7 +4,7 @@ export type Status = {
   progress?: number;
 };
 
-export type View = 'import' | 'report' | 'dashboard' | 'simulations' | 'data-preview' | 'settings' | 'status-report';
+export type View = 'import' | 'threat-report' | 'dashboard' | 'simulations' | 'data-preview' | 'settings' | 'status-report';
 
 export type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales';
 
