@@ -17,6 +17,7 @@ export default {
     "dataPreview": "Data Preview",
     "threatReport": "Threat Report",
     "statusReport": "Status Report",
+    "shcReport": "SHC Report",
     "dashboard": "Dashboard",
     "simulations": "Simulations",
     "settings": "Settings",
@@ -72,6 +73,22 @@ export default {
     "sales": {
         "title": "4. Sales Data",
         "description": "File with historical sales data. Accepts .csv or .txt."
+    },
+     "shc": {
+      "title": "SHC vs Planogram",
+      "apiNotSupported": "File linking is not supported by your browser.",
+      "shc": {
+        "title": "Store Data (SHC)"
+      },
+      "planogram": {
+        "title": "Planogram Export"
+      },
+      "orgStructure": {
+        "title": "Organizational Structure"
+      },
+      "categoryRelation": {
+        "title": "Category-Store Relation"
+      }
     },
     "status": {
         "updated": "Updated",
@@ -395,6 +412,20 @@ export default {
       "comparativeFormat": "Comparative Table (As on Screen)",
       "filterByStatus": "Filter by Suspicious Status",
       "allStatuses": "All Suspicious Statuses"
+    }
+  },
+  "shcReport": {
+    "description": "Run an analysis to verify the consistency of SHC data in the system with planogram data.",
+    "status": {
+      "readingFiles": "Reading files..."
+    },
+    "errors": {
+      "allFilesRequired": "All 4 files must be linked to run the analysis.",
+      "fileReadError": "An error occurred while reading one of the linked files."
+    },
+    "results": {
+      "title": "Analysis Results",
+      "placeholder": "Run the analysis to see the results here."
     }
   },
   "columns": {
