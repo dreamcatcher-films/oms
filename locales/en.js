@@ -19,7 +19,10 @@ export default {
     "statusReport": "Status Report",
     "dashboard": "Dashboard",
     "simulations": "Simulations",
-    "settings": "Settings"
+    "settings": "Settings",
+    "footer": {
+      "version": "Version {{version}}"
+    }
   },
   "actions": {
     "runAnalysis": "Run Analysis",
