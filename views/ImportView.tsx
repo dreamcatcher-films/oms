@@ -4,6 +4,15 @@ import { ImportMetadata } from '../db';
 import styles from './ImportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
+// Diagnostic check for CSS module loading
+if (typeof styles !== 'object' || !styles.importContainer) {
+  console.error(
+    'Failed to load CSS module for ImportView. The "styles" object is either missing or does not contain expected classes. Check the build process and file paths.',
+    { stylesObject: styles }
+  );
+}
+
+
 const isDateToday = (someDate: Date) => {
     const today = new Date();
     return someDate.getDate() === today.getDate() &&
