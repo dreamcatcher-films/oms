@@ -4,6 +4,12 @@ export default {
     "session": {
         "mode": "Modus",
         "logout": "Abmelden"
+    },
+    "autoRefresh": {
+        "title": "Auto-Aktualisierung",
+        "interval": "Intervall",
+        "minutes": "Min",
+        "nextRefreshIn": "Nächste Aktualisierung in..."
     }
   },
   "sidebar": {
@@ -40,6 +46,11 @@ export default {
         "clearingAll": "Alle Daten werden gelöscht...",
         "clearedAll": "Alle Daten wurden gelöscht. Sie können jetzt neue Dateien laden.",
         "clearAllError": "Fehler beim Löschen der Daten."
+    },
+     "autoRefresh": {
+        "starting": "Automatische Aktualisierung der verknüpften Dateien wird gestartet...",
+        "complete": "Automatische Aktualisierung abgeschlossen. Alle verknüpften Dateien neu geladen.",
+        "cancelled": "Automatische Aktualisierung abgebrochen."
     }
   },
   "import": {
@@ -64,13 +75,14 @@ export default {
         "todayAt": "heute um",
         "noData": "Keine Daten",
         "records": "Datensätze",
-        "linkedTo": "Verknüpft mit"
+        "linkedTo": "Verknüpft mit",
+        "noLinkedFile": "Keine Datei verknüpft."
     },
     "buttons": {
         "selectFile": "Datei wählen",
         "change": "Ändern",
         "reload": "Neu laden",
-        "clear": "Löschen"
+        "clear": "Daten löschen"
     }
   },
   "dataPreview": {
@@ -206,12 +218,15 @@ export default {
         "actions": "Aktionen",
         "notLinked": "Nicht verknüpft",
         "linkFile": "Datei verknüpfen",
-        "clearLink": "Löschen",
+        "clearLink": "Verknüpfung löschen",
         "linkSuccess": "Datei erfolgreich verknüpft.",
         "linkError": "Fehler beim Verknüpfen der Datei.",
         "permissionDenied": "Berechtigung zum Lesen der Datei verweigert.",
         "permissionNeeded": "Berechtigung zum Lesen der Datei nicht erteilt.",
-        "reloadError": "Datei konnte nicht gelesen werden. Sie wurde möglicherweise verschoben oder gelöscht."
+        "reloadError": "Datei konnte nicht gelesen werden. Sie wurde möglicherweise verschoben oder gelöscht.",
+        "linkClearedSuccess": "Dateiverknüpfung gelöscht.",
+        "linkClearedError": "Fehler beim Löschen der Dateiverknüpfung.",
+        "clearLinkConfirm": "Möchten Sie diese Verknüpfung wirklich löschen? Die zugrunde liegenden Daten werden nicht gelöscht."
     },
     "configManagement": {
         "title": "Konfigurationsverwaltung",
@@ -257,6 +272,17 @@ export default {
       "selectRdc": "Lager auswählen",
       "loginButton": "Anmelden",
       "invalidPassword": "Passwort ist falsch."
+  },
+  "modals": {
+    "refresh": {
+        "title": "Automatische Datenaktualisierung",
+        "message": "Daten werden in {{seconds}} Sekunden neu geladen.",
+        "cancel": "Aktualisierung abbrechen"
+    },
+    "idle": {
+        "title": "Sitzung wegen Inaktivität abgelaufen",
+        "continue": "Sitzung fortsetzen"
+    }
   },
   "common": {
       "yesShort": "J",
