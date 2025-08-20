@@ -17,6 +17,7 @@ export default {
     "dataPreview": "Przeglądanie Danych",
     "threatReport": "Raport Zagrożeń",
     "statusReport": "Raport Statusów",
+    "shcReport": "Raport SHC",
     "dashboard": "Dashboard",
     "simulations": "Symulacje",
     "settings": "Ustawienia",
@@ -72,6 +73,22 @@ export default {
     "sales": {
         "title": "4. Dane o Odsprzedaży",
         "description": "Plik z historycznymi danymi o odsprzedaży. Akceptuje .csv lub .txt."
+    },
+    "shc": {
+      "title": "SHC vs Planogram",
+      "apiNotSupported": "Łączenie plików nie jest wspierane przez Twoją przeglądarkę.",
+      "shc": {
+        "title": "Dane ze Sklepów (SHC)"
+      },
+      "planogram": {
+        "title": "Export z Planogramu"
+      },
+      "orgStructure": {
+        "title": "Struktura Organizacyjna"
+      },
+      "categoryRelation": {
+        "title": "Relacja Kategoria-Sklep"
+      }
     },
     "status": {
         "updated": "Zaktualizowano",
@@ -395,6 +412,20 @@ export default {
       "comparativeFormat": "Tabela Porównawcza (jak na Ekranie)",
       "filterByStatus": "Filtruj wg Podejrzanego Statusu",
       "allStatuses": "Wszystkie Podejrzane Statusy"
+    }
+  },
+  "shcReport": {
+    "description": "Uruchom analizę weryfikującą zgodność danych SHC w systemie z danymi w planogramach.",
+    "status": {
+      "readingFiles": "Wczytywanie plików..."
+    },
+    "errors": {
+      "allFilesRequired": "Wszystkie 4 pliki muszą być połączone, aby uruchomić analizę.",
+      "fileReadError": "Wystąpił błąd podczas odczytu jednego z połączonych plików."
+    },
+    "results": {
+      "title": "Wyniki Analizy",
+      "placeholder": "Uruchom analizę, aby zobaczyć tutaj wyniki."
     }
   },
   "columns": {
