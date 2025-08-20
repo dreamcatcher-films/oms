@@ -5,7 +5,7 @@ import styles from './ImportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
 // Diagnostic check for CSS module loading
-if (typeof styles !== 'object' || !styles.importContainer) {
+if (typeof styles !== 'object' || !styles['import-container']) {
   console.error(
     'Failed to load CSS module for ImportView. The "styles" object is either missing or does not contain expected classes. Check the build process and file paths.',
     { stylesObject: styles }
@@ -81,7 +81,7 @@ export const ImportView = ({
     ];
 
     return (
-        <div class={styles.importContainer}>
+        <div class={styles['import-container']}>
             {dataTypes.map(({ key, titleKey, descriptionKey, accept }) => {
                 const meta = importMetadata[key];
                 const count = counts[key];
@@ -95,21 +95,21 @@ export const ImportView = ({
                 const isLinked = linkedFiles.has(key);
 
                 return (
-                    <div class={styles.importSection} key={key}>
-                        <div class={styles.importSectionHeader}>
+                    <div class={styles['import-section']} key={key}>
+                        <div class={styles['import-section-header']}>
                             <h2>{t(titleKey)}</h2>
-                            <div class={styles.importStatusDetails}>
-                                <span class={`${styles.statusIcon} ${statusClass}`}>{statusIcon}</span>
+                            <div class={styles['import-status-details']}>
+                                <span class={`${styles['status-icon']} ${statusClass}`}>{statusIcon}</span>
                                 <div>
-                                    <p class={styles.statusMainText}>{statusText}</p>
-                                    <p class={styles.statusSubText}>{count.toLocaleString(language)} {t('import.status.records')}</p>
+                                    <p class={styles['status-main-text']}>{statusText}</p>
+                                    <p class={styles['status-sub-text']}>{count.toLocaleString(language)} {t('import.status.records')}</p>
                                 </div>
                             </div>
                         </div>
-                        <div class={styles.importSectionDescription}>
+                        <div class={styles['import-section-description']}>
                             <p>{t(descriptionKey)}</p>
                         </div>
-                        <div class={styles.importSectionActions}>
+                        <div class={styles['import-section-actions']}>
                              {isLinked && (
                                 <button onClick={() => onReload(key)} class={`${sharedStyles.buttonPrimary} ${sharedStyles.reload}`} disabled={isLoading}>{t('import.buttons.reload')}</button>
                             )}
@@ -120,7 +120,7 @@ export const ImportView = ({
                             {count > 0 && <button onClick={() => onClear(key)} class={sharedStyles.buttonClear} disabled={isLoading}>{t('import.buttons.clear')}</button>}
                         </div>
                          {isLinked && (
-                            <div class={styles.importLinkedInfo}>
+                            <div class={styles['import-linked-info']}>
                                 <strong>{t('import.status.linkedTo')}:</strong> {linkedFiles.get(key)?.name}
                             </div>
                         )}
