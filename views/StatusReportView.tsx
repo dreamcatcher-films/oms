@@ -8,7 +8,7 @@ import jsPDF from 'jspdf';
 // @ts-ignore
 import autoTable from 'jspdf-autotable';
 import styles from './StatusReportView.module.css';
-import sharedStyles from '/styles/shared.module.css';
+import sharedStyles from '../styles/shared.module.css';
 
 
 const PAGE_SIZE = 20;
