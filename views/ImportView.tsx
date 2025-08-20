@@ -1,5 +1,5 @@
 import { useTranslation } from '../i18n';
-import { DataType, UserSession } from '../utils/types';
+import { DataType, UserSession, ShcDataType } from '../utils/types';
 import { ImportMetadata } from '../db';
 import styles from './ImportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
@@ -18,29 +18,26 @@ type ImportViewProps = {
     onFileSelect: (type: DataType, event: Event) => void;
     onClear: (type: DataType) => void;
     linkedFiles: Map<DataType, FileSystemFileHandle>;
+    shcFiles: Map<ShcDataType, FileSystemFileHandle>;
     onReload: (type: DataType) => void;
     userSession: UserSession | null;
     onLinkFile: (dataType: DataType) => void;
     onClearLink: (dataType: DataType) => void;
+    onLinkShcFile: (dataType: ShcDataType) => void;
+    onClearShcLink: (dataType: ShcDataType) => void;
     onClearAll: () => void;
 };
 
-export const ImportView = ({
-    isLoading,
-    importMetadata,
-    counts,
-    onFileSelect,
-    onClear,
-    linkedFiles,
-    onReload,
-    userSession,
-    onLinkFile,
-    onClearLink,
-    onClearAll,
-}: ImportViewProps) => {
+export const ImportView = (props: ImportViewProps) => {
     const { t, language } = useTranslation();
     const isApiSupported = 'showOpenFilePicker' in window;
     
+    const {
+        isLoading, importMetadata, counts, onFileSelect, onClear,
+        linkedFiles, shcFiles, onReload, userSession, onLinkFile, onClearLink,
+        onLinkShcFile, onClearShcLink, onClearAll
+    } = props;
+
     const formatStatusDate = (date: Date): string => {
         if (isDateToday(date)) {
             return `${t('import.status.todayAt')} ${date.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' })}`;
@@ -54,30 +51,20 @@ export const ImportView = ({
         descriptionKey: string;
         accept: string;
     }[] = [
-        {
-            key: 'products',
-            titleKey: 'import.products.title',
-            descriptionKey: 'import.products.description',
-            accept: '.csv',
-        },
-        {
-            key: 'goodsReceipts',
-            titleKey: 'import.goodsReceipts.title',
-            descriptionKey: 'import.goodsReceipts.description',
-            accept: '.csv',
-        },
-        {
-            key: 'openOrders',
-            titleKey: 'import.openOrders.title',
-            descriptionKey: 'import.openOrders.description',
-            accept: '.csv',
-        },
-        {
-            key: 'sales',
-            titleKey: 'import.sales.title',
-            descriptionKey: 'import.sales.description',
-            accept: '.csv,.txt',
-        },
+        { key: 'products', titleKey: 'import.products.title', descriptionKey: 'import.products.description', accept: '.csv' },
+        { key: 'goodsReceipts', titleKey: 'import.goodsReceipts.title', descriptionKey: 'import.goodsReceipts.description', accept: '.csv' },
+        { key: 'openOrders', titleKey: 'import.openOrders.title', descriptionKey: 'import.openOrders.description', accept: '.csv' },
+        { key: 'sales', titleKey: 'import.sales.title', descriptionKey: 'import.sales.description', accept: '.csv,.txt' },
+    ];
+    
+    const shcDataTypes: {
+        key: ShcDataType;
+        titleKey: string;
+    }[] = [
+        { key: 'shc', titleKey: 'import.shc.shc.title' },
+        { key: 'planogram', titleKey: 'import.shc.planogram.title' },
+        { key: 'orgStructure', titleKey: 'import.shc.orgStructure.title' },
+        { key: 'categoryRelation', titleKey: 'import.shc.categoryRelation.title' },
     ];
 
     return (
@@ -154,6 +141,46 @@ export const ImportView = ({
                         </div>
                     );
                 })}
+            </div>
+
+             <div class={styles['shc-section-container']}>
+                <div class={styles['shc-section-header-main']}>
+                  <h2>{t('import.shc.title')}</h2>
+                </div>
+                <div class={styles['import-container']}>
+                {shcDataTypes.map(({ key, titleKey }) => {
+                    const isLinked = shcFiles.has(key);
+                    return (
+                        <div class={`${styles['import-section']} ${styles['shc-import-section']}`} key={key}>
+                            <div class={styles['import-section-header']}>
+                                <h2>{t(titleKey)}</h2>
+                            </div>
+                            <div class={styles['import-section-footer']}>
+                                <div class={styles['import-link-status']}>
+                                    {isLinked
+                                        ? <><strong>{t('import.status.linkedTo')}:</strong> {shcFiles.get(key)?.name}</>
+                                        : <span>{t('import.status.noLinkedFile')}</span>
+                                    }
+                                </div>
+                                <div class={styles['import-actions']}>
+                                    {isApiSupported ? (
+                                        isLinked ? (
+                                            <>
+                                                <button onClick={() => onLinkShcFile(key)} class={`${sharedStyles.buttonPrimary}`} disabled={isLoading}>{t('import.buttons.change')}</button>
+                                                <button onClick={() => onClearShcLink(key)} class={sharedStyles.buttonClear} disabled={isLoading}>{t('settings.dataSources.clearLink')}</button>
+                                            </>
+                                        ) : (
+                                            <button onClick={() => onLinkShcFile(key)} class={sharedStyles.buttonLink} disabled={isLoading}>{t('settings.dataSources.linkFile')}</button>
+                                        )
+                                    ) : (
+                                       <span>{t('import.shc.apiNotSupported')}</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+                </div>
             </div>
         </div>
     );
