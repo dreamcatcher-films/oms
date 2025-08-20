@@ -17,9 +17,13 @@ export default {
     "dataPreview": "Datenvorschau",
     "threatReport": "Risikobericht",
     "statusReport": "Statusbericht",
+    "shcReport": "SHC-Bericht",
     "dashboard": "Dashboard",
     "simulations": "Simulationen",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "footer": {
+        "version": "Version {{version}}"
+    }
   },
   "actions": {
     "runAnalysis": "Analyse starten",
@@ -69,6 +73,22 @@ export default {
     "sales": {
         "title": "4. Verkaufsdaten",
         "description": "Datei mit historischen Verkaufsdaten. Akzeptiert .csv oder .txt."
+    },
+    "shc": {
+      "title": "SHC vs. Planogramm",
+      "apiNotSupported": "Dateiverknüpfung wird von Ihrem Browser nicht unterstützt.",
+      "shc": {
+        "title": "Filialdaten (SHC)"
+      },
+      "planogram": {
+        "title": "Planogramm-Export"
+      },
+      "orgStructure": {
+        "title": "Organisationsstruktur"
+      },
+      "categoryRelation": {
+        "title": "Kategorie-Filial-Beziehung"
+      }
     },
     "status": {
         "updated": "Aktualisiert",
@@ -392,6 +412,20 @@ export default {
       "comparativeFormat": "Vergleichstabelle (wie auf dem Bildschirm)",
       "filterByStatus": "Nach verdächtigem Status filtern",
       "allStatuses": "Alle verdächtigen Status"
+    }
+  },
+   "shcReport": {
+    "description": "Führen Sie eine Analyse durch, um die Konsistenz der SHC-Daten im System mit den Planogrammdaten zu überprüfen.",
+    "status": {
+      "readingFiles": "Dateien werden gelesen..."
+    },
+    "errors": {
+      "allFilesRequired": "Alle 4 Dateien müssen verknüpft sein, um die Analyse zu starten.",
+      "fileReadError": "Beim Lesen einer der verknüpften Dateien ist ein Fehler aufgetreten."
+    },
+    "results": {
+      "title": "Analyseergebnisse",
+      "placeholder": "Führen Sie die Analyse aus, um die Ergebnisse hier anzuzeigen."
     }
   },
   "columns": {
