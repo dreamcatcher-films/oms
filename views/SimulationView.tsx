@@ -17,6 +17,8 @@ type SimulationViewProps = {
     onClearWatchlist: () => void;
 };
 
+const SESSION_STORAGE_KEY = 'simulationState';
+
 const WatchlistNavigator = ({ 
     watchlist, 
     currentIndex, 
@@ -129,6 +131,53 @@ const SimulationView = ({ userSession, initialParams, onSimulationStart, watchli
             workerRef.current?.terminate();
         };
     }, [originalSimParams, selectedProduct]);
+    
+    // Load state from session storage on initial mount
+    useEffect(() => {
+        if (!initialParams) {
+            try {
+                const savedStateJSON = sessionStorage.getItem(SESSION_STORAGE_KEY);
+                if (savedStateJSON) {
+                    const savedState = JSON.parse(savedStateJSON);
+                    setWarehouseId(savedState.warehouseId || '');
+                    setProductId(savedState.productId || '');
+                    setSelectedProduct(savedState.selectedProduct || null);
+                    setSimulationResult(savedState.simulationResult || null);
+                    setOriginalSimParams(savedState.originalSimParams || null);
+                    setOverrideWDate(savedState.overrideWDate || '');
+                    setOverrideSDate(savedState.overrideSDate || '');
+                    setOverrideCDate(savedState.overrideCDate || '');
+                    setOverrideAvgSales(savedState.overrideAvgSales || '');
+                    setManualDeliveries(savedState.manualDeliveries || []);
+                    setIsDirty(savedState.isDirty || false);
+                    setIsLogExpanded(savedState.isLogExpanded || false);
+                    setIsChartVisible(savedState.isChartVisible || false);
+                }
+            } catch (e) {
+                console.error("Failed to load simulation state from session storage", e);
+                sessionStorage.removeItem(SESSION_STORAGE_KEY);
+            }
+        }
+    }, []);
+
+    // Save state to session storage on any change
+    useEffect(() => {
+        if (isSimulating || !selectedProduct) return;
+        try {
+            const stateToSave = {
+                warehouseId, productId, selectedProduct, simulationResult, originalSimParams,
+                overrideWDate, overrideSDate, overrideCDate, overrideAvgSales,
+                manualDeliveries, isDirty, isLogExpanded, isChartVisible
+            };
+            sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(stateToSave));
+        } catch (e) {
+            console.error("Failed to save simulation state to session storage", e);
+        }
+    }, [
+        warehouseId, productId, selectedProduct, simulationResult, originalSimParams,
+        overrideWDate, overrideSDate, overrideCDate, overrideAvgSales, manualDeliveries,
+        isDirty, isLogExpanded, isChartVisible, isSimulating
+    ]);
 
     useEffect(() => {
         (async () => {
@@ -206,6 +255,7 @@ const SimulationView = ({ userSession, initialParams, onSimulationStart, watchli
     
     useEffect(() => {
         if (initialParams) {
+            sessionStorage.removeItem(SESSION_STORAGE_KEY);
             (async () => {
                 setIsSimulating(true);
                 setWarehouseId(initialParams.warehouseId);
