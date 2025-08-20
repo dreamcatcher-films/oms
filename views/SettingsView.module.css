@@ -1,0 +1,58 @@
+.settings-view {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+.settings-section {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+.settings-section p {
+  margin-top: -0.5rem;
+  margin-bottom: 1.5rem;
+  max-width: 80ch;
+}
+.settings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.settings-table th, .settings-table td {
+  text-align: left;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+.settings-table th {
+  color: var(--text-light-color);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.settings-table tr:last-child td {
+  border-bottom: none;
+}
+.file-info {
+  font-style: italic;
+  color: var(--text-light-color);
+  word-break: break-all;
+}
+.data-source-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.add-rdc-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+    margin-top: 1.5rem;
+}
+.rdc-actions button {
+    background: none;
+    border: none;
+    color: var(--danger-color);
+    cursor: pointer;
+    font-size: 1.2rem;
+}
