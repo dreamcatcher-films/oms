@@ -702,7 +702,7 @@ const App = () => {
       ) : (
         <>
           {showCountdownModal && <RefreshCountdownModal countdown={countdown} onCancel={handleCancelRefresh} />}
-          <div class={`${isLoading ? sharedStyles['app-loading-blur'] : ''}`}>
+          <div class={`app-container ${isLoading ? sharedStyles['app-loading-blur'] : ''}`}>
             <header class="top-header">
                 <h1>{t('header.title')}</h1>
                 <div class="header-controls">
