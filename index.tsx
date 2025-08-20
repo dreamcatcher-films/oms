@@ -37,12 +37,16 @@ import SimulationView from './views/SimulationView';
 import { SettingsView } from './views/SettingsView';
 import { ThreatReportView } from './views/ThreatReportView';
 import { StatusReportView } from './views/StatusReportView';
+import { AutoRefreshControl } from './components/AutoRefreshControl';
+import { RefreshCountdownModal } from './components/RefreshCountdownModal';
+import { IdleSplashScreen } from './components/IdleSplashScreen';
 
 import './styles/global.css';
 import sharedStyles from './styles/shared.module.css';
 
-
 const BATCH_SIZE = 5000;
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const REFRESH_COUNTDOWN_SECONDS = 10;
 
 const App = () => {
   const { t, language } = useTranslation();
@@ -62,8 +66,18 @@ const App = () => {
   const [watchlistIndex, setWatchlistIndex] = useState<number | null>(null);
   const [exclusionList, setExclusionList] = useState<ExclusionListData>({ list: new Set(), lastUpdated: null });
 
+  // New features state
+  const [isIdle, setIsIdle] = useState(false);
+  const [autoRefreshConfig, setAutoRefreshConfig] = useState({ isEnabled: false, interval: 30 });
+  const [timeToNextRefresh, setTimeToNextRefresh] = useState(0);
+  const [showCountdownModal, setShowCountdownModal] = useState(false);
+  const [countdown, setCountdown] = useState(REFRESH_COUNTDOWN_SECONDS);
+
   const importFileInputRef = useRef<HTMLInputElement>(null);
   const exclusionFileInputRef = useRef<HTMLInputElement>(null);
+  const idleTimerRef = useRef<number | null>(null);
+  const refreshIntervalRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const splashScreen = document.getElementById('splash-screen');
@@ -86,6 +100,7 @@ const App = () => {
         try {
             const settings = await loadAllSettings();
             const fileHandles = new Map<DataType, FileSystemFileHandle>();
+            let refreshConfig = null;
             for (const [key, value] of settings.entries()) {
                 if (key.startsWith('linkedFile:')) {
                     const dataType = key.split(':')[1] as DataType;
@@ -93,7 +108,13 @@ const App = () => {
                     if (permission === 'granted') {
                       fileHandles.set(dataType, value as FileSystemFileHandle);
                     }
+                } else if (key === 'autoRefreshConfig') {
+                    refreshConfig = value;
                 }
+            }
+            if (refreshConfig) {
+                setAutoRefreshConfig(refreshConfig);
+                setTimeToNextRefresh(refreshConfig.interval * 60);
             }
             setLinkedFiles(fileHandles);
         } catch(e) {
@@ -128,6 +149,112 @@ const App = () => {
       setIsLoading(false);
     }
   }, [t]);
+  
+  // --- Idle Timeout Logic ---
+  const resetIdleTimer = useCallback(() => {
+    if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+    }
+    idleTimerRef.current = window.setTimeout(() => {
+        setIsIdle(true);
+    }, IDLE_TIMEOUT_MS);
+  }, []);
+
+  useEffect(() => {
+    const events = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll'];
+    const eventHandler = () => resetIdleTimer();
+
+    events.forEach(event => window.addEventListener(event, eventHandler));
+    resetIdleTimer();
+
+    return () => {
+        events.forEach(event => window.removeEventListener(event, eventHandler));
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [resetIdleTimer]);
+
+  const handleContinueFromIdle = () => {
+    setIsIdle(false);
+    resetIdleTimer();
+  };
+
+  // --- Auto Refresh Logic ---
+  const triggerAutoRefresh = useCallback(async () => {
+    setShowCountdownModal(false);
+    setStatusMessage({ text: t('status.autoRefresh.starting'), type: 'info' });
+    let allRefreshed = true;
+    for (const dataType of linkedFiles.keys()) {
+        try {
+            await handleReloadFile(dataType, true);
+        } catch (e) {
+            allRefreshed = false;
+        }
+    }
+    if (allRefreshed) {
+        setStatusMessage({ text: t('status.autoRefresh.complete'), type: 'success' });
+    }
+    setTimeToNextRefresh(autoRefreshConfig.interval * 60);
+  }, [linkedFiles, autoRefreshConfig.interval, t]);
+
+  useEffect(() => {
+    const clearTimers = () => {
+        if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+        if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+        refreshIntervalRef.current = null;
+        countdownTimerRef.current = null;
+    };
+
+    if (autoRefreshConfig.isEnabled && linkedFiles.size > 0 && userSession) {
+        refreshIntervalRef.current = window.setInterval(() => {
+            setTimeToNextRefresh(prev => {
+                const newTime = prev - 1;
+                if (newTime <= REFRESH_COUNTDOWN_SECONDS && !showCountdownModal && !isLoading) {
+                    setShowCountdownModal(true);
+                }
+                if (newTime <= 0) {
+                    clearInterval(refreshIntervalRef.current!);
+                    triggerAutoRefresh();
+                    return 0;
+                }
+                return newTime;
+            });
+        }, 1000);
+    } else {
+        clearTimers();
+    }
+    return clearTimers;
+  }, [autoRefreshConfig.isEnabled, linkedFiles.size, userSession, showCountdownModal, isLoading, triggerAutoRefresh]);
+
+  useEffect(() => {
+      if (showCountdownModal) {
+          setCountdown(REFRESH_COUNTDOWN_SECONDS);
+          countdownTimerRef.current = window.setInterval(() => {
+              setCountdown(prev => {
+                  if (prev <= 1) {
+                      clearInterval(countdownTimerRef.current!);
+                      return 0;
+                  }
+                  return prev - 1;
+              });
+          }, 1000);
+      } else {
+          if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+      }
+      return () => { if (countdownTimerRef.current) clearInterval(countdownTimerRef.current) };
+  }, [showCountdownModal]);
+
+  const handleCancelRefresh = () => {
+      setShowCountdownModal(false);
+      setTimeToNextRefresh(autoRefreshConfig.interval * 60);
+      setStatusMessage({ text: t('status.autoRefresh.cancelled'), type: 'info' });
+  };
+  
+  const handleAutoRefreshConfigChange = async (newConfig: { isEnabled: boolean, interval: number }) => {
+      setAutoRefreshConfig(newConfig);
+      setTimeToNextRefresh(newConfig.interval * 60);
+      await saveSetting('autoRefreshConfig', newConfig);
+  };
+
 
   useEffect(() => {
     const savedSession = localStorage.getItem('oms-session');
@@ -361,30 +488,36 @@ const App = () => {
       }
   };
 
-  const handleReloadFile = async (dataType: DataType) => {
+  const handleReloadFile = async (dataType: DataType, isAuto: boolean = false) => {
       const handle = linkedFiles.get(dataType);
-      if (!handle) return;
-      setIsLoading(true);
+      if (!handle) return Promise.reject();
+      
+      // Don't set loading state globally if it's an auto-refresh,
+      // as the processFile function will handle it per-file.
+      if (!isAuto) setIsLoading(true);
+
       try {
           const permission = await (handle as any).queryPermission({ mode: 'read' });
           if (permission === 'denied') {
               setStatusMessage({ text: t('settings.dataSources.permissionDenied'), type: 'error' });
-              setIsLoading(false);
-              return;
+              if (!isAuto) setIsLoading(false);
+              return Promise.reject();
           }
           if (permission === 'prompt') {
               if ((await (handle as any).requestPermission({ mode: 'read' })) !== 'granted') {
                   setStatusMessage({ text: t('settings.dataSources.permissionNeeded'), type: 'error' });
-                  setIsLoading(false);
-                  return;
+                  if (!isAuto) setIsLoading(false);
+                  return Promise.reject();
               }
           }
           const file = await handle.getFile();
           processFile(dataType, file);
+          return Promise.resolve();
       } catch (err) {
            console.error('Error reloading file:', err);
            setStatusMessage({ text: t('settings.dataSources.reloadError'), type: 'error' });
-           setIsLoading(false);
+           if (!isAuto) setIsLoading(false);
+           return Promise.reject();
       }
   };
   
@@ -481,6 +614,7 @@ const App = () => {
             list: Array.from(exclusionList.list),
             lastUpdated: exclusionList.lastUpdated,
         },
+        autoRefreshConfig: autoRefreshConfig,
     };
     const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -525,6 +659,11 @@ const App = () => {
                 setExclusionList(reloadedList);
                 importedSomething = true;
             }
+        }
+
+        if (config.autoRefreshConfig) {
+            handleAutoRefreshConfigChange(config.autoRefreshConfig);
+            importedSomething = true;
         }
         
         if (importedSomething) {
@@ -687,6 +826,10 @@ const App = () => {
     }
   };
 
+  if (isIdle) {
+    return <IdleSplashScreen onContinue={handleContinueFromIdle} />;
+  }
+
   if (!userSession) {
     return <LoginModal onLogin={handleLogin} rdcList={rdcList} />;
   }
@@ -696,9 +839,15 @@ const App = () => {
 
   return (
     <>
+      {showCountdownModal && <RefreshCountdownModal countdown={countdown} onCancel={handleCancelRefresh} />}
       <header class="top-header">
         <h1>{t('header.title')}</h1>
         <div class="header-controls">
+          <AutoRefreshControl 
+            config={autoRefreshConfig}
+            onConfigChange={handleAutoRefreshConfigChange}
+            timeToNextRefresh={timeToNextRefresh}
+          />
           <div class="header-session-info">
             <span>{t('header.session.mode')}: <strong>{userSession.mode === 'hq' ? 'HQ' : `${userSession.rdc!.id} ${userSession.rdc!.name}`}</strong></span>
             <button class="button-logout" onClick={handleLogout}>{t('header.session.logout')}</button>
@@ -722,7 +871,7 @@ const App = () => {
           <div class="sidebar-footer">
               <p>Proof of Concept Supply Chain UK</p>
               <p>OMS - Outdate Mitigation System</p>
-              <p>&copy; 2025 | Version 0.2 "/ Statuses"</p>
+              <p>&copy; 2025 | Version 0.3 "/ Auto-Refresh"</p>
           </div>
         </nav>
         <main class="main-content">
