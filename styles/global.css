@@ -1,0 +1,356 @@
+:root {
+  --primary-color: #4a90e2;
+  --primary-hover-color: #357abd;
+  --secondary-color: #f5f5f5;
+  --text-color: #333;
+  --text-light-color: #666;
+  --border-color: #e0e0e0;
+  --danger-color: #e74c3c;
+  --danger-hover-color: #c0392b;
+  --success-color: #2ecc71;
+  --success-hover-color: #27ae60;
+  --info-color: #3498db;
+  --warning-color: #f39c12;
+  --font-family-main: 'Inter', sans-serif;
+  --font-family-data: 'Source Sans 3', sans-serif;
+  --header-height: 64px;
+}
+
+body, html {
+  margin: 0;
+  height: 100%;
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+  font-family: var(--font-family-main);
+  overflow: hidden; /* Prevent body scroll */
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+h1 {
+  font-family: 'Bungee Tint', display;
+  font-weight: 400;
+  font-size: 2.25rem;
+  color: var(--primary-color);
+  margin: 0;
+}
+
+h2 {
+  color: var(--text-color);
+  padding-bottom: 0.5rem;
+  margin-top: 0;
+  margin-bottom: 0;
+  font-size: 1.25rem;
+}
+
+h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    color: var(--primary-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+    color: var(--text-color);
+}
+
+h5 {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-light-color);
+    text-transform: uppercase;
+}
+
+p {
+  color: var(--text-light-color);
+  margin: 0;
+  line-height: 1.6;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-family-data);
+}
+
+th, td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+th {
+  background-color: #f8f9fa;
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr:hover {
+  background-color: #f1f3f5;
+}
+
+/* Main Layout */
+.top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  height: var(--header-height);
+  background-color: white;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.header-session-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+
+.button-logout {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-light-color);
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.button-logout:hover {
+    border-color: var(--danger-color);
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.app-layout {
+  display: flex;
+  flex-grow: 1;
+  height: calc(100% - var(--header-height));
+  overflow: hidden;
+}
+
+.sidebar {
+  flex: 0 0 220px;
+  border-right: 1px solid var(--border-color);
+  padding: 2rem 1.5rem;
+  background-color: white;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar a {
+  display: block;
+  padding: 10px 15px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text-light-color);
+  font-weight: 500;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.sidebar a:hover {
+  background-color: #f0f4f8;
+  color: var(--primary-color);
+}
+
+.sidebar a.active {
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: 600;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  color: var(--text-light-color);
+}
+
+.sidebar-footer p {
+    margin: 0.4rem 0;
+    line-height: 1.3;
+}
+
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 2rem;
+  gap: 1.5rem;
+  min-width: 0; /* Prevents flexbox overflow */
+  overflow-y: auto;
+}
+
+.content-wrapper {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Splash Screen */
+#splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+#splash-screen.splash-hidden {
+  animation: fadeOutSplash 0.5s forwards;
+}
+
+#splash-text {
+  font-family: 'Bungee Tint', display;
+  font-size: 38vh;
+  font-weight: 400;
+  color: #333;
+  margin: 0;
+  line-height: 1;
+  animation: unblur 1s ease-out forwards;
+}
+
+.button-splash {
+    background: transparent;
+    border: 2px solid #333;
+    color: #333;
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-family: var(--font-family-main);
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    margin-top: 3rem;
+    opacity: 0;
+    animation: fadeInButton 0.5s 1.2s forwards, pulseButton 2s 1.7s infinite ease-in-out;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.button-splash:hover {
+    background-color: #333;
+    color: white;
+}
+
+@keyframes fadeInButton {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulseButton {
+  50% { opacity: 0.6; }
+}
+
+@keyframes unblur {
+  from {
+    filter: blur(4px);
+    opacity: 0.9;
+  }
+  to {
+    filter: blur(0px);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeOutSplash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden; /* Hide completely */
+  }
+}
+
+
+/* Media Queries */
+@media (max-width: 900px) {
+  .app-layout {
+    flex-direction: column;
+    height: auto;
+    overflow: initial;
+  }
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+    flex-basis: auto;
+    flex-shrink: 0;
+    overflow-y: initial;
+  }
+  .sidebar ul {
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .main-content {
+    padding: 1rem;
+  }
+}
+
+
+@media (max-width: 768px) {
+  .actions-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .button-primary, .button-secondary {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .top-header, .main-content {
+      padding-left: 1rem;
+      padding-right: 1rem;
+  }
+  #splash-text {
+    font-size: 28vmin;
+  }
+}
