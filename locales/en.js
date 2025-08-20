@@ -358,7 +358,14 @@ export default {
       "cancelButton": "Cancel",
       "reportForWarehouse": "Report for warehouse",
       "noInconsistencies": "No inconsistencies found for this warehouse in the current results.",
-      "statusIn": "Status in"
+      "statusIn": "Status in",
+      "generatedOn": "Generated on",
+      "activeFilters": "Active Filters",
+      "format": "Report Format",
+      "summaryFormat": "Detailed Summary (by Warehouse)",
+      "comparativeFormat": "Comparative Table (As on Screen)",
+      "filterByStatus": "Filter by Suspicious Status",
+      "allStatuses": "All Suspicious Statuses"
     }
   },
   "columns": {
