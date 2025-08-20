@@ -16,6 +16,10 @@
   --header-height: 64px;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body, html {
   margin: 0;
   height: 100%;
@@ -107,6 +111,12 @@ tr:hover {
 }
 
 /* Main Layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* Use viewport height for robustness */
+}
+
 .top-header {
   display: flex;
   align-items: center;
@@ -151,7 +161,7 @@ tr:hover {
 .app-layout {
   display: flex;
   flex-grow: 1;
-  height: calc(100% - var(--header-height));
+  min-height: 0; /* Important for flex children scrolling */
   overflow: hidden;
 }
 
@@ -160,7 +170,6 @@ tr:hover {
   border-right: 1px solid var(--border-color);
   padding: 2rem 1.5rem;
   background-color: white;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
@@ -214,8 +223,8 @@ tr:hover {
   flex-direction: column;
   padding: 1.5rem 2rem;
   gap: 1.5rem;
-  min-width: 0; /* Prevents flexbox overflow */
-  overflow-y: auto;
+  min-width: 0;
+  overflow-y: auto; /* Enable scrolling here */
 }
 
 .content-wrapper {
@@ -333,6 +342,10 @@ tr:hover {
   }
   .main-content {
     padding: 1rem;
+    overflow-y: initial; /* Allow content to determine height on mobile */
+  }
+  .app-container {
+      height: auto; /* Allow container to grow on mobile */
   }
 }
 
