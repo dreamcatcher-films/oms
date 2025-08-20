@@ -648,7 +648,7 @@ const App = () => {
         />;
       case 'dashboard':
         return (
-          <div class={sharedStyles.placeholderView}>
+          <div class={sharedStyles['placeholder-view']}>
             <h2>{t('placeholders.dashboard.title')}</h2>
             <p>{t('placeholders.dashboard.description')}</p>
           </div>
@@ -729,20 +729,20 @@ const App = () => {
           <input type="file" ref={importFileInputRef} style={{ display: 'none' }} onChange={handleImportConfig} accept=".json" />
           <input type="file" ref={exclusionFileInputRef} style={{ display: 'none' }} onChange={handleImportExclusionList} accept=".txt" />
           {statusMessage && (
-              <div class={`${sharedStyles.statusContainer} ${sharedStyles[statusMessage.type]}`} role="status">
-                <div class={sharedStyles.statusInfo}>
+              <div class={`${sharedStyles['status-container']} ${sharedStyles[statusMessage.type]}`} role="status">
+                <div class={sharedStyles['status-info']}>
                    {isLoading && statusMessage.type === 'info' && <div class={sharedStyles.spinner}></div>}
-                   <div class={sharedStyles.statusContent}>
-                      <p class={sharedStyles.statusText}>{statusMessage.text}</p>
+                   <div class={sharedStyles['status-content']}>
+                      <p class={sharedStyles['status-text']}>{statusMessage.text}</p>
                       {isLoading && typeof statusMessage.progress === 'number' && (
-                        <div class={sharedStyles.progressBarContainer}>
-                           <div class={sharedStyles.progressBar} style={{ width: `${statusMessage.progress}%` }}></div>
+                        <div class={sharedStyles['progress-bar-container']}>
+                           <div class={sharedStyles['progress-bar']} style={{ width: `${statusMessage.progress}%` }}></div>
                         </div>
                       )}
                    </div>
                 </div>
                  <button 
-                  class={sharedStyles.statusCloseButton}
+                  class={sharedStyles['status-close-button']}
                   onClick={() => setStatusMessage(null)}
                   aria-label={t('status.close')}
                  >&times;</button>
@@ -752,16 +752,16 @@ const App = () => {
             {renderContent()}
           </div>
           {currentView === 'import' && (
-            <div class={sharedStyles.actionsContainer}>
+            <div class={sharedStyles['actions-container']}>
               <button 
-                  class={sharedStyles.buttonPrimary} 
+                  class={sharedStyles['button-primary']} 
                   disabled={!canAnalyze || isLoading}
                   onClick={() => setCurrentView('simulations')}
               >
                 {t('actions.runAnalysis')}
               </button>
               {hasAnyData && !isLoading && (
-                <button onClick={handleClearAllData} class={sharedStyles.buttonSecondary}>{t('actions.clearAll')}</button>
+                <button onClick={handleClearAllData} class={sharedStyles['button-secondary']}>{t('actions.clearAll')}</button>
               )}
             </div>
           )}
