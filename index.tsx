@@ -38,8 +38,8 @@ import { SettingsView } from './views/SettingsView';
 import { ThreatReportView } from './views/ThreatReportView';
 import { StatusReportView } from './views/StatusReportView';
 
-import './styles/global.css';
-import sharedStyles from './styles/shared.module.css';
+import '/styles/global.css';
+import sharedStyles from '/styles/shared.module.css';
 
 
 const BATCH_SIZE = 5000;
