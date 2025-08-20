@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'preact/hooks';
 import { useTranslation } from '../i18n';
 import { getUniqueWarehouseIds, getUniqueItemGroups, getUniqueProductStatuses } from '../db';
 import type { ReportResultItem, WorkerMessage, WorkerRequest, UserSession } from '../utils/types';
+import styles from './ThreatReportView.module.css';
+import sharedStyles from '../styles/shared.module.css';
 
 type CheckboxFilterProps = {
     title: string;
@@ -26,14 +28,14 @@ const CheckboxFilterGroup = ({ title, options, selected, onChange, disabled = fa
     };
 
     return (
-        <div class="checkbox-filter-group">
+        <div class={styles.checkboxFilterGroup}>
             <fieldset disabled={disabled}>
                 <legend>{title}</legend>
-                <div class="checkbox-filter-header">
+                <div class={styles.checkboxFilterHeader}>
                     <button onClick={handleSelectAll}>{t('threatReport.controls.selectAll')}</button>
                     <button onClick={handleDeselectAll}>{t('threatReport.controls.deselectAll')}</button>
                 </div>
-                <div class="checkbox-list">
+                <div class={styles.checkboxList}>
                     {options.map(option => (
                         <label key={option}>
                             <input
@@ -168,12 +170,12 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
     }
     
     return (
-        <div class="threat-report-view">
-            <div class="threat-report-controls">
+        <div class={styles.threatReportView}>
+            <div class={styles.threatReportControls}>
                 <h3>{t('threatReport.title')}</h3>
                 <p>{t('threatReport.description')}</p>
 
-                <div class="threat-report-filters">
+                <div class={styles.threatReportFilters}>
                     <CheckboxFilterGroup 
                         title={t('threatReport.controls.warehouses')}
                         options={availableWarehouses}
@@ -194,12 +196,12 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
                         onChange={setSelectedStatuses}
                     />
                 </div>
-                <div class="filter-actions" style={{justifyContent: 'flex-start', flexWrap: 'wrap'}}>
-                    <button class="button-primary" onClick={handleRunReport} disabled={!canRun}>
+                <div class={`${sharedStyles.filterActions}`} style={{justifyContent: 'flex-start', flexWrap: 'wrap'}}>
+                    <button class={sharedStyles.buttonPrimary} onClick={handleRunReport} disabled={!canRun}>
                         {t('threatReport.controls.runReport')}
                     </button>
                     {selectedForWatchlist.size > 0 && (
-                        <button class="button-primary reload" onClick={handleAnalyzeSelected}>
+                        <button class={`${sharedStyles.buttonPrimary} ${sharedStyles.reload}`} onClick={handleAnalyzeSelected}>
                             {t('threatReport.results.analyzeSelected', { count: selectedForWatchlist.size })}
                         </button>
                     )}
@@ -207,29 +209,29 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
             </div>
 
             {isLoading && (
-                <div class="report-progress-section">
+                <div class={styles.reportProgressSection}>
                     <h4>{t('threatReport.controls.runningTitle')}</h4>
                     {progress && progress.total > 0 && (
                         <>
                             <p>{t('threatReport.controls.runningDescription', { processed: progress.processed, total: progress.total })}</p>
-                            <div class="progress-bar-container">
-                                <div class="progress-bar" style={{ width: `${(progress.processed / progress.total) * 100}%` }}></div>
+                            <div class={sharedStyles.progressBarContainer}>
+                                <div class={sharedStyles.progressBar} style={{ width: `${(progress.processed / progress.total) * 100}%` }}></div>
                             </div>
                         </>
                     )}
-                     {(!progress || progress.total === 0) && <div class="spinner"></div>}
+                     {(!progress || progress.total === 0) && <div class={sharedStyles.spinner}></div>}
                 </div>
             )}
 
             {reportResults && !isLoading && (
-                 <div class="threat-report-results">
+                 <div class={styles.threatReportResults}>
                     <h3>{t('threatReport.results.title')}</h3>
                     {reportResults.length > 0 ? (
-                        <div class="table-container">
+                        <div class={sharedStyles.tableContainer}>
                             <table>
                                 <thead>
                                     <tr>
-                                        <th class="checkbox-cell">
+                                        <th class={styles.checkboxCell}>
                                             <input 
                                                 type="checkbox" 
                                                 checked={allSelected}
@@ -253,7 +255,7 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
                                         const key = `${item.warehouseId}-${item.fullProductId}`;
                                         return (
                                         <tr key={key}>
-                                            <td class="checkbox-cell">
+                                            <td class={styles.checkboxCell}>
                                                 <input 
                                                     type="checkbox"
                                                     checked={selectedForWatchlist.has(key)}
@@ -271,7 +273,7 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
                                             <td><strong>{formatCurrency(item.totalWriteOffValue)}</strong></td>
                                             <td>
                                                 <button 
-                                                    class="button-primary"
+                                                    class={sharedStyles.buttonPrimary}
                                                     onClick={() => onNavigateToSimulation(item.warehouseId, item.fullProductId)}
                                                 >
                                                     {t('threatReport.results.goToSimulation')}
