@@ -695,7 +695,7 @@ const App = () => {
   };
 
   return (
-    <LanguageProvider>
+    <>
       {isIdle && <IdleSplashScreen onContinue={handleContinueFromIdle} />}
       {!userSession ? (
         <LoginModal onLogin={handleLogin} rdcList={rdcList} />
@@ -756,8 +756,8 @@ const App = () => {
           </div>
         </>
       )}
-    </LanguageProvider>
+    </>
   );
 };
 
-render(<App />, document.getElementById("root") as HTMLElement);
+render(<LanguageProvider><App /></LanguageProvider>, document.getElementById("root") as HTMLElement);
