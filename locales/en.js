@@ -75,13 +75,14 @@ export default {
         "todayAt": "today at",
         "noData": "No data",
         "records": "records",
-        "linkedTo": "Linked to"
+        "linkedTo": "Linked to",
+        "noLinkedFile": "No linked file."
     },
     "buttons": {
         "selectFile": "Select file",
         "change": "Change",
         "reload": "Reload",
-        "clear": "Clear"
+        "clear": "Clear Data"
     }
   },
   "dataPreview": {
@@ -217,12 +218,15 @@ export default {
         "actions": "Actions",
         "notLinked": "Not linked",
         "linkFile": "Link File",
-        "clearLink": "Clear",
+        "clearLink": "Clear Link",
         "linkSuccess": "File linked successfully.",
         "linkError": "Error linking file.",
         "permissionDenied": "Permission to read the file was denied.",
         "permissionNeeded": "Permission to read the file was not granted.",
-        "reloadError": "Could not read the file. It may have been moved or deleted."
+        "reloadError": "Could not read the file. It may have been moved or deleted.",
+        "linkClearedSuccess": "File link cleared.",
+        "linkClearedError": "Error clearing file link.",
+        "clearLinkConfirm": "Are you sure you want to clear this link? The underlying data will not be deleted."
     },
     "configManagement": {
         "title": "Configuration Management",
