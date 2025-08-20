@@ -55,21 +55,21 @@ export const SettingsView = (props: SettingsViewProps) => {
     };
 
     return (
-        <div class={styles.settingsView}>
+        <div class={styles['settings-view']}>
             <h2>{t('settings.title')}</h2>
             
-            <div class={styles.settingsSection}>
+            <div class={styles['settings-section']}>
                 <h3>{t('settings.dataSources.title')}</h3>
                 <p>{t('settings.dataSources.description')}</p>
 
                 {!isApiSupported && (
-                    <div class={`${sharedStyles.statusContainer} ${sharedStyles.error}`} role="alert">
-                        <p class={sharedStyles.statusText}>Your browser does not support the File System Access API. This feature is unavailable.</p>
+                    <div class={`${sharedStyles['status-container']} ${sharedStyles.error}`} role="alert">
+                        <p class={sharedStyles['status-text']}>Your browser does not support the File System Access API. This feature is unavailable.</p>
                     </div>
                 )}
                 
-                <div class={sharedStyles.tableContainer}>
-                    <table class={styles.settingsTable}>
+                <div class={sharedStyles['table-container']}>
+                    <table class={styles['settings-table']}>
                         <thead>
                             <tr>
                                 <th>{t('settings.dataSources.dataType')}</th>
@@ -86,16 +86,16 @@ export const SettingsView = (props: SettingsViewProps) => {
                                         <td><strong>{t(`dataType.${type}`)}</strong></td>
                                         <td>
                                             {isLinked ? (
-                                                <span class={styles.fileInfo}>{handle.name}</span>
+                                                <span class={styles['file-info']}>{handle.name}</span>
                                             ) : (
-                                                <span class={styles.fileInfo}>{t('settings.dataSources.notLinked')}</span>
+                                                <span class={styles['file-info']}>{t('settings.dataSources.notLinked')}</span>
                                             )}
                                         </td>
                                         <td>
-                                            <div class={styles.dataSourceActions}>
+                                            <div class={styles['data-source-actions']}>
                                                 <button 
                                                     onClick={() => onLinkFile(type)} 
-                                                    class={sharedStyles.buttonLink}
+                                                    class={sharedStyles['button-link']}
                                                     disabled={isLoading || !isApiSupported}
                                                 >
                                                     {t('settings.dataSources.linkFile')}
@@ -104,14 +104,14 @@ export const SettingsView = (props: SettingsViewProps) => {
                                                     <>
                                                         <button 
                                                             onClick={() => onReloadFile(type)} 
-                                                            class={`${sharedStyles.buttonPrimary} ${sharedStyles.reload}`}
+                                                            class={`${sharedStyles['button-primary']} ${sharedStyles.reload}`}
                                                             disabled={isLoading || !isApiSupported}
                                                         >
                                                             {t('import.buttons.reload')}
                                                         </button>
                                                         <button 
                                                             onClick={() => onClearLink(type)} 
-                                                            class={sharedStyles.buttonClear}
+                                                            class={sharedStyles['button-clear']}
                                                             disabled={isLoading || !isApiSupported}
                                                         >
                                                             {t('settings.dataSources.clearLink')}
@@ -128,31 +128,31 @@ export const SettingsView = (props: SettingsViewProps) => {
                 </div>
             </div>
 
-             <div class={styles.settingsSection}>
+             <div class={styles['settings-section']}>
                 <h3>{t('settings.exclusionList.title')}</h3>
                 <p>{t('settings.exclusionList.description')}</p>
                 <p><strong>{t('settings.exclusionList.currentCount', { count: exclusionListSize })}</strong></p>
-                <div class={sharedStyles.filterActions}>
-                    <button class={sharedStyles.buttonPrimary} onClick={onImportExclusionListClick}>{t('settings.exclusionList.importButton')}</button>
-                    <button class={sharedStyles.buttonSecondary} onClick={onClearExclusionList} disabled={exclusionListSize === 0}>{t('settings.exclusionList.clearButton')}</button>
+                <div class={sharedStyles['filter-actions']}>
+                    <button class={sharedStyles['button-primary']} onClick={onImportExclusionListClick}>{t('settings.exclusionList.importButton')}</button>
+                    <button class={sharedStyles['button-secondary']} onClick={onClearExclusionList} disabled={exclusionListSize === 0}>{t('settings.exclusionList.clearButton')}</button>
                 </div>
             </div>
 
-            <div class={styles.settingsSection}>
+            <div class={styles['settings-section']}>
                 <h3>{t('settings.configManagement.title')}</h3>
                 <p>{t('settings.configManagement.description')}</p>
-                <div class={sharedStyles.filterActions}>
-                    <button class={sharedStyles.buttonPrimary} onClick={onExportConfig}>{t('settings.configManagement.exportButton')}</button>
-                    <button class={sharedStyles.buttonPrimary} onClick={onImportClick}>{t('settings.configManagement.importButton')}</button>
+                <div class={sharedStyles['filter-actions']}>
+                    <button class={sharedStyles['button-primary']} onClick={onExportConfig}>{t('settings.configManagement.exportButton')}</button>
+                    <button class={sharedStyles['button-primary']} onClick={onImportClick}>{t('settings.configManagement.importButton')}</button>
                 </div>
             </div>
 
             {isHq && (
-                <div class={styles.settingsSection}>
+                <div class={styles['settings-section']}>
                     <h3>{t('settings.rdcManagement.title')}</h3>
                     <p>{t('settings.rdcManagement.description')}</p>
-                    <div class={sharedStyles.tableContainer}>
-                        <table class={styles.settingsTable}>
+                    <div class={sharedStyles['table-container']}>
+                        <table class={styles['settings-table']}>
                             <thead>
                                 <tr>
                                     <th>{t('settings.rdcManagement.rdcId')}</th>
@@ -165,7 +165,7 @@ export const SettingsView = (props: SettingsViewProps) => {
                                     <tr key={rdc.id}>
                                         <td>{rdc.id}</td>
                                         <td>{rdc.name}</td>
-                                        <td class={styles.rdcActions}>
+                                        <td class={styles['rdc-actions']}>
                                             <button 
                                                 onClick={() => {
                                                     if(confirm(t('settings.rdcManagement.deleteConfirm'))) {
@@ -180,8 +180,8 @@ export const SettingsView = (props: SettingsViewProps) => {
                             </tbody>
                         </table>
                     </div>
-                    <form class={styles.addRdcForm} onSubmit={handleAddRdc}>
-                        <div class={sharedStyles.filterGroup}>
+                    <form class={styles['add-rdc-form']} onSubmit={handleAddRdc}>
+                        <div class={sharedStyles['filter-group']}>
                             <label for="new-rdc-id">{t('settings.rdcManagement.rdcId')}</label>
                             <input 
                                 id="new-rdc-id" 
@@ -191,7 +191,7 @@ export const SettingsView = (props: SettingsViewProps) => {
                                 required
                             />
                         </div>
-                        <div class={sharedStyles.filterGroup}>
+                        <div class={sharedStyles['filter-group']}>
                             <label for="new-rdc-name">{t('settings.rdcManagement.rdcName')}</label>
                             <input 
                                 id="new-rdc-name" 
@@ -201,14 +201,14 @@ export const SettingsView = (props: SettingsViewProps) => {
                                 required
                             />
                         </div>
-                        <div class={sharedStyles.filterActions}>
-                             <button type="submit" class={sharedStyles.buttonPrimary}>{t('settings.rdcManagement.addRdc')}</button>
+                        <div class={sharedStyles['filter-actions']}>
+                             <button type="submit" class={sharedStyles['button-primary']}>{t('settings.rdcManagement.addRdc')}</button>
                         </div>
                     </form>
                 </div>
             )}
 
-            <div class={styles.settingsSection}>
+            <div class={styles['settings-section']}>
                 <h3>{t('settings.watchlists.title')}</h3>
                 <p>{t('settings.watchlists.description')}</p>
             </div>
