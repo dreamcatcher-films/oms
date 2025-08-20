@@ -358,7 +358,14 @@ export default {
       "cancelButton": "Abbrechen",
       "reportForWarehouse": "Bericht für Lager",
       "noInconsistencies": "Für dieses Lager wurden in den aktuellen gefilterten Ergebnissen keine Inkonsistenzen gefunden.",
-      "statusIn": "Status in"
+      "statusIn": "Status in",
+      "generatedOn": "Erstellt am",
+      "activeFilters": "Aktive Filter",
+      "format": "Berichtsformat",
+      "summaryFormat": "Detaillierte Zusammenfassung (pro Lager)",
+      "comparativeFormat": "Vergleichstabelle (wie auf dem Bildschirm)",
+      "filterByStatus": "Nach verdächtigem Status filtern",
+      "allStatuses": "Alle verdächtigen Status"
     }
   },
   "columns": {
