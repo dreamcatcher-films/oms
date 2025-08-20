@@ -91,3 +91,41 @@
   gap: 0.75rem;
   align-items: center;
 }
+
+/* SHC Section Specific Styles */
+.shc-section-container {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: #f8f9fa; /* Slightly different background */
+}
+
+.shc-section-header-main {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+
+.shc-section-header-main h2 {
+    color: var(--primary-color);
+    margin: 0;
+}
+
+.shc-import-section {
+    background-color: #fff;
+    padding: 1rem;
+}
+
+.shc-import-section h2 {
+    font-size: 1.1rem;
+}
+
+.shc-import-section .import-section-footer {
+    padding-top: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.shc-import-section .import-link-status {
+    margin-bottom: 0.75rem;
+}
