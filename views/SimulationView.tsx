@@ -4,6 +4,8 @@ import { getUniqueWarehouseIds, findProductsByPartialId, Product, getProductDeta
 import { SimulationResult, InitialStockBatch } from "../simulation.worker";
 import { ManualDelivery, UserSession, ReportResultItem } from '../utils/types';
 import { StockChart } from '../components/StockChart';
+import styles from './SimulationView.module.css';
+import sharedStyles from '../styles/shared.module.css';
 
 type SimulationViewProps = {
     userSession: UserSession | null;
@@ -28,11 +30,11 @@ const WatchlistNavigator = ({
     const currentItem = watchlist[currentIndex];
 
     return (
-        <div class="watchlist-navigator">
-            <div class="watchlist-navigator-info">
+        <div class={styles.watchlistNavigator}>
+            <div class={styles.watchlistNavigatorInfo}>
                 {t('simulations.watchlist.viewing', { current: currentIndex + 1, total: watchlist.length })}: <strong>{currentItem.productName}</strong>
             </div>
-            <div class="watchlist-navigator-actions">
+            <div class={styles.watchlistNavigatorActions}>
                 <button onClick={() => onNavigate(-1)} disabled={currentIndex === 0}>{t('pagination.previous')}</button>
                 <button onClick={() => onNavigate(1)} disabled={currentIndex === watchlist.length - 1}>{t('pagination.next')}</button>
             </div>
@@ -304,9 +306,9 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
 
     const renderDetail = (labelKey: string, value: any) => {
         return (
-            <div class="detail-item">
-                <span class="detail-label">{t(labelKey)}</span>
-                <span class="detail-value">{value ?? 'N/A'}</span>
+            <div class={styles.detailItem}>
+                <span class={styles.detailLabel}>{t(labelKey)}</span>
+                <span class={styles.detailValue}>{value ?? 'N/A'}</span>
             </div>
         )
     };
@@ -316,7 +318,7 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
     }
 
     return (
-        <div class="simulation-view-container">
+        <div class={styles.simulationViewContainer}>
             {watchlist.length > 0 && watchlistIndex !== null && (
                 <WatchlistNavigator 
                     watchlist={watchlist}
@@ -324,13 +326,13 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                     onNavigate={onNavigateWatchlist}
                 />
             )}
-            <div class="simulation-controls">
-                <div class="simulation-controls-header">
+            <div class={styles.simulationControls}>
+                <div class={styles.simulationControlsHeader}>
                     <h2>{t('simulations.controls.title')}</h2>
-                    {selectedProduct && <button class="button-secondary reset-button" onClick={resetOverrides}>{t('simulations.buttons.resetDefaults')}</button>}
+                    {selectedProduct && <button class={`${sharedStyles.buttonSecondary} ${styles.resetButton}`} onClick={resetOverrides}>{t('simulations.buttons.resetDefaults')}</button>}
                 </div>
-                <div class="filter-bar">
-                    <div class="filter-group">
+                <div class={sharedStyles.filterBar}>
+                    <div class={sharedStyles.filterGroup}>
                         <label htmlFor="sim-warehouseId">{t('simulations.controls.warehouse')}</label>
                         <select 
                             id="sim-warehouseId" 
@@ -349,7 +351,7 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                             {warehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
                         </select>
                     </div>
-                    <div class="filter-group">
+                    <div class={sharedStyles.filterGroup}>
                         <label htmlFor="sim-productId">{t('simulations.controls.productId')}</label>
                         <input
                             type="text"
@@ -361,13 +363,13 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                             autocomplete="off"
                         />
                         {isSuggestionsVisible && productSuggestions.length > 0 && (
-                             <ul class="suggestions-list">
+                             <ul class={sharedStyles.suggestionsList}>
                                 {productSuggestions.map(p => (
                                     <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
-                                        <div class="suggestion-main">
+                                        <div class={sharedStyles.suggestionMain}>
                                             <strong>{p.productId}</strong> - {p.name}
                                         </div>
-                                        <div class="suggestion-details">
+                                        <div class={sharedStyles.suggestionDetails}>
                                             <span>{`(${p.status})`}</span>
                                             <span>{`CS: ${p.caseSize}`}</span>
                                             <span>{`Stock: ${p.stockOnHand.toLocaleString(language)}`}</span>
@@ -377,24 +379,24 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                             </ul>
                         )}
                     </div>
-                     <div class="filter-actions">
-                        <button onClick={handleRunSimulation} disabled={!selectedProduct || isSimulating} class={`button-primary ${isDirty ? 'dirty' : ''}`}>{isDirty ? t('simulations.buttons.rerun') : t('simulations.controls.run')}</button>
+                     <div class={sharedStyles.filterActions}>
+                        <button onClick={handleRunSimulation} disabled={!selectedProduct || isSimulating} class={`${sharedStyles.buttonPrimary} ${isDirty ? sharedStyles.dirty : ''}`}>{isDirty ? t('simulations.buttons.rerun') : t('simulations.controls.run')}</button>
                     </div>
                 </div>
             </div>
 
             {isSimulating && (
-                 <div class="simulation-loading">
-                    <div class="spinner"></div>
+                 <div class={styles.simulationLoading}>
+                    <div class={sharedStyles.spinner}></div>
                     <p>{t('simulations.results.calculating')}</p>
                  </div>
             )}
 
             {selectedProduct && !isSimulating && (
                 <>
-                 <div class="product-details-card">
+                 <div class={styles.productDetailsCard}>
                     <h3>{t('simulations.details.title')}</h3>
-                    <div class="details-grid">
+                    <div class={styles.detailsGrid}>
                         {renderDetail('columns.product.itemGroup', selectedProduct.itemGroup)}
                         {renderDetail('columns.product.productId', selectedProduct.productId)}
                         {renderDetail('columns.product.name', selectedProduct.name)}
@@ -404,7 +406,7 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                         {renderDetail('columns.product.status', 
                             <span>
                                 {selectedProduct.status}
-                                {selectedProduct.itemLocked && <span class="status-locked"> ({t('simulations.details.locked')}: {selectedProduct.itemLocked})</span>}
+                                {selectedProduct.itemLocked && <span class={styles.statusLocked}> ({t('simulations.details.locked')}: {selectedProduct.itemLocked})</span>}
                             </span>
                         )}
                         {renderDetail('columns.product.supplierId', selectedProduct.supplierId)}
@@ -412,20 +414,20 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                     </div>
                 </div>
 
-                <div class="simulation-overrides-card">
+                <div class={styles.simulationOverridesCard}>
                     <h3>{t('simulations.overrides.title')}</h3>
-                    <div class="details-grid">
-                        <div class="detail-item">
-                            <label class="detail-label" htmlFor="wdate-override">{t('columns.product.shelfLifeAtReceiving')}</label>
-                            <input id="wdate-override" type="number" value={overrideWDate} onInput={(e) => handleOverrideChange(setOverrideWDate, (e.target as HTMLInputElement).value)} class="detail-input"/>
+                    <div class={styles.detailsGrid}>
+                        <div class={styles.detailItem}>
+                            <label class={styles.detailLabel} htmlFor="wdate-override">{t('columns.product.shelfLifeAtReceiving')}</label>
+                            <input id="wdate-override" type="number" value={overrideWDate} onInput={(e) => handleOverrideChange(setOverrideWDate, (e.target as HTMLInputElement).value)} class={styles.detailInput}/>
                         </div>
-                        <div class="detail-item">
-                            <label class="detail-label" htmlFor="sdate-override">{t('columns.product.shelfLifeAtStore')}</label>
-                            <input id="sdate-override" type="number" value={overrideSDate} onInput={(e) => handleOverrideChange(setOverrideSDate, (e.target as HTMLInputElement).value)} class="detail-input"/>
+                        <div class={styles.detailItem}>
+                            <label class={styles.detailLabel} htmlFor="sdate-override">{t('columns.product.shelfLifeAtStore')}</label>
+                            <input id="sdate-override" type="number" value={overrideSDate} onInput={(e) => handleOverrideChange(setOverrideSDate, (e.target as HTMLInputElement).value)} class={styles.detailInput}/>
                         </div>
-                        <div class="detail-item">
-                            <label class="detail-label" htmlFor="cdate-override">{t('columns.product.customerShelfLife')}</label>
-                            <input id="cdate-override" type="number" value={overrideCDate} onInput={(e) => handleOverrideChange(setOverrideCDate, (e.target as HTMLInputElement).value)} class="detail-input"/>
+                        <div class={styles.detailItem}>
+                            <label class={styles.detailLabel} htmlFor="cdate-override">{t('columns.product.customerShelfLife')}</label>
+                            <input id="cdate-override" type="number" value={overrideCDate} onInput={(e) => handleOverrideChange(setOverrideCDate, (e.target as HTMLInputElement).value)} class={styles.detailInput}/>
                         </div>
                     </div>
                 </div>
@@ -433,81 +435,81 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
             )}
             
             {simulationResult && !isSimulating && (
-                <div class="simulation-results">
+                <div class={styles.simulationResults}>
                     <h3>{t('simulations.results.title')}</h3>
-                    <div class="kpi-grid">
-                        <div class="kpi-card">
+                    <div class={styles.kpiGrid}>
+                        <div class={styles.kpiCard}>
                             <h4>{t('simulations.kpi.totalWriteOffValue')}</h4>
                             <p>{formatCurrency(simulationResult.totalWriteOffValue)}</p>
                         </div>
-                        <div class="kpi-card">
+                        <div class={styles.kpiCard}>
                             <h4>{t('simulations.kpi.daysOfStock')}</h4>
                             <p>{simulationResult.daysOfStock.toFixed(1)} {t('simulations.details.days')}</p>
                         </div>
-                        <div class="kpi-card">
+                        <div class={styles.kpiCard}>
                             <h4>{t('simulations.kpi.aldValue')}</h4>
                             <p>{formatCurrency(simulationResult.initialAldAffectedValue)}</p>
-                            <p class="kpi-description">{t('simulations.kpi.aldDescription')}</p>
+                            <p class={styles.kpiDescription}>{t('simulations.kpi.aldDescription')}</p>
                         </div>
-                         <div class="kpi-card">
+                         <div class={styles.kpiCard}>
                             <h4>{t('simulations.kpi.avgDailySales')}</h4>
-                            <div class="sales-adjust-controls">
+                            <div class={styles.salesAdjustControls}>
                                <input 
                                  type="number" 
                                  value={overrideAvgSales}
                                  onInput={(e) => handleOverrideChange(setOverrideAvgSales, (e.target as HTMLInputElement).value)}
-                                 class="kpi-input"
+                                 class={styles.kpiInput}
                                 />
-                               <div class="adjust-buttons">
-                                <button class="adjust-btn" onClick={() => adjustSales(0.10)} title={t('simulations.kpi.salesAdjustUp')}>+10%</button>
-                                <button class="adjust-btn" onClick={() => adjustSales(-0.10)} title={t('simulations.kpi.salesAdjustDown')}>-10%</button>
+                               <div class={styles.adjustButtons}>
+                                <button class={styles.adjustBtn} onClick={() => adjustSales(0.10)} title={t('simulations.kpi.salesAdjustUp')}>+10%</button>
+                                <button class={styles.adjustBtn} onClick={() => adjustSales(-0.10)} title={t('simulations.kpi.salesAdjustDown')}>-10%</button>
                                </div>
                             </div>
-                            <span class="sales-reset-value" onClick={() => { setOverrideAvgSales((originalSimParams || simulationResult).avgDailySales.toFixed(2)); setIsDirty(true);}} title={t('simulations.kpi.salesResetTooltip')}>
+                            <span class={styles.salesResetValue} onClick={() => { setOverrideAvgSales((originalSimParams || simulationResult).avgDailySales.toFixed(2)); setIsDirty(true);}} title={t('simulations.kpi.salesResetTooltip')}>
                                 {t('simulations.kpi.original')}: {(originalSimParams || simulationResult).avgDailySales.toFixed(2)}
                             </span>
                         </div>
-                        <div class="kpi-card">
+                        <div class={styles.kpiCard}>
                             <h4>{t('simulations.kpi.nonCompliantReceipts')}</h4>
                             <p>{simulationResult.nonCompliantReceiptsCount}</p>
                         </div>
-                        <div class="kpi-card">
+                        <div class={styles.kpiCard}>
                             <h4>{t('simulations.kpi.firstWriteOffDate')}</h4>
                             <p>{simulationResult.firstWriteOffDate || t('simulations.results.none')}</p>
                         </div>
                     </div>
 
                     {simulationResult.log && simulationResult.log.length > 0 && (
-                        <div class="expandable-section">
-                            <div class="expandable-header" onClick={() => setIsChartVisible(!isChartVisible)}>
+                        <div class={styles.expandableSection}>
+                            <div class={styles.expandableHeader} onClick={() => setIsChartVisible(!isChartVisible)}>
                                 <h4>{t('simulations.chart.title')}</h4>
                                 <button>
                                     {isChartVisible ? t('simulations.buttons.hideChart') : t('simulations.buttons.showChart')}
                                 </button>
                             </div>
-                            <div class={`expandable-content ${isChartVisible ? 'expanded' : ''}`}>
+                            <div class={`${styles.expandableContent} ${isChartVisible ? styles.expanded : ''}`}>
                                 <StockChart data={simulationResult.log.slice(0, 14)} />
                             </div>
                         </div>
                     )}
 
-                    <div class="initial-stock-composition">
-                        <div class="initial-stock-header">
+                    <div class={styles.initialStockComposition}>
+                        <div class={styles.initialStockHeader}>
                             <h4>{t('simulations.initialStock.title')}</h4>
-                             <div class="table-legend-container">
-                                <div class="legend-item"><div class="legend-color-box ald"></div><span>{t('simulations.initialStock.legend.ald')}</span></div>
-                                <div class="legend-item"><div class="legend-color-box write-off"></div><span>{t('simulations.initialStock.legend.writeOff')}</span></div>
-                                <div class="legend-item"><div class="legend-color-box non-compliant"></div><span>{t('simulations.initialStock.legend.nonCompliant')}</span></div>
-                                <div class="legend-item"><div class="legend-color-box manual"></div><span>{t('simulations.initialStock.legend.manual')}</span></div>
+                             <div class={styles.tableLegendContainer}>
+                                <div class={styles.legendItem}><div class={`${styles.legendColorBox} ${styles.ald}`}></div><span>{t('simulations.initialStock.legend.ald')}</span></div>
+                                <div class={styles.legendItem}><div class={`${styles.legendColorBox} ${styles.writeOff}`}></div><span>{t('simulations.initialStock.legend.writeOff')}</span></div>
+                                <div class={styles.legendItem}><div class={`${styles.legendColorBox} ${styles.nonCompliant}`}></div><span>{t('simulations.initialStock.legend.nonCompliant')}</span></div>
+                                <div class={styles.legendItem}><div class={`${styles.legendColorBox} ${styles.manual}`}></div><span>{t('simulations.initialStock.legend.manual')}</span></div>
                             </div>
                         </div>
                         {!simulationResult.isStockDataComplete && (
-                            <p class="data-completeness-warning">
+                            <p class={styles.dataCompletenessWarning}>
                                 {t('simulations.initialStock.warning')}
                             </p>
                         )}
-                        <div class="table-container">
-                            <table class="initial-stock-table">
+                        <div class={sharedStyles.tableContainer}>
+                            <table class={styles.initialStockTable}>
                                 <thead>
                                     <tr>
                                         <th>{t('simulations.initialStock.deliveryDate')}</th>
@@ -519,7 +521,7 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                                 </thead>
                                 <tbody>
                                     {simulationResult.initialStockComposition.map((batch: InitialStockBatch, index) => (
-                                        <tr key={`${batch.deliveryDate}-${batch.bestBeforeDate}-${index}`} class={`${batch.isNonCompliant ? 'non-compliant-row' : ''} ${batch.isAffectedByWriteOff ? 'batch-risk-row' : ''} ${batch.isManual ? 'manual-delivery-row' : ''} ${batch.isAldAffected ? 'ald-risk-row' : ''}`}>
+                                        <tr key={`${batch.deliveryDate}-${batch.bestBeforeDate}-${index}`} class={`${batch.isNonCompliant ? styles.nonCompliantRow : ''} ${batch.isAffectedByWriteOff ? styles.batchRiskRow : ''} ${batch.isManual ? styles.manualDeliveryRow : ''} ${batch.isAldAffected ? styles.aldRiskRow : ''}`}>
                                             <td>{batch.isUnknown ? t('simulations.initialStock.unknownBatch') : batch.deliveryDate}</td>
                                             <td>{batch.bestBeforeDate}</td>
                                             <td>{batch.daysToSell}</td>
@@ -532,10 +534,10 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                         </div>
                     </div>
 
-                    <div class="manual-delivery-section">
+                    <div class={styles.manualDeliverySection}>
                         <h4>{t('simulations.manualDelivery.title')}</h4>
-                         <div class="filter-bar">
-                            <div class="filter-group">
+                         <div class={sharedStyles.filterBar}>
+                            <div class={sharedStyles.filterGroup}>
                                 <label htmlFor="manual-delivery-date">{t('simulations.manualDelivery.date')}</label>
                                 <input 
                                     type="date" 
@@ -544,7 +546,7 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                                     onInput={(e) => setNewDelivery(prev => ({...prev, date: (e.target as HTMLInputElement).value}))}
                                 />
                             </div>
-                            <div class="filter-group">
+                            <div class={sharedStyles.filterGroup}>
                                 <label htmlFor="manual-best-before-date">{t('simulations.manualDelivery.bestBeforeDate')}</label>
                                 <input 
                                     type="date" 
@@ -553,7 +555,7 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                                     onInput={(e) => setNewDelivery(prev => ({...prev, bestBeforeDate: (e.target as HTMLInputElement).value}))}
                                 />
                             </div>
-                            <div class="filter-group">
+                            <div class={sharedStyles.filterGroup}>
                                  <label htmlFor="manual-delivery-qty">{t('simulations.manualDelivery.quantity')}</label>
                                  <input 
                                     type="number" 
@@ -563,12 +565,12 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                                     placeholder="0"
                                 />
                             </div>
-                            <div class="filter-actions">
-                                <button class="button-primary" onClick={handleAddManualDelivery}>{t('simulations.buttons.add')}</button>
+                            <div class={sharedStyles.filterActions}>
+                                <button class={sharedStyles.buttonPrimary} onClick={handleAddManualDelivery}>{t('simulations.buttons.add')}</button>
                             </div>
                          </div>
                          {manualDeliveries.length > 0 && (
-                            <div class="manual-deliveries-list">
+                            <div class={styles.manualDeliveriesList}>
                                 <h5>{t('simulations.manualDelivery.addedTitle')}</h5>
                                 <ul>
                                     {manualDeliveries.map(d => (
@@ -583,7 +585,7 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                     </div>
                     
                     <h4>{t('simulations.log.title')}</h4>
-                    <div class="table-container">
+                    <div class={sharedStyles.tableContainer}>
                         <table>
                             <thead>
                                 <tr>
@@ -599,7 +601,7 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                             </thead>
                             <tbody>
                                 {(isLogExpanded ? simulationResult.log : simulationResult.log.slice(0, 14)).map(entry => (
-                                    <tr key={entry.date} class={`${entry.writeOffs > 0 ? 'log-write-off-row' : ''} ${entry.stockEnd === 0 && entry.writeOffs === 0 ? 'log-stock-out-row' : ''}`}>
+                                    <tr key={entry.date} class={`${entry.writeOffs > 0 ? styles.logWriteOffRow : ''} ${entry.stockEnd === 0 && entry.writeOffs === 0 ? styles.logStockOutRow : ''}`}>
                                         <td>{entry.date}</td>
                                         <td>{entry.stockStart.toLocaleString(language)}</td>
                                         <td>{entry.sales.toLocaleString(language)}</td>
@@ -614,8 +616,8 @@ export const SimulationView = ({ userSession, initialParams, onSimulationStart, 
                         </table>
                     </div>
                      {simulationResult.log.length > 14 && (
-                        <div class="log-toggle-container">
-                            <button class="log-toggle-button" onClick={() => setIsLogExpanded(!isLogExpanded)}>
+                        <div class={styles.logToggleContainer}>
+                            <button class={styles.logToggleButton} onClick={() => setIsLogExpanded(!isLogExpanded)}>
                                 {isLogExpanded ? t('simulations.buttons.showLess') : t('simulations.buttons.showMore')}
                             </button>
                         </div>
