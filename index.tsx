@@ -649,6 +649,7 @@ const App = () => {
                 userSession={userSession}
                 onLinkFile={handleLinkFile}
                 onClearLink={handleClearLink}
+                onClearAll={handleClearAll}
               />;
           case 'data-preview':
               return <DataPreview userSession={userSession} />;
@@ -729,7 +730,8 @@ const App = () => {
                         <li><a href="#" class={currentView === 'settings' ? 'active' : ''} onClick={() => handleNavigate('settings')}>{t('sidebar.settings')}</a></li>
                     </ul>
                     <div class="sidebar-footer">
-                        <button class={sharedStyles['button-secondary']} onClick={handleClearAll} disabled={isLoading}>{t('actions.clearAll')}</button>
+                        <p><strong>OMS</strong></p>
+                        <p>{t('sidebar.footer.version', { version: '0.3.0' })}</p>
                     </div>
                 </nav>
                 <main class="main-content">
