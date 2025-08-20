@@ -3,9 +3,7 @@ import type { VNode } from 'preact';
 import { useTranslation } from '../i18n';
 import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, RDC, ExclusionListData } from '../utils/types';
 import { itemGroupMap } from '../utils/itemGroups';
-// @ts-ignore
 import jsPDF from 'jspdf';
-// @ts-ignore
 import autoTable from 'jspdf-autotable';
 import styles from './StatusReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
