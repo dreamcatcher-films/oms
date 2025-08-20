@@ -79,6 +79,12 @@ const App = () => {
   const refreshIntervalRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
 
+  // Refs to get latest state inside interval without resetting it
+  const isLoadingRef = useRef(isLoading);
+  useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
+  const showCountdownModalRef = useRef(showCountdownModal);
+  useEffect(() => { showCountdownModalRef.current = showCountdownModal; }, [showCountdownModal]);
+
   useEffect(() => {
     const splashScreen = document.getElementById('splash-screen');
     const continueButton = document.getElementById('continue-button');
@@ -178,8 +184,11 @@ const App = () => {
     resetIdleTimer();
   };
 
-  // --- Auto Refresh Logic ---
   const triggerAutoRefresh = useCallback(async () => {
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
     setShowCountdownModal(false);
     setStatusMessage({ text: t('status.autoRefresh.starting'), type: 'info' });
     let allRefreshed = true;
@@ -197,22 +206,25 @@ const App = () => {
   }, [linkedFiles, autoRefreshConfig.interval, t]);
 
   useEffect(() => {
-    const clearTimers = () => {
-        if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
-        if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-        refreshIntervalRef.current = null;
-        countdownTimerRef.current = null;
+    const clearTimer = () => {
+        if (refreshIntervalRef.current) {
+            clearInterval(refreshIntervalRef.current);
+            refreshIntervalRef.current = null;
+        }
     };
 
     if (autoRefreshConfig.isEnabled && linkedFiles.size > 0 && userSession) {
         refreshIntervalRef.current = window.setInterval(() => {
             setTimeToNextRefresh(prev => {
+                if (isLoadingRef.current) {
+                    return prev; // Pause timer while app is loading
+                }
                 const newTime = prev - 1;
-                if (newTime <= REFRESH_COUNTDOWN_SECONDS && !showCountdownModal && !isLoading) {
+                if (newTime <= REFRESH_COUNTDOWN_SECONDS && !showCountdownModalRef.current) {
                     setShowCountdownModal(true);
                 }
                 if (newTime <= 0) {
-                    clearInterval(refreshIntervalRef.current!);
+                    clearTimer();
                     triggerAutoRefresh();
                     return 0;
                 }
@@ -220,10 +232,10 @@ const App = () => {
             });
         }, 1000);
     } else {
-        clearTimers();
+        clearTimer();
     }
-    return clearTimers;
-  }, [autoRefreshConfig.isEnabled, linkedFiles.size, userSession, showCountdownModal, isLoading, triggerAutoRefresh]);
+    return clearTimer;
+  }, [autoRefreshConfig.isEnabled, linkedFiles.size, userSession, triggerAutoRefresh]);
 
   useEffect(() => {
       if (showCountdownModal) {
