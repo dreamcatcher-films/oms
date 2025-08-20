@@ -51,18 +51,23 @@
   flex-grow: 1;
 }
 
-.import-section-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 1rem;
-}
-
-.import-linked-info {
-    font-size: 0.85rem;
-    color: var(--text-light-color);
-    margin-top: 1rem;
+.import-section-footer {
+    margin-top: auto;
     padding-top: 1rem;
     border-top: 1px dashed var(--border-color);
+}
+
+.import-link-status {
+    font-size: 0.85rem;
+    color: var(--text-light-color);
+    margin-bottom: 1rem;
     word-break: break-all;
+    min-height: 1.2em; /* Ensure consistent height */
+}
+
+.import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
 }
