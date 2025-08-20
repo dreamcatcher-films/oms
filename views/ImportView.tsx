@@ -2,7 +2,7 @@ import { useTranslation } from '../i18n';
 import { DataType, UserSession } from '../utils/types';
 import { ImportMetadata } from '../db';
 import styles from './ImportView.module.css';
-import sharedStyles from '/styles/shared.module.css';
+import sharedStyles from '../styles/shared.module.css';
 
 const isDateToday = (someDate: Date) => {
     const today = new Date();
