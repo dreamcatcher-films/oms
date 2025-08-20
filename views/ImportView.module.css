@@ -1,3 +1,23 @@
+.import-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.import-view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.import-view-header h3 {
+  margin: 0;
+  border: none;
+  padding: 0;
+}
+
 .import-container {
   display: grid;
   gap: 1.5rem;
