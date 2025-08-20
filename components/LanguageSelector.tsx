@@ -15,13 +15,13 @@ export const LanguageSelector = () => {
     const selectedLanguage = languages.find(lang => lang.code === language);
 
     return (
-        <div class={styles.languageSelector} onBlur={() => setIsOpen(false)} tabIndex={0}>
-            <button class={styles.selectorButton} onClick={() => setIsOpen(!isOpen)}>
+        <div class={styles['language-selector']} onBlur={() => setIsOpen(false)} tabIndex={0}>
+            <button class={styles['selector-button']} onClick={() => setIsOpen(!isOpen)}>
                 {selectedLanguage?.flag}
                 <span class={styles.arrow}>{isOpen ? '▲' : '▼'}</span>
             </button>
             {isOpen && (
-                <ul class={styles.selectorDropdown}>
+                <ul class={styles['selector-dropdown']}>
                     {languages.map(lang => (
                         <li key={lang.code} onMouseDown={() => { setLanguage(lang.code); setIsOpen(false); }}>
                             {lang.flag} {lang.name}
