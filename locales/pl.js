@@ -358,7 +358,14 @@ export default {
       "cancelButton": "Anuluj",
       "reportForWarehouse": "Raport dla magazynu",
       "noInconsistencies": "Nie znaleziono niespójności dla tego magazynu w bieżących wynikach.",
-      "statusIn": "Status w"
+      "statusIn": "Status w",
+      "generatedOn": "Wygenerowano",
+      "activeFilters": "Aktywne Filtry",
+      "format": "Format Raportu",
+      "summaryFormat": "Podsumowanie Szczegółowe (wg Magazynu)",
+      "comparativeFormat": "Tabela Porównawcza (jak na Ekranie)",
+      "filterByStatus": "Filtruj wg Podejrzanego Statusu",
+      "allStatuses": "Wszystkie Podejrzane Statusy"
     }
   },
   "columns": {
