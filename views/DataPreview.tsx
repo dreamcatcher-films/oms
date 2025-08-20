@@ -18,7 +18,7 @@ import {
 } from "../db";
 import { UserSession } from "../utils/types";
 import styles from './DataPreview.module.css';
-import sharedStyles from '/styles/shared.module.css';
+import sharedStyles from '../styles/shared.module.css';
 
 const PAGE_SIZE = 20;
 
