@@ -4,6 +4,12 @@ export default {
     "session": {
         "mode": "Mode",
         "logout": "Logout"
+    },
+    "autoRefresh": {
+        "title": "Auto-Refresh",
+        "interval": "Interval",
+        "minutes": "min",
+        "nextRefreshIn": "Next refresh in..."
     }
   },
   "sidebar": {
@@ -40,6 +46,11 @@ export default {
         "clearingAll": "Clearing all data...",
         "clearedAll": "All data has been cleared. You can load new files.",
         "clearAllError": "Error while clearing data."
+    },
+    "autoRefresh": {
+        "starting": "Starting auto-refresh of linked files...",
+        "complete": "Auto-refresh complete. All linked files reloaded.",
+        "cancelled": "Auto-refresh cancelled."
     }
   },
   "import": {
@@ -257,6 +268,17 @@ export default {
       "selectRdc": "Select warehouse",
       "loginButton": "Login",
       "invalidPassword": "Password is incorrect."
+  },
+  "modals": {
+    "refresh": {
+        "title": "Automatic Data Refresh",
+        "message": "Data will be reloaded in {{seconds}} seconds.",
+        "cancel": "Cancel Refresh"
+    },
+    "idle": {
+        "title": "Session expired due to inactivity",
+        "continue": "Continue Session"
+    }
   },
   "common": {
     "yesShort": "Y",
