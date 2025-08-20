@@ -33,7 +33,7 @@ import { LanguageSelector } from './components/LanguageSelector';
 import { LoginModal } from './components/LoginModal';
 import { ImportView } from './views/ImportView';
 import { DataPreview } from './views/DataPreview';
-import { SimulationView } from './views/SimulationView';
+import SimulationView from './views/SimulationView';
 import { SettingsView } from './views/SettingsView';
 import { ThreatReportView } from './views/ThreatReportView';
 import { StatusReportView } from './views/StatusReportView';
