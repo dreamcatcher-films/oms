@@ -1,6 +1,8 @@
 import { Product, getAllProducts, OpenOrder, getAllOpenOrders } from './db';
 import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, DominantStatusInfo } from './utils/types';
 
+const STATUTORY_EXCLUDED_ITEM_GROUPS = new Set(['10', '11', '12', '13', '73', '90', '91', '92']);
+
 // --- Worker Main Logic ---
 onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
     try {
@@ -51,13 +53,24 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
 
         // 2. Analyze each group for inconsistencies
         for (const [key, productsInGroup] of productGroups.entries()) {
-            const statusSet = new Set(productsInGroup.map(p => p.status));
-            const isInconsistent = statusSet.size > 1;
+            const firstProduct = productsInGroup[0];
+            const itemGroup = firstProduct.itemGroup;
 
-            const statusCounts: Record<string, number> = {};
-            const totalWarehousesInReport = allWarehouseIds.length;
+            // Filter out products that meet special exclusion criteria (WH 290 for specific groups) before analysis
+            const effectiveProductsForAnalysis = productsInGroup.filter(p => 
+                !(p.warehouseId === '290' && (p.itemGroup === '20' || p.itemGroup === '74'))
+            );
+
+            const statusSet = new Set(effectiveProductsForAnalysis.map(p => p.status));
+            let isInconsistent = statusSet.size > 1;
+
+            // If the item group is statutorily excluded, it's never considered "inconsistent" for filtering purposes
+            if (STATUTORY_EXCLUDED_ITEM_GROUPS.has(itemGroup)) {
+                isInconsistent = false;
+            }
             
-            productsInGroup.forEach(p => {
+            const statusCounts: Record<string, number> = {};
+            effectiveProductsForAnalysis.forEach(p => {
                 statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
             });
 
@@ -68,7 +81,8 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
             if (sortedStatuses.length > 0) {
                 const [topStatus, topCount] = sortedStatuses[0];
 
-                if (topCount > totalWarehousesInReport / 2) {
+                // A status is "dominant" if it appears in more than half of the relevant warehouses for this product
+                if (topCount > effectiveProductsForAnalysis.length / 2) {
                     dominantStatusInfo = { status: topStatus, type: 'dominant' };
                 } else {
                     const isTie = sortedStatuses.length > 1 && sortedStatuses[1][1] === topCount;
@@ -89,8 +103,6 @@ onmessage = async (e: MessageEvent<StatusReportWorkerRequest>) => {
                 stockByWarehouse[p.warehouseId] = p.stockOnHand;
             });
             
-            const firstProduct = productsInGroup[0];
-
             for (const warehouseId of allWarehouseIds) {
                 const productInWarehouse = productsInGroup.find(p => p.warehouseId === warehouseId);
                 const fullProductId = productInWarehouse?.fullProductId || firstProduct.fullProductId;
