@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from '../i18n';
 import { RDC, UserSession } from '../utils/types';
+import styles from './LoginModal.module.css';
+import sharedStyles from '../styles/shared.module.css';
 
 const HQ_PASSWORD = 'OMS_HQ_2025';
 
@@ -39,27 +41,27 @@ export const LoginModal = ({ onLogin, rdcList }: LoginModalProps) => {
     };
     
     return (
-        <div class="login-modal-overlay">
-            <div class="login-modal">
+        <div class={styles.loginModalOverlay}>
+            <div class={styles.loginModal}>
                 <h2>{t('loginModal.title')}</h2>
-                <div class="login-options">
+                <div class={styles.loginOptions}>
                     <button 
-                        class={`login-option-btn ${mode === 'hq' ? 'active' : ''}`}
+                        class={`${styles.loginOptionBtn} ${mode === 'hq' ? styles.active : ''}`}
                         onClick={() => { setMode('hq'); setError(''); }}
                     >
                         {t('loginModal.hqButton')}
                     </button>
                     <button 
-                        class={`login-option-btn ${mode === 'rdc' ? 'active' : ''}`}
+                        class={`${styles.loginOptionBtn} ${mode === 'rdc' ? styles.active : ''}`}
                         onClick={() => { setMode('rdc'); setError(''); }}
                     >
                         {t('loginModal.rdcButton')}
                     </button>
                 </div>
 
-                <form class="login-form" onSubmit={handleLogin}>
+                <form class={styles.loginForm} onSubmit={handleLogin}>
                     {mode === 'hq' ? (
-                        <div class="filter-group">
+                        <div class={sharedStyles.filterGroup}>
                             <label for="password">{t('loginModal.password')}</label>
                             <input 
                                 id="password"
@@ -70,7 +72,7 @@ export const LoginModal = ({ onLogin, rdcList }: LoginModalProps) => {
                             />
                         </div>
                     ) : (
-                        <div class="filter-group">
+                        <div class={sharedStyles.filterGroup}>
                             <label for="rdc-select">{t('loginModal.selectRdc')}</label>
                             <select 
                                 id="rdc-select"
@@ -86,8 +88,8 @@ export const LoginModal = ({ onLogin, rdcList }: LoginModalProps) => {
                             </select>
                         </div>
                     )}
-                    <p class="login-error">{error}</p>
-                    <button type="submit" class="button-primary">{t('loginModal.loginButton')}</button>
+                    <p class={styles.loginError}>{error}</p>
+                    <button type="submit" class={sharedStyles.buttonPrimary}>{t('loginModal.loginButton')}</button>
                 </form>
             </div>
         </div>
