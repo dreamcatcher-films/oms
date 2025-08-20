@@ -575,13 +575,13 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
     }, []);
 
     return (
-        <div class={styles.statusReportView}>
+        <div class={styles['status-report-view']}>
             {isExportModalVisible && (
-                <div class={sharedStyles.loginModalOverlay}>
-                    <div class={sharedStyles.loginModal} style={{textAlign: 'left'}}>
+                <div class={sharedStyles['login-modal-overlay']}>
+                    <div class={sharedStyles['login-modal']} style={{textAlign: 'left'}}>
                         <h3>{t('statusReport.pdf.exportOptionsTitle')}</h3>
-                        <div class={sharedStyles.loginForm}>
-                            <div class={sharedStyles.filterGroup}>
+                        <div class={sharedStyles['login-form']}>
+                            <div class={sharedStyles['filter-group']}>
                                 <label for="export-format-select">{t('statusReport.pdf.format')}</label>
                                 <select
                                     id="export-format-select"
@@ -593,7 +593,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                 </select>
                             </div>
 
-                            <div class={sharedStyles.filterGroup}>
+                            <div class={sharedStyles['filter-group']}>
                                 <label for="export-warehouse-select">{t('statusReport.pdf.selectWarehouse')}</label>
                                 <select
                                     id="export-warehouse-select"
@@ -606,7 +606,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                 </select>
                             </div>
                             
-                             <div class={sharedStyles.filterGroup}>
+                             <div class={sharedStyles['filter-group']}>
                                 <label for="export-status-select">{t('statusReport.pdf.filterByStatus')}</label>
                                 <select
                                     id="export-status-select"
@@ -619,9 +619,9 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                 </select>
                             </div>
 
-                            <div class={sharedStyles.filterActions} style={{justifyContent: 'center', marginTop: '1rem'}}>
-                                <button class={sharedStyles.buttonPrimary} onClick={generatePdf}>{t('statusReport.pdf.exportButton')}</button>
-                                <button class={sharedStyles.buttonSecondary} onClick={() => setIsExportModalVisible(false)}>{t('statusReport.pdf.cancelButton')}</button>
+                            <div class={sharedStyles['filter-actions']} style={{justifyContent: 'center', marginTop: '1rem'}}>
+                                <button class={sharedStyles['button-primary']} onClick={generatePdf}>{t('statusReport.pdf.exportButton')}</button>
+                                <button class={sharedStyles['button-secondary']} onClick={() => setIsExportModalVisible(false)}>{t('statusReport.pdf.cancelButton')}</button>
                             </div>
                         </div>
                     </div>
@@ -629,7 +629,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
             )}
             {tooltip.visible && (
                 <div 
-                    class={styles.statusReportTooltip}
+                    class={styles['status-report-tooltip']}
                     style={{
                         left: `${tooltip.x}px`,
                         top: `${tooltip.y}px`,
@@ -638,36 +638,36 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                     {tooltip.content}
                 </div>
             )}
-            <div class={styles.statusReportControls}>
+            <div class={styles['status-report-controls']}>
                 <h3>{t('statusReport.title')}</h3>
                 <p>{t('statusReport.description')}</p>
                  {exclusionList.lastUpdated && (
-                    <div class={styles.exclusionListInfoBar}>
-                        <span class={styles.infoText}>
+                    <div class={styles['exclusion-list-info-bar']}>
+                        <span class={styles['info-text']}>
                             {t('statusReport.exclusionInfo.info', { 
                                 date: exclusionList.lastUpdated.toLocaleDateString(language), 
                                 time: exclusionList.lastUpdated.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' }),
                                 count: exclusionList.list.size 
                             })}
                         </span>
-                        <button class={sharedStyles.buttonSecondary} onClick={onUpdateExclusionList}>
+                        <button class={sharedStyles['button-secondary']} onClick={onUpdateExclusionList}>
                             {t('statusReport.exclusionInfo.updateButton')}
                         </button>
                     </div>
                 )}
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginTop: '1.5rem'}}>
-                    <button class={sharedStyles.buttonPrimary} onClick={handleRunReport} disabled={isLoading}>
+                    <button class={sharedStyles['button-primary']} onClick={handleRunReport} disabled={isLoading}>
                         {reportResults ? t('simulations.buttons.rerun') : t('statusReport.runReport')}
                     </button>
                     {reportResults && (
-                         <button class={sharedStyles.buttonSecondary} onClick={() => setIsExportModalVisible(true)} disabled={sortedAndFilteredResults.length === 0}>
+                         <button class={sharedStyles['button-secondary']} onClick={() => setIsExportModalVisible(true)} disabled={sortedAndFilteredResults.length === 0}>
                             {t('statusReport.results.exportPdf')}
                         </button>
                     )}
                 </div>
                  {reportResults && (
-                    <div class={styles.statusReportFilters}>
-                        <div class={sharedStyles.filterGroup}>
+                    <div class={styles['status-report-filters']}>
+                        <div class={sharedStyles['filter-group']}>
                             <label htmlFor="sr-productId">{t('columns.product.productId')}</label>
                             <input
                                 id="sr-productId"
@@ -681,28 +681,28 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                 placeholder={t('dataPreview.filters.productIdPlaceholder')}
                             />
                         </div>
-                        <div class={sharedStyles.filterGroup}>
+                        <div class={sharedStyles['filter-group']}>
                             <label htmlFor="sr-dispoGroup">{t('columns.product.dispoGroup')}</label>
                             <select id="sr-dispoGroup" value={dispoGroupFilter} onChange={(e) => setDispoGroupFilter((e.target as HTMLSelectElement).value)}>
                                 <option value="">{t('dataPreview.filters.all')}</option>
                                 {availableDispoGroups.map(g => <option key={g} value={g}>{g}</option>)}
                             </select>
                         </div>
-                        <div class={sharedStyles.filterGroup}>
+                        <div class={sharedStyles['filter-group']}>
                             <label htmlFor="sr-itemGroup">{t('columns.product.itemGroup')}</label>
                             <select id="sr-itemGroup" value={itemGroupFilter} onChange={(e) => setItemGroupFilter((e.target as HTMLSelectElement).value)}>
                                 <option value="">{t('dataPreview.filters.all')}</option>
                                 {availableItemGroups.map(g => <option key={g} value={g}>{g} - {itemGroupMap[g] || ''}</option>)}
                             </select>
                         </div>
-                         <div class={sharedStyles.filterGroup}>
+                         <div class={sharedStyles['filter-group']}>
                             <label htmlFor="sr-dominantStatus">{t('statusReport.filters.dominantStatus')}</label>
                             <select id="sr-dominantStatus" value={dominantStatusFilter} onChange={(e) => setDominantStatusFilter((e.target as HTMLSelectElement).value)}>
                                 <option value="">{t('dataPreview.filters.all')}</option>
                                 {availableDominantStatuses.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
-                        <div class={styles.statusReportCheckboxFilters}>
+                        <div class={styles['status-report-checkbox-filters']}>
                              <label>
                                 <input type="checkbox" checked={excludeNoStock} onChange={(e) => setExcludeNoStock((e.target as HTMLInputElement).checked)} />
                                 {t('statusReport.filters.excludeNoStock')}
@@ -716,12 +716,12 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                 {t('statusReport.filters.includeConsistent')}
                             </label>
                         </div>
-                        <div class={sharedStyles.filterActions}>
-                            <button class={sharedStyles.buttonSecondary} onClick={handleClearFilters}>{t('dataPreview.filters.clear')}</button>
+                        <div class={sharedStyles['filter-actions']}>
+                            <button class={sharedStyles['button-secondary']} onClick={handleClearFilters}>{t('dataPreview.filters.clear')}</button>
                         </div>
-                        <div class={styles.dominantStatusExcludeFilter}>
-                            <label class={styles.filterGroupLabel}>{t('statusReport.filters.excludeWhenDominantIs')}</label>
-                            <div class={styles.checkboxGroup}>
+                        <div class={styles['dominant-status-exclude-filter']}>
+                            <label class={styles['filter-group-label']}>{t('statusReport.filters.excludeWhenDominantIs')}</label>
+                            <div class={styles['checkbox-group']}>
                                 {EXCLUDABLE_STATUSES.map(status => (
                                     <label key={status}>
                                         <input
@@ -739,13 +739,13 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
             </div>
             
             {isLoading && (
-                <div class={styles.reportProgressSection}>
+                <div class={styles['report-progress-section']}>
                     <h4>{t('statusReport.runningTitle')}</h4>
                     {progress && progress.total > 0 ? (
                         <>
                             <p>{t('statusReport.runningDescription', { processed: progress.processed, total: progress.total })}</p>
-                            <div class={sharedStyles.progressBarContainer}>
-                                <div class={sharedStyles.progressBar} style={{ width: `${(progress.processed / progress.total) * 100}%` }}></div>
+                            <div class={sharedStyles['progress-bar-container']}>
+                                <div class={sharedStyles['progress-bar']} style={{ width: `${(progress.processed / progress.total) * 100}%` }}></div>
                             </div>
                         </>
                     ) : (
@@ -755,19 +755,19 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
             )}
 
             {reportResults && !isLoading && combinedSummaryData && (
-                 <div class={styles.statusReportSummary}>
-                     <div class={`${styles.summaryHeader} ${!isSummaryExpanded ? styles.collapsed : ''}`} onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
+                 <div class={styles['status-report-summary']}>
+                     <div class={`${styles['summary-header']} ${!isSummaryExpanded ? styles.collapsed : ''}`} onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
                         <h3>{t('statusReport.summary.title')}</h3>
                         <span class={styles.arrow}>▼</span>
                     </div>
                     {isSummaryExpanded && (
-                        <div class={styles.summaryTableContainer}>
-                            <table class={styles.summaryTable}>
+                        <div class={styles['summary-table-container']}>
+                            <table class={styles['summary-table']}>
                                 <thead>
                                     <tr>
                                         <th rowSpan={2}>{t('statusReport.summary.warehouse')}</th>
                                         <th rowSpan={2}>{t('statusReport.summary.itemsChecked')}</th>
-                                        <th class={styles.groupHeader} colSpan={foundSuspiciousStatuses.length || 1}>{t('statusReport.summary.suspiciousStatuses')}</th>
+                                        <th class={styles['group-header']} colSpan={foundSuspiciousStatuses.length || 1}>{t('statusReport.summary.suspiciousStatuses')}</th>
                                         <th rowSpan={2}>{t('statusReport.summary.excluded')}</th>
                                         <th rowSpan={2}>{t('statusReport.summary.status8Items')}</th>
                                     </tr>
@@ -789,10 +789,10 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                                 const percentage = total > 0 ? (count / total * 100).toFixed(1) : '0.0';
                                                 const isHighlighted = highlightedValues.get(status)?.has(count) && count > 0;
                                                 return (
-                                                    <td key={status} class={isHighlighted ? styles.highlightedSuspiciousCell : ''}>
-                                                        <div class={styles.suspiciousStatusCellContent}>
+                                                    <td key={status} class={isHighlighted ? styles['highlighted-suspicious-cell'] : ''}>
+                                                        <div class={styles['suspicious-status-cell-content']}>
                                                             {count.toLocaleString()}
-                                                             <span class={styles.suspiciousStatusPercent}>({percentage}%)</span>
+                                                             <span class={styles['suspicious-status-percent']}>({percentage}%)</span>
                                                         </div>
                                                     </td>
                                                 );
@@ -810,7 +810,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
             )}
 
             {reportResults && !isLoading && (
-                <div class={styles.statusReportResults}>
+                <div class={styles['status-report-results']}>
                     <h3>
                         {includeConsistent
                             ? t('statusReport.results.titleWithConsistent', { count: sortedAndFilteredResults.length.toLocaleString(language) })
@@ -819,7 +819,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                     </h3>
                     {sortedAndFilteredResults.length > 0 ? (
                         <>
-                        <div class={sharedStyles.tableContainer}>
+                        <div class={sharedStyles['table-container']}>
                             <table>
                                 <thead>
                                     <tr>
@@ -828,18 +828,18 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                             {t('columns.product.name')}
                                             <div ref={resizerRef} class={styles.resizer} onMouseDown={handleMouseDown} />
                                         </th>
-                                        <th class={styles.smallFontCell}>{t('columns.product.dispoGroup')}</th>
-                                        <th class={`${styles.smallFontCell} ${styles.itemGroupCol}`}>{t('columns.product.itemGroup')}</th>
-                                        <th class={styles.smallFontCell}>{t('columns.product.caseSize')}</th>
+                                        <th class={styles['small-font-cell']}>{t('columns.product.dispoGroup')}</th>
+                                        <th class={`${styles['small-font-cell']} ${styles['item-group-col']}`}>{t('columns.product.itemGroup')}</th>
+                                        <th class={styles['small-font-cell']}>{t('columns.product.caseSize')}</th>
                                         <th>{t('statusReport.results.dominantStatus')}</th>
                                         {warehouseColumns.map(wh => (
                                             <th 
                                                 key={wh} 
-                                                class={`${styles.warehouseHeader} ${styles.clickable} ${sortByWarehouse === wh ? styles.sorted : ''}`}
+                                                class={`${styles['warehouse-header']} ${styles.clickable} ${sortByWarehouse === wh ? styles.sorted : ''}`}
                                                 onClick={() => setSortByWarehouse(sortByWarehouse === wh ? null : wh)}
                                             >
                                                 {wh}
-                                                <span class={styles.rdcName}>{rdcNameMap.get(wh) || ''}</span>
+                                                <span class={styles['rdc-name']}>{rdcNameMap.get(wh) || ''}</span>
                                             </th>
                                         ))}
                                     </tr>
@@ -849,20 +849,20 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                         const isExcluded = exclusionList.list.has(item.productId);
                                         const isStatutoryExcluded = STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup);
                                         return (
-                                        <tr key={`${item.productId}-${item.caseSize}`} class={isExcluded || isStatutoryExcluded ? styles.excludedRow : ''}>
+                                        <tr key={`${item.productId}-${item.caseSize}`} class={isExcluded || isStatutoryExcluded ? styles['excluded-row'] : ''}>
                                             <td>{item.productId}</td>
                                             <td title={item.productName}>
-                                                <div class={styles.truncatedCellContent} style={{width: `${(productNameWidth || 200) - 24}px`}}>
+                                                <div class={styles['truncated-cell-content']} style={{width: `${(productNameWidth || 200) - 24}px`}}>
                                                     {item.productName}
                                                 </div>
                                             </td>
-                                            <td class={styles.smallFontCell}>{item.dispoGroup}</td>
-                                            <td class={`${styles.smallFontCell} ${styles.itemGroupCol}`} title={`${item.itemGroup} - ${itemGroupMap[item.itemGroup] || ''}`}>
-                                                <div class={styles.truncatedCellContent}>
+                                            <td class={styles['small-font-cell']}>{item.dispoGroup}</td>
+                                            <td class={`${styles['small-font-cell']} ${styles['item-group-col']}`} title={`${item.itemGroup} - ${itemGroupMap[item.itemGroup] || ''}`}>
+                                                <div class={styles['truncated-cell-content']}>
                                                     {item.itemGroup} - {itemGroupMap[item.itemGroup] || ''}
                                                 </div>
                                             </td>
-                                            <td class={styles.smallFontCell}>{item.caseSize}</td>
+                                            <td class={styles['small-font-cell']}>{item.caseSize}</td>
                                             <td>
                                                 <strong>{item.dominantStatusInfo.status}</strong>
                                                 {item.dominantStatusInfo.type !== 'none' && (
@@ -878,7 +878,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                                 return (
                                                     <td 
                                                         key={wh} 
-                                                        class={`${status && !isConsistent && !isWh290SpecialExclusion ? styles.statusInconsistent : ''} ${isWh290SpecialExclusion ? styles.specialExclusionCell : ''}`}
+                                                        class={`${status && !isConsistent && !isWh290SpecialExclusion ? styles['status-inconsistent'] : ''} ${isWh290SpecialExclusion ? styles['special-exclusion-cell'] : ''}`}
                                                         onMouseEnter={(e) => handleCellMouseEnter(e, item, wh, isWh290SpecialExclusion)}
                                                         onMouseLeave={handleCellMouseLeave}
                                                     >
@@ -899,7 +899,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                         </div>
                         </>
                     ) : (
-                         <div class={sharedStyles.placeholderView}>
+                         <div class={sharedStyles['placeholder-view']}>
                             <p>{t('statusReport.results.noResults')}</p>
                         </div>
                     )}
