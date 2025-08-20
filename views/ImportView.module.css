@@ -31,10 +31,10 @@
     font-weight: bold;
     line-height: 1;
 }
-.status-icon.success {
+.success {
     color: var(--success-color);
 }
-.status-icon.error {
+.error {
     color: var(--danger-color);
 }
 
