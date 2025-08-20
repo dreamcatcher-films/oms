@@ -1,0 +1,68 @@
+.import-container {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.import-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: #fff;
+}
+
+.import-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.import-status-details {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.status-icon {
+    font-size: 1.5rem;
+    font-weight: bold;
+    line-height: 1;
+}
+.status-icon.success {
+    color: var(--success-color);
+}
+.status-icon.error {
+    color: var(--danger-color);
+}
+
+.status-main-text {
+    font-weight: 500;
+}
+
+.status-sub-text {
+    font-size: 0.85rem;
+    color: var(--text-light-color);
+}
+
+.import-section-description {
+  flex-grow: 1;
+}
+
+.import-section-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1rem;
+}
+
+.import-linked-info {
+    font-size: 0.85rem;
+    color: var(--text-light-color);
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--border-color);
+    word-break: break-all;
+}
