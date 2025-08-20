@@ -27,7 +27,7 @@ import {
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
 import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper } from './utils/parsing';
-import { Status, View, DataType, RDC, UserSession, ReportResultItem, ExclusionListData } from './utils/types';
+import { Status, View, DataType, RDC, UserSession, ReportResultItem, ExclusionListData, ShcDataType } from './utils/types';
 
 import { LanguageSelector } from './components/LanguageSelector';
 import { LoginModal } from './components/LoginModal';
@@ -37,6 +37,7 @@ import SimulationView from './views/SimulationView';
 import { SettingsView } from './views/SettingsView';
 import { ThreatReportView } from './views/ThreatReportView';
 import { StatusReportView } from './views/StatusReportView';
+import { ShcReportView } from './views/ShcReportView';
 import { AutoRefreshControl } from './components/AutoRefreshControl';
 import { RefreshCountdownModal } from './components/RefreshCountdownModal';
 import { IdleSplashScreen } from './components/IdleSplashScreen';
@@ -56,6 +57,7 @@ const App = () => {
   const [counts, setCounts] = useState({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0 });
   const [importMetadata, setImportMetadata] = useState<ImportMetadata>({ products: null, goodsReceipts: null, openOrders: null, sales: null });
   const [linkedFiles, setLinkedFiles] = useState<Map<DataType, FileSystemFileHandle>>(new Map());
+  const [shcFiles, setShcFiles] = useState<Map<ShcDataType, FileSystemFileHandle>>(new Map());
   
   const [currentView, setCurrentView] = useState<View>('import');
   const [userSession, setUserSession] = useState<UserSession | null>(null);
@@ -106,6 +108,7 @@ const App = () => {
         try {
             const settings = await loadAllSettings();
             const fileHandles = new Map<DataType, FileSystemFileHandle>();
+            const shcFileHandles = new Map<ShcDataType, FileSystemFileHandle>();
             let refreshConfig = null;
             for (const [key, value] of settings.entries()) {
                 if (key.startsWith('linkedFile:')) {
@@ -113,6 +116,12 @@ const App = () => {
                     const permission = await (value as any).queryPermission({ mode: 'read' });
                     if (permission === 'granted') {
                       fileHandles.set(dataType, value as FileSystemFileHandle);
+                    }
+                } else if (key.startsWith('shcLinkedFile:')) {
+                    const dataType = key.split(':')[1] as ShcDataType;
+                    const permission = await (value as any).queryPermission({ mode: 'read' });
+                    if (permission === 'granted') {
+                      shcFileHandles.set(dataType, value as FileSystemFileHandle);
                     }
                 } else if (key === 'autoRefreshConfig') {
                     refreshConfig = value;
@@ -123,6 +132,7 @@ const App = () => {
                 setTimeToNextRefresh(refreshConfig.interval * 60);
             }
             setLinkedFiles(fileHandles);
+            setShcFiles(shcFileHandles);
         } catch(e) {
             console.error("Error loading settings:", e);
         }
@@ -500,6 +510,24 @@ const App = () => {
       }
   };
 
+  const handleLinkShcFile = async (dataType: ShcDataType) => {
+      if (!('showOpenFilePicker' in window)) {
+          alert("Your browser does not support this feature.");
+          return;
+      }
+      try {
+          const [handle] = await (window as any).showOpenFilePicker();
+          await saveSetting(`shcLinkedFile:${dataType}`, handle);
+          setShcFiles(prev => new Map(prev).set(dataType, handle as FileSystemFileHandle));
+          setStatusMessage({ text: t('settings.dataSources.linkSuccess'), type: 'success' });
+      } catch (err) {
+          if ((err as Error).name !== 'AbortError') {
+            console.error('Error linking file:', err);
+            setStatusMessage({ text: t('settings.dataSources.linkError'), type: 'error' });
+          }
+      }
+  };
+
   const handleReloadFile = async (dataType: DataType, isAuto: boolean = false) => {
       const handle = linkedFiles.get(dataType);
       if (!handle) return Promise.reject();
@@ -568,6 +596,22 @@ const App = () => {
         setStatusMessage({ text: t('settings.dataSources.linkClearedSuccess'), type: 'success' });
     } catch (err) {
         console.error('Error clearing link:', err);
+        setStatusMessage({ text: t('settings.dataSources.linkClearedError'), type: 'error' });
+    }
+  };
+
+  const handleClearShcLink = async (dataType: ShcDataType) => {
+    if (!confirm(t('settings.dataSources.clearLinkConfirm'))) return;
+    try {
+        await deleteSetting(`shcLinkedFile:${dataType}`);
+        setShcFiles(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(dataType);
+            return newMap;
+        });
+        setStatusMessage({ text: t('settings.dataSources.linkClearedSuccess'), type: 'success' });
+    } catch (err) {
+        console.error('Error clearing shc link:', err);
         setStatusMessage({ text: t('settings.dataSources.linkClearedError'), type: 'error' });
     }
   };
@@ -645,10 +689,13 @@ const App = () => {
                 onFileSelect={handleFileSelect}
                 onClear={handleClearFile}
                 linkedFiles={linkedFiles}
+                shcFiles={shcFiles}
                 onReload={handleReloadFile}
                 userSession={userSession}
                 onLinkFile={handleLinkFile}
                 onClearLink={handleClearLink}
+                onLinkShcFile={handleLinkShcFile}
+                onClearShcLink={handleClearShcLink}
                 onClearAll={handleClearAll}
               />;
           case 'data-preview':
@@ -663,6 +710,8 @@ const App = () => {
                 <div class={sharedStyles['placeholder-view']}><h2>{t('placeholders.report.title')}</h2><p>{t('placeholders.report.accessDenied')}</p></div>;
           case 'status-report':
                 return <StatusReportView rdcList={rdcList} exclusionList={exclusionList} onUpdateExclusionList={() => {}} />;
+          case 'shc-report':
+                return <ShcReportView files={shcFiles} />;
           case 'simulations':
               return <SimulationView 
                 userSession={userSession} 
@@ -726,6 +775,7 @@ const App = () => {
                         <li><a href="#" class={currentView === 'data-preview' ? 'active' : ''} onClick={() => handleNavigate('data-preview')}>{t('sidebar.dataPreview')}</a></li>
                         <li><a href="#" class={currentView === 'threat-report' ? 'active' : ''} onClick={() => handleNavigate('threat-report')}>{t('sidebar.threatReport')}</a></li>
                         <li><a href="#" class={currentView === 'status-report' ? 'active' : ''} onClick={() => handleNavigate('status-report')}>{t('sidebar.statusReport')}</a></li>
+                        <li><a href="#" class={currentView === 'shc-report' ? 'active' : ''} onClick={() => handleNavigate('shc-report')}>{t('sidebar.shcReport')}</a></li>
                         <li><a href="#" class={currentView === 'simulations' ? 'active' : ''} onClick={() => handleNavigate('simulations')}>{t('sidebar.simulations')}</a></li>
                         <li><a href="#" class={currentView === 'settings' ? 'active' : ''} onClick={() => handleNavigate('settings')}>{t('sidebar.settings')}</a></li>
                     </ul>
