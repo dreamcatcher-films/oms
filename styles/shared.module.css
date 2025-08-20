@@ -92,17 +92,17 @@
   flex-shrink: 0;
 }
 
-.status-container.info {
+.info {
   background-color: #e7f3fe;
   border-left-color: var(--info-color);
   color: #0c5460;
 }
-.status-container.success {
+.success {
   background-color: #d4edda;
   border-left-color: var(--success-color);
   color: #155724;
 }
-.status-container.error {
+.error {
   background-color: #f8d7da;
   border-left-color: var(--danger-color);
   color: #721c24;
