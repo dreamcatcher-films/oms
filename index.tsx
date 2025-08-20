@@ -722,7 +722,7 @@ const App = () => {
           <div class="sidebar-footer">
               <p>Proof of Concept Supply Chain UK</p>
               <p>OMS - Outdate Mitigation System</p>
-              <p>&copy; 2025 | Version 0.1</p>
+              <p>&copy; 2025 | Version 0.2 "/ Statuses"</p>
           </div>
         </nav>
         <main class="main-content">
