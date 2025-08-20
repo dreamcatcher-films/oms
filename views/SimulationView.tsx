@@ -5,7 +5,7 @@ import { SimulationResult, InitialStockBatch } from "../simulation.worker";
 import { ManualDelivery, UserSession, ReportResultItem } from '../utils/types';
 import { StockChart } from '../components/StockChart';
 import styles from './SimulationView.module.css';
-import sharedStyles from '/styles/shared.module.css';
+import sharedStyles from '../styles/shared.module.css';
 
 type SimulationViewProps = {
     userSession: UserSession | null;
