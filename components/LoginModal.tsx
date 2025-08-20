@@ -41,27 +41,27 @@ export const LoginModal = ({ onLogin, rdcList }: LoginModalProps) => {
     };
     
     return (
-        <div class={styles.loginModalOverlay}>
-            <div class={styles.loginModal}>
+        <div class={styles['login-modal-overlay']}>
+            <div class={styles['login-modal']}>
                 <h2>{t('loginModal.title')}</h2>
-                <div class={styles.loginOptions}>
+                <div class={styles['login-options']}>
                     <button 
-                        class={`${styles.loginOptionBtn} ${mode === 'hq' ? styles.active : ''}`}
+                        class={`${styles['login-option-btn']} ${mode === 'hq' ? styles.active : ''}`}
                         onClick={() => { setMode('hq'); setError(''); }}
                     >
                         {t('loginModal.hqButton')}
                     </button>
                     <button 
-                        class={`${styles.loginOptionBtn} ${mode === 'rdc' ? styles.active : ''}`}
+                        class={`${styles['login-option-btn']} ${mode === 'rdc' ? styles.active : ''}`}
                         onClick={() => { setMode('rdc'); setError(''); }}
                     >
                         {t('loginModal.rdcButton')}
                     </button>
                 </div>
 
-                <form class={styles.loginForm} onSubmit={handleLogin}>
+                <form class={styles['login-form']} onSubmit={handleLogin}>
                     {mode === 'hq' ? (
-                        <div class={sharedStyles.filterGroup}>
+                        <div class={sharedStyles['filter-group']}>
                             <label for="password">{t('loginModal.password')}</label>
                             <input 
                                 id="password"
@@ -72,7 +72,7 @@ export const LoginModal = ({ onLogin, rdcList }: LoginModalProps) => {
                             />
                         </div>
                     ) : (
-                        <div class={sharedStyles.filterGroup}>
+                        <div class={sharedStyles['filter-group']}>
                             <label for="rdc-select">{t('loginModal.selectRdc')}</label>
                             <select 
                                 id="rdc-select"
@@ -88,8 +88,8 @@ export const LoginModal = ({ onLogin, rdcList }: LoginModalProps) => {
                             </select>
                         </div>
                     )}
-                    <p class={styles.loginError}>{error}</p>
-                    <button type="submit" class={sharedStyles.buttonPrimary}>{t('loginModal.loginButton')}</button>
+                    <p class={styles['login-error']}>{error}</p>
+                    <button type="submit" class={sharedStyles['button-primary']}>{t('loginModal.loginButton')}</button>
                 </form>
             </div>
         </div>
