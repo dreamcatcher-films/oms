@@ -83,7 +83,6 @@ export const ImportView = ({
             {dataTypes.map(({ key, titleKey, descriptionKey, accept }) => {
                 const meta = importMetadata[key];
                 const count = counts[key];
-                const isUpdatedToday = meta && meta.lastImported ? isDateToday(new Date(meta.lastImported)) : false;
                 const statusIcon = count > 0 ? '✓' : '✗';
                 const statusClass = count > 0 ? styles.success : styles.error;
                 let statusText = t('import.status.noData');
@@ -116,9 +115,6 @@ export const ImportView = ({
                                 }
                             </div>
                             <div class={styles['import-actions']}>
-                                <label htmlFor={`${key}-file-input`} class={`${sharedStyles.buttonPrimary} ${isLoading ? sharedStyles.disabled : ''}`}>
-                                    {count > 0 ? t('import.buttons.change') : t('import.buttons.selectFile')}
-                                </label>
                                 <input id={`${key}-file-input`} type="file" style={{ display: 'none' }} accept={accept} onChange={(e) => onFileSelect(key, e)} disabled={isLoading} />
                                 
                                 {isLinked ? (
@@ -127,7 +123,14 @@ export const ImportView = ({
                                         <button onClick={() => onClearLink(key)} class={sharedStyles.buttonClear} disabled={isLoading}>{t('settings.dataSources.clearLink')}</button>
                                     </>
                                 ) : (
-                                    <button onClick={() => onLinkFile(key)} class={sharedStyles.buttonLink} disabled={isLoading || !isApiSupported}>{t('settings.dataSources.linkFile')}</button>
+                                    <>
+                                        <label htmlFor={`${key}-file-input`} class={`${sharedStyles.buttonPrimary} ${isLoading ? sharedStyles.disabled : ''}`}>
+                                            {count > 0 ? t('import.buttons.change') : t('import.buttons.selectFile')}
+                                        </label>
+                                        {isApiSupported && (
+                                            <button onClick={() => onLinkFile(key)} class={sharedStyles.buttonLink} disabled={isLoading}>{t('settings.dataSources.linkFile')}</button>
+                                        )}
+                                    </>
                                 )}
                                 
                                 {count > 0 && (
