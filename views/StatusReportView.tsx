@@ -49,6 +49,8 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
     
     const [isExportModalVisible, setIsExportModalVisible] = useState(false);
     const [selectedExportWarehouse, setSelectedExportWarehouse] = useState('all');
+    const [exportFormat, setExportFormat] = useState<'summary' | 'comparative'>('summary');
+    const [selectedExportStatus, setSelectedExportStatus] = useState('all');
 
     const rdcNameMap = useMemo(() => new Map(rdcList.map(r => [r.id, r.name])), [rdcList]);
 
@@ -344,74 +346,146 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
         setTooltip(prev => ({ ...prev, visible: false }));
     };
 
+    const getActiveFiltersSummary = () => {
+        const filters = [];
+        if (pastedProductIds.length > 0) filters.push(`${t('columns.product.productId')}: ${t('statusReport.filters.pastedInfo', { count: pastedProductIds.length })}`);
+        else if (productIdFilter) filters.push(`${t('columns.product.productId')}: ${productIdFilter}`);
+        if (dominantStatusFilter) filters.push(`${t('statusReport.filters.dominantStatus')}: ${dominantStatusFilter}`);
+        if (dispoGroupFilter) filters.push(`${t('columns.product.dispoGroup')}: ${dispoGroupFilter}`);
+        if (itemGroupFilter) filters.push(`${t('columns.product.itemGroup')}: ${itemGroupFilter}`);
+        if (excludeNoStock) filters.push(t('statusReport.filters.excludeNoStock'));
+        if (showOnlyUndetermined) filters.push(t('statusReport.filters.showOnlyUndetermined'));
+        if (includeConsistent) filters.push(t('statusReport.filters.includeConsistent'));
+        if (excludedDominantStatuses.length > 0 && excludedDominantStatuses.length < EXCLUDABLE_STATUSES.length) {
+            filters.push(`${t('statusReport.filters.excludeWhenDominantIs')} ${EXCLUDABLE_STATUSES.filter(s => !excludedDominantStatuses.includes(s)).join(', ')}`);
+        }
+        return filters.length > 0 ? filters.join('; ') : 'None';
+    };
+    
     const generatePdf = () => {
         if (!sortedAndFilteredResults) return;
 
         const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+        const now = new Date();
+        const dateStr = now.toLocaleDateString(language);
+        const timeStr = now.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' });
+
+        const addHeader = (docInstance: any) => {
+            docInstance.setFontSize(14);
+            docInstance.text(t('statusReport.title'), 40, 40);
+            docInstance.setFontSize(8);
+            docInstance.text(`${t('statusReport.pdf.generatedOn')}: ${dateStr} ${timeStr}`, 40, 55);
+            docInstance.text(`${t('statusReport.pdf.activeFilters')}: ${getActiveFiltersSummary()}`, 40, 65);
+        };
         
-        const warehousesToExport = selectedExportWarehouse === 'all'
-            ? rdcList.filter(rdc => warehouseColumns.includes(rdc.id))
-            : rdcList.filter(rdc => rdc.id === selectedExportWarehouse);
+        addHeader(doc);
 
-        let isFirstSection = true;
-
-        for (const warehouse of warehousesToExport) {
-            if (!isFirstSection) {
-                doc.addPage();
-            }
-            
+        if (exportFormat === 'comparative') {
             doc.setFontSize(18);
-            doc.text(`${t('statusReport.pdf.reportForWarehouse')}: ${warehouse.id} - ${warehouse.name}`, 40, 60);
+            doc.text(t('statusReport.results.title'), 40, 90);
+            
+            const tableHead = [
+                t('columns.product.productId'),
+                t('columns.product.name'),
+                t('columns.product.caseSize'),
+                t('statusReport.results.dominantStatus'),
+                ...warehouseColumns
+            ];
 
-            const itemsForWarehouse = sortedAndFilteredResults.filter(item => {
-                const whId = warehouse.id;
-                const status = item.statusesByWarehouse[whId];
-            
-                if (!status || !item.isInconsistent || status === item.dominantStatusInfo.status || !SUSPICIOUS_STATUSES.includes(status)) {
-                    return false;
-                }
-            
-                // Apply exclusion logic
-                if (exclusionList.list.has(item.productId)) return false;
-                if (STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup)) return false;
-                if (whId === '290' && (item.itemGroup === '20' || item.itemGroup === '74')) return false;
-            
-                return true;
+            const tableBody = sortedAndFilteredResults.map(item => [
+                item.productId,
+                item.productName,
+                item.caseSize,
+                `${item.dominantStatusInfo.status} (${t(`statusReport.statusTypes.${item.dominantStatusInfo.type}`)})`,
+                ...warehouseColumns.map(wh => item.statusesByWarehouse[wh] ?? '-')
+            ]);
+
+            autoTable(doc, {
+                head: [tableHead],
+                body: tableBody,
+                startY: 100,
+                theme: 'grid',
+                styles: { fontSize: 7, cellPadding: 2, overflow: 'ellipsize' },
+                headStyles: { fillColor: [74, 144, 226], textColor: 255, fontStyle: 'bold' },
+                didParseCell: (data: any) => {
+                    const item = sortedAndFilteredResults[data.row.index];
+                    if (!item) return;
+                    if (data.column.index >= 4) { 
+                        const wh = warehouseColumns[data.column.index - 4];
+                        const cellStatus = item.statusesByWarehouse[wh];
+                        if (cellStatus && cellStatus !== item.dominantStatusInfo.status) {
+                            data.cell.styles.fillColor = '#f8d7da';
+                            data.cell.styles.textColor = '#721c24';
+                        }
+                    }
+                },
             });
 
-            if (itemsForWarehouse.length === 0) {
-                doc.setFontSize(10);
-                doc.text(t('statusReport.pdf.noInconsistencies'), 40, 80);
-                isFirstSection = false;
-                continue;
-            }
+        } else { // Summary format
+            const warehousesToExport = selectedExportWarehouse === 'all'
+                ? rdcList.filter(rdc => warehouseColumns.includes(rdc.id))
+                : rdcList.filter(rdc => rdc.id === selectedExportWarehouse);
 
-            const suspiciousStatusCounts = itemsForWarehouse.reduce((acc, item) => {
-                const status = item.statusesByWarehouse[warehouse.id];
-                acc[status] = (acc[status] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>);
+            let isFirstSection = true;
 
-            const sortedSuspiciousStatuses = Object.keys(suspiciousStatusCounts).sort((a, b) =>
-                suspiciousStatusCounts[b] - suspiciousStatusCounts[a]
-            );
-            
-            let startY = 80;
-
-            for (const status of sortedSuspiciousStatuses) {
-                const itemsForStatus = itemsForWarehouse.filter(item => item.statusesByWarehouse[warehouse.id] === status);
-                
-                if (startY > doc.internal.pageSize.height - 100) {
+            for (const warehouse of warehousesToExport) {
+                if (!isFirstSection) {
                     doc.addPage();
-                    startY = 60;
+                    addHeader(doc);
                 }
                 
-                doc.setFontSize(12);
-                doc.text(t('statusReport.pdf.groupedByStatus', { status }), 40, startY);
+                doc.setFontSize(16);
+                doc.text(`${t('statusReport.pdf.reportForWarehouse')}: ${warehouse.id} - ${warehouse.name}`, 40, 90);
+
+                const itemsForWarehouse = sortedAndFilteredResults.filter(item => {
+                    const whId = warehouse.id;
+                    const status = item.statusesByWarehouse[whId];
                 
-                const isSingleWarehouseExport = selectedExportWarehouse !== 'all';
-                const tableHead = isSingleWarehouseExport
-                    ? [
+                    if (!status || !item.isInconsistent || status === item.dominantStatusInfo.status || !SUSPICIOUS_STATUSES.includes(status)) {
+                        return false;
+                    }
+                    if (selectedExportStatus !== 'all' && status !== selectedExportStatus) {
+                        return false;
+                    }
+                    if (exclusionList.list.has(item.productId)) return false;
+                    if (STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup)) return false;
+                    if (whId === '290' && (item.itemGroup === '20' || item.itemGroup === '74')) return false;
+                
+                    return true;
+                });
+
+                if (itemsForWarehouse.length === 0) {
+                    doc.setFontSize(10);
+                    doc.text(t('statusReport.pdf.noInconsistencies'), 40, 110);
+                    isFirstSection = false;
+                    continue;
+                }
+
+                const suspiciousStatusCounts = itemsForWarehouse.reduce((acc, item) => {
+                    const status = item.statusesByWarehouse[warehouse.id];
+                    acc[status] = (acc[status] || 0) + 1;
+                    return acc;
+                }, {} as Record<string, number>);
+
+                const sortedSuspiciousStatuses = Object.keys(suspiciousStatusCounts).sort((a, b) =>
+                    suspiciousStatusCounts[b] - suspiciousStatusCounts[a]
+                );
+                
+                let startY = 110;
+
+                for (const status of sortedSuspiciousStatuses) {
+                    const itemsForStatus = itemsForWarehouse.filter(item => item.statusesByWarehouse[warehouse.id] === status);
+                    
+                    if (startY > doc.internal.pageSize.height - 100) {
+                        doc.addPage();
+                        addHeader(doc);
+                        startY = 90;
+                    }
+                    
+                    doc.setFontSize(12);
+                    doc.text(t('statusReport.pdf.groupedByStatus', { status }), 40, startY);
+                    
+                    const tableHead = [
                         t('columns.product.productId'),
                         t('columns.product.name'),
                         t('columns.product.dispoGroup'),
@@ -419,17 +493,9 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                         t('columns.product.caseSize'),
                         t('statusReport.results.dominantStatus'),
                         `${t('statusReport.pdf.statusIn')} ${warehouse.id}`,
-                      ]
-                    : [
-                        t('columns.product.productId'),
-                        t('columns.product.name'),
-                        t('columns.product.caseSize'),
-                        t('statusReport.results.dominantStatus'),
-                        ...warehouseColumns
                     ];
 
-                const tableBody = itemsForStatus.map(item => isSingleWarehouseExport
-                    ? [
+                    const tableBody = itemsForStatus.map(item => [
                         item.productId,
                         item.productName,
                         item.dispoGroup,
@@ -437,54 +503,31 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                         item.caseSize,
                         `${item.dominantStatusInfo.status} (${t(`statusReport.statusTypes.${item.dominantStatusInfo.type}`)})`,
                         item.statusesByWarehouse[warehouse.id]
-                      ]
-                    : [
-                        item.productId,
-                        item.productName,
-                        item.caseSize,
-                        `${item.dominantStatusInfo.status} (${t(`statusReport.statusTypes.${item.dominantStatusInfo.type}`)})`,
-                        ...warehouseColumns.map(wh => item.statusesByWarehouse[wh] ?? '-')
-                    ]
-                );
+                    ]);
 
-                autoTable(doc, {
-                    head: [tableHead],
-                    body: tableBody,
-                    startY: startY + 10,
-                    theme: 'grid',
-                    styles: { fontSize: isSingleWarehouseExport ? 8 : 7, cellPadding: 2, overflow: 'ellipsize' },
-                    headStyles: { fillColor: [74, 144, 226], textColor: 255, fontStyle: 'bold' },
-                    didParseCell: (data: any) => {
-                        const item = itemsForStatus[data.row.index];
-                        if (!item) return;
-
-                        if (isSingleWarehouseExport) {
+                    autoTable(doc, {
+                        head: [tableHead],
+                        body: tableBody,
+                        startY: startY + 10,
+                        theme: 'grid',
+                        styles: { fontSize: 8, cellPadding: 2, overflow: 'ellipsize' },
+                        headStyles: { fillColor: [74, 144, 226], textColor: 255, fontStyle: 'bold' },
+                        didParseCell: (data: any) => {
                              if (data.column.index === 6) {
                                 data.cell.styles.fillColor = '#f8d7da';
                                 data.cell.styles.textColor = '#721c24';
                             }
-                        } else {
-                            if (data.column.index >= 4) { 
-                                const wh = warehouseColumns[data.column.index - 4];
-                                const cellStatus = item.statusesByWarehouse[wh];
-                                if (cellStatus && cellStatus !== item.dominantStatusInfo.status) {
-                                    data.cell.styles.fillColor = '#f8d7da';
-                                    data.cell.styles.textColor = '#721c24';
-                                }
-                            }
-                        }
-                    },
-                });
-
-                startY = (doc as any).lastAutoTable.finalY + 20;
+                        },
+                    });
+                    startY = (doc as any).lastAutoTable.finalY + 20;
+                }
+                isFirstSection = false;
             }
-            isFirstSection = false;
         }
         
-        doc.save(`oms_status_report_${selectedExportWarehouse}_${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`oms_status_report_${new Date().toISOString().split('T')[0]}.pdf`);
         setIsExportModalVisible(false);
     };
-
 
     const handleMouseDown = useCallback((e: MouseEvent) => {
         isResizingRef.current = true;
@@ -512,22 +555,51 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
         <div class="status-report-view">
             {isExportModalVisible && (
                 <div class="login-modal-overlay">
-                    <div class="login-modal">
+                    <div class="login-modal" style={{textAlign: 'left'}}>
                         <h3>{t('statusReport.pdf.exportOptionsTitle')}</h3>
-                        <div class="filter-group">
-                            <label for="export-warehouse-select">{t('statusReport.pdf.selectWarehouse')}</label>
-                            <select
-                                id="export-warehouse-select"
-                                value={selectedExportWarehouse}
-                                onChange={(e) => setSelectedExportWarehouse((e.target as HTMLSelectElement).value)}
-                            >
-                                <option value="all">{t('statusReport.pdf.allWarehouses')}</option>
-                                {rdcList.map(rdc => <option key={rdc.id} value={rdc.id}>{rdc.id} - {rdc.name}</option>)}
-                            </select>
-                        </div>
-                        <div class="filter-actions" style={{justifyContent: 'center'}}>
-                            <button class="button-primary" onClick={generatePdf}>{t('statusReport.pdf.exportButton')}</button>
-                            <button class="button-secondary" onClick={() => setIsExportModalVisible(false)}>{t('statusReport.pdf.cancelButton')}</button>
+                        <div class="login-form">
+                            <div class="filter-group">
+                                <label for="export-format-select">{t('statusReport.pdf.format')}</label>
+                                <select
+                                    id="export-format-select"
+                                    value={exportFormat}
+                                    onChange={(e) => setExportFormat((e.target as HTMLSelectElement).value as 'summary' | 'comparative')}
+                                >
+                                    <option value="summary">{t('statusReport.pdf.summaryFormat')}</option>
+                                    <option value="comparative">{t('statusReport.pdf.comparativeFormat')}</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="export-warehouse-select">{t('statusReport.pdf.selectWarehouse')}</label>
+                                <select
+                                    id="export-warehouse-select"
+                                    value={selectedExportWarehouse}
+                                    onChange={(e) => setSelectedExportWarehouse((e.target as HTMLSelectElement).value)}
+                                    disabled={exportFormat === 'comparative'}
+                                >
+                                    <option value="all">{t('statusReport.pdf.allWarehouses')}</option>
+                                    {rdcList.map(rdc => <option key={rdc.id} value={rdc.id}>{rdc.id} - {rdc.name}</option>)}
+                                </select>
+                            </div>
+                            
+                             <div class="filter-group">
+                                <label for="export-status-select">{t('statusReport.pdf.filterByStatus')}</label>
+                                <select
+                                    id="export-status-select"
+                                    value={selectedExportStatus}
+                                    onChange={(e) => setSelectedExportStatus((e.target as HTMLSelectElement).value)}
+                                    disabled={exportFormat === 'comparative'}
+                                >
+                                    <option value="all">{t('statusReport.pdf.allStatuses')}</option>
+                                    {foundSuspiciousStatuses.map(status => <option key={status} value={status}>{status}</option>)}
+                                </select>
+                            </div>
+
+                            <div class="filter-actions" style={{justifyContent: 'center', marginTop: '1rem'}}>
+                                <button class="button-primary" onClick={generatePdf}>{t('statusReport.pdf.exportButton')}</button>
+                                <button class="button-secondary" onClick={() => setIsExportModalVisible(false)}>{t('statusReport.pdf.cancelButton')}</button>
+                            </div>
                         </div>
                     </div>
                 </div>
