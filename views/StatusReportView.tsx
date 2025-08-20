@@ -408,6 +408,8 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                 styles: { fontSize: 7, cellPadding: 2, overflow: 'ellipsize' },
                 headStyles: { fillColor: [248, 249, 250], textColor: [51, 51, 51], fontStyle: 'bold' },
                 didParseCell: (data: any) => {
+                    if (data.section !== 'body') return;
+
                     const item = sortedAndFilteredResults[data.row.index];
                     if (!item) return;
 
@@ -418,7 +420,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                         return;
                     }
 
-                    if (data.column.index >= 4) { 
+                    if (data.column.index >= 4) {
                         const wh = warehouseColumns[data.column.index - 4];
                         
                         const isWh290SpecialExclusion = wh === '290' && (item.itemGroup === '20' || item.itemGroup === '74');
@@ -526,12 +528,12 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                         startY: startY + 10,
                         theme: 'grid',
                         styles: { fontSize: 8, cellPadding: 2, overflow: 'ellipsize' },
-                        headStyles: { fillColor: [74, 144, 226], textColor: 255, fontStyle: 'bold' },
+                        headStyles: { fillColor: [248, 249, 250], textColor: [51, 51, 51], fontStyle: 'bold' },
                         didParseCell: (data: any) => {
-                             if (data.column.index === 6) {
-                                data.cell.styles.fillColor = '#f8d7da';
-                                data.cell.styles.textColor = '#721c24';
-                            }
+                            if (data.section === 'body' && data.column.index === 6) {
+                               data.cell.styles.fillColor = '#f8d7da';
+                               data.cell.styles.textColor = '#721c24';
+                           }
                         },
                     });
                     startY = (doc as any).lastAutoTable.finalY + 20;
