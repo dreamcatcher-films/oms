@@ -1,4 +1,4 @@
-import { h, createContext, Component, VNode } from 'preact';
+import { h, createContext, Component, VNode, ComponentChildren } from 'preact';
 import { useState, useContext, useEffect } from 'preact/hooks';
 
 import en from './locales/en.js';
@@ -29,7 +29,7 @@ type LanguageContextType = {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export const LanguageProvider = ({ children }: { children: VNode }) => {
+export const LanguageProvider = ({ children }: { children: ComponentChildren }) => {
   const [language, setLanguageState] = useState<string>(getInitialLanguage());
 
   useEffect(() => {
