@@ -4,9 +4,10 @@ export type Status = {
   progress?: number;
 };
 
-export type View = 'import' | 'threat-report' | 'dashboard' | 'simulations' | 'data-preview' | 'settings' | 'status-report';
+export type View = 'import' | 'threat-report' | 'dashboard' | 'simulations' | 'data-preview' | 'settings' | 'status-report' | 'shc-report';
 
 export type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales';
+export type ShcDataType = 'shc' | 'planogram' | 'orgStructure' | 'categoryRelation';
 
 export type ManualDelivery = {
     date: string;
@@ -187,3 +188,78 @@ export type StatusReportProgressPayload = {
 export type StatusReportWorkerMessage = 
     | { type: 'progress', payload: StatusReportProgressPayload }
     | { type: 'complete', payload: StatusReportResultItem[] };
+
+// --- SHC vs Planogram Report Worker Types ---
+export type ShcWorkerRequest = {
+    files: {
+        shc: string;
+        planogram: string;
+        orgStructure: string;
+        categoryRelation: string;
+    };
+    sectionConfig: ShcSectionConfig;
+};
+
+export type ShcResultItem = {
+    locator: string;
+    articleNumber: string;
+    articleName: string;
+    planShc: number;
+    storeShc: number;
+    diff: number;
+    generalStoreArea: string; // from CategoryHierarchy03
+    settingSpecificallyFor: string; // from CategoryHierarchy04
+    settingWidth: string; // from CategoryHierarchy05
+};
+
+export type ShcStoreResult = {
+    storeNumber: string;
+    discrepancyCount: number;
+    items: ShcResultItem[];
+};
+
+export type ShcManagerResult = {
+    managerName: string;
+    stores: ShcStoreResult[];
+};
+
+export type ShcHeadOfSalesResult = {
+    hosName: string;
+    managers: ShcManagerResult[];
+};
+
+export type ShcWarehouseResult = {
+    warehouseName: string;
+    hos: ShcHeadOfSalesResult[];
+};
+
+export type ShcAnalysisResult = {
+    [warehouseName: string]: ShcHeadOfSalesResult[];
+};
+
+export type ShcMismatchItem = {
+    type: 'NO_PLANOGRAM_MATCH' | 'NO_LOCATION_MATCH' | 'NO_ORG_STRUCTURE_MATCH';
+    storeNumber: string;
+    articleNumber: string;
+    details: string;
+};
+
+export type ShcWorkerProgressPayload = {
+    message: string;
+    percentage: number;
+};
+
+export type ShcSectionConfigItem = {
+    id: string;
+    enabled: boolean;
+};
+
+export type ShcSectionConfig = {
+    sections: ShcSectionConfigItem[];
+    order: string[];
+};
+
+export type ShcWorkerMessage = 
+    | { type: 'progress', payload: ShcWorkerProgressPayload }
+    | { type: 'complete', payload: { results: ShcAnalysisResult; mismatches: ShcMismatchItem[]; } }
+    | { type: 'error', payload: string };
