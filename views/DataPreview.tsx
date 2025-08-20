@@ -343,7 +343,7 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
   const isRdcMode = userSession?.mode === 'rdc';
 
   return (
-    <div class={styles.dataPreviewContainer} onBlur={() => setIsSuggestionsVisible(false)}>
+    <div class={styles['data-preview-container']} onBlur={() => setIsSuggestionsVisible(false)}>
       <div class={sharedStyles.tabs}>
         <button class={`${sharedStyles.tab} ${activeTab === 'products' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('products')}>{t('dataPreview.tabs.products')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'goodsReceipts' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('goodsReceipts')}>{t('dataPreview.tabs.goodsReceipts')}</button>
@@ -353,19 +353,19 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
 
       {activeTab === 'products' && (
         <>
-        <div class={sharedStyles.filterBar}>
-          <div class={sharedStyles.filterGroup}>
+        <div class={sharedStyles['filter-bar']}>
+          <div class={sharedStyles['filter-group']}>
             <label for="p-warehouseId">{t('dataPreview.filters.warehouse')}</label>
             <select id="p-warehouseId" name="warehouseId" value={productFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'products')} onKeyDown={handleKeyDown} disabled={isRdcMode}>
               <option value="">{t('dataPreview.filters.all')}</option>
               {productWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
           </div>
-          <div class={sharedStyles.filterGroup}>
+          <div class={sharedStyles['filter-group']}>
             <label for="p-productId">{t('dataPreview.filters.productId')}</label>
             <input type="text" id="p-productId" name="productId" value={productFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder={t('dataPreview.filters.productIdPlaceholder')} autocomplete="off"/>
             {isSuggestionsVisible && productIdSuggestions.length > 0 && (
-              <ul class={sharedStyles.suggestionsList}>
+              <ul class={sharedStyles['suggestions-list']}>
                 {productIdSuggestions.map(p => (
                   <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
                     <strong>{p.productId}</strong> - {p.name}
@@ -374,21 +374,21 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
               </ul>
             )}
           </div>
-          <div class={sharedStyles.filterGroup}>
+          <div class={sharedStyles['filter-group']}>
             <label for="p-status">{t('dataPreview.filters.status')}</label>
             <select id="p-status" name="status" value={productFilters.status} onChange={(e) => handleFilterChange(e, 'products')} onKeyDown={handleKeyDown}>
               <option value="">{t('dataPreview.filters.all')}</option>
               {productStatuses.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <div class={sharedStyles.filterActions}>
-            <button onClick={applyFilters} class={sharedStyles.buttonPrimary}>{t('dataPreview.filters.apply')}</button>
-            <button onClick={clearFilters} class={sharedStyles.buttonSecondary}>{t('dataPreview.filters.clear')}</button>
+          <div class={sharedStyles['filter-actions']}>
+            <button onClick={applyFilters} class={sharedStyles['button-primary']}>{t('dataPreview.filters.apply')}</button>
+            <button onClick={clearFilters} class={sharedStyles['button-secondary']}>{t('dataPreview.filters.clear')}</button>
           </div>
         </div>
 
-        <div class={sharedStyles.tableContainer}>
-          {isLoading ? ( <div class={sharedStyles.spinnerOverlay}><div class={sharedStyles.spinner}></div></div> ) : (
+        <div class={sharedStyles['table-container']}>
+          {isLoading ? ( <div class={sharedStyles['spinner-overlay']}><div class={sharedStyles.spinner}></div></div> ) : (
             <table>
               <thead>
                 <tr>
@@ -427,19 +427,19 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
 
       {activeTab === 'goodsReceipts' && (
          <>
-         <div class={sharedStyles.filterBar}>
-          <div class={sharedStyles.filterGroup}>
+         <div class={sharedStyles['filter-bar']}>
+          <div class={sharedStyles['filter-group']}>
             <label for="gr-warehouseId">{t('dataPreview.filters.warehouse')}</label>
             <select id="gr-warehouseId" name="warehouseId" value={goodsReceiptsFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'goodsReceipts')} onKeyDown={handleKeyDown} disabled={isRdcMode}>
               <option value="">{t('dataPreview.filters.all')}</option>
               {goodsReceiptsWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
           </div>
-          <div class={sharedStyles.filterGroup}>
+          <div class={sharedStyles['filter-group']}>
             <label for="gr-productId">{t('dataPreview.filters.productId')}</label>
             <input type="text" id="gr-productId" name="productId" value={goodsReceiptsFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder={t('dataPreview.filters.productIdPlaceholder')} autocomplete="off"/>
             {isSuggestionsVisible && productIdSuggestions.length > 0 && (
-              <ul class={sharedStyles.suggestionsList}>
+              <ul class={sharedStyles['suggestions-list']}>
                 {productIdSuggestions.map(p => (
                   <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
                     <strong>{p.productId}</strong> - {p.name}
@@ -448,13 +448,13 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
               </ul>
             )}
           </div>
-          <div class={sharedStyles.filterActions}>
-            <button onClick={applyFilters} class={sharedStyles.buttonPrimary}>{t('dataPreview.filters.apply')}</button>
-            <button onClick={clearFilters} class={sharedStyles.buttonSecondary}>{t('dataPreview.filters.clear')}</button>
+          <div class={sharedStyles['filter-actions']}>
+            <button onClick={applyFilters} class={sharedStyles['button-primary']}>{t('dataPreview.filters.apply')}</button>
+            <button onClick={clearFilters} class={sharedStyles['button-secondary']}>{t('dataPreview.filters.clear')}</button>
           </div>
         </div>
-         <div class={sharedStyles.tableContainer}>
-           {isLoading ? ( <div class={sharedStyles.spinnerOverlay}><div class={sharedStyles.spinner}></div></div> ) : (
+         <div class={sharedStyles['table-container']}>
+           {isLoading ? ( <div class={sharedStyles['spinner-overlay']}><div class={sharedStyles.spinner}></div></div> ) : (
              <table>
                <thead>
                  <tr>
@@ -487,19 +487,19 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
 
       {activeTab === 'openOrders' && (
          <>
-         <div class={sharedStyles.filterBar}>
-          <div class={sharedStyles.filterGroup}>
+         <div class={sharedStyles['filter-bar']}>
+          <div class={sharedStyles['filter-group']}>
             <label for="oo-warehouseId">{t('dataPreview.filters.warehouse')}</label>
             <select id="oo-warehouseId" name="warehouseId" value={openOrderFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'openOrders')} onKeyDown={handleKeyDown} disabled={isRdcMode}>
               <option value="">{t('dataPreview.filters.all')}</option>
               {openOrdersWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
           </div>
-          <div class={sharedStyles.filterGroup}>
+          <div class={sharedStyles['filter-group']}>
             <label for="oo-productId">{t('dataPreview.filters.productId')}</label>
             <input type="text" id="oo-productId" name="productId" value={openOrderFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder={t('dataPreview.filters.productIdPlaceholder')} autocomplete="off"/>
              {isSuggestionsVisible && productIdSuggestions.length > 0 && (
-              <ul class={sharedStyles.suggestionsList}>
+              <ul class={sharedStyles['suggestions-list']}>
                 {productIdSuggestions.map(p => (
                   <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
                     <strong>{p.productId}</strong> - {p.name}
@@ -508,13 +508,13 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
               </ul>
             )}
           </div>
-          <div class={sharedStyles.filterActions}>
-            <button onClick={applyFilters} class={sharedStyles.buttonPrimary}>{t('dataPreview.filters.apply')}</button>
-            <button onClick={clearFilters} class={sharedStyles.buttonSecondary}>{t('dataPreview.filters.clear')}</button>
+          <div class={sharedStyles['filter-actions']}>
+            <button onClick={applyFilters} class={sharedStyles['button-primary']}>{t('dataPreview.filters.apply')}</button>
+            <button onClick={clearFilters} class={sharedStyles['button-secondary']}>{t('dataPreview.filters.clear')}</button>
           </div>
         </div>
-         <div class={sharedStyles.tableContainer}>
-           {isLoading ? ( <div class={sharedStyles.spinnerOverlay}><div class={sharedStyles.spinner}></div></div> ) : (
+         <div class={sharedStyles['table-container']}>
+           {isLoading ? ( <div class={sharedStyles['spinner-overlay']}><div class={sharedStyles.spinner}></div></div> ) : (
              <table>
                <thead>
                  <tr>
@@ -547,19 +547,19 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
 
       {activeTab === 'sales' && (
          <>
-         <div class={sharedStyles.filterBar}>
-          <div class={sharedStyles.filterGroup}>
+         <div class={sharedStyles['filter-bar']}>
+          <div class={sharedStyles['filter-group']}>
             <label for="s-warehouseId">{t('dataPreview.filters.warehouse')}</label>
             <select id="s-warehouseId" name="warehouseId" value={salesFilters.warehouseId} onChange={(e) => handleFilterChange(e, 'sales')} onKeyDown={handleKeyDown} disabled={isRdcMode}>
               <option value="">{t('dataPreview.filters.all')}</option>
               {salesWarehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
             </select>
           </div>
-          <div class={sharedStyles.filterGroup}>
+          <div class={sharedStyles['filter-group']}>
             <label for="s-productId">{t('dataPreview.filters.productId')}</label>
             <input type="text" id="s-productId" name="productId" value={salesFilters.productId} onInput={handleProductIdChange} onKeyDown={handleKeyDown} placeholder={t('dataPreview.filters.productIdPlaceholder')} autocomplete="off"/>
              {isSuggestionsVisible && productIdSuggestions.length > 0 && (
-              <ul class={sharedStyles.suggestionsList}>
+              <ul class={sharedStyles['suggestions-list']}>
                 {productIdSuggestions.map(p => (
                   <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
                     <strong>{p.productId}</strong> - {p.name}
@@ -568,13 +568,13 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
               </ul>
             )}
           </div>
-          <div class={sharedStyles.filterActions}>
-            <button onClick={applyFilters} class={sharedStyles.buttonPrimary}>{t('dataPreview.filters.apply')}</button>
-            <button onClick={clearFilters} class={sharedStyles.buttonSecondary}>{t('dataPreview.filters.clear')}</button>
+          <div class={sharedStyles['filter-actions']}>
+            <button onClick={applyFilters} class={sharedStyles['button-primary']}>{t('dataPreview.filters.apply')}</button>
+            <button onClick={clearFilters} class={sharedStyles['button-secondary']}>{t('dataPreview.filters.clear')}</button>
           </div>
         </div>
-         <div class={sharedStyles.tableContainer}>
-           {isLoading ? ( <div class={sharedStyles.spinnerOverlay}><div class={sharedStyles.spinner}></div></div> ) : (
+         <div class={sharedStyles['table-container']}>
+           {isLoading ? ( <div class={sharedStyles['spinner-overlay']}><div class={sharedStyles.spinner}></div></div> ) : (
              <table>
                <thead>
                  <tr>
