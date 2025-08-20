@@ -116,7 +116,7 @@ export const ImportView = ({
                             <label htmlFor={`${key}-file-input`} class={`${sharedStyles.fileLabel} ${isLoading ? sharedStyles.disabled : ''}`}>
                                 {isLinked ? t('import.buttons.change') : t('import.buttons.selectFile')}
                             </label>
-                            <input id={`${key}-file-input`} type="file" accept={accept} onChange={(e) => onFileSelect(key, e)} disabled={isLoading} />
+                            <input id={`${key}-file-input`} type="file" style={{ display: 'none' }} accept={accept} onChange={(e) => onFileSelect(key, e)} disabled={isLoading} />
                             {count > 0 && <button onClick={() => onClear(key)} class={sharedStyles.buttonClear} disabled={isLoading}>{t('import.buttons.clear')}</button>}
                         </div>
                          {isLinked && (
