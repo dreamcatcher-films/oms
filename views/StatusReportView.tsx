@@ -406,12 +406,27 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                 startY: 100,
                 theme: 'grid',
                 styles: { fontSize: 7, cellPadding: 2, overflow: 'ellipsize' },
-                headStyles: { fillColor: [74, 144, 226], textColor: 255, fontStyle: 'bold' },
+                headStyles: { fillColor: [248, 249, 250], textColor: [51, 51, 51], fontStyle: 'bold' },
                 didParseCell: (data: any) => {
                     const item = sortedAndFilteredResults[data.row.index];
                     if (!item) return;
+
+                    const isExcludedByList = exclusionList.list.has(item.productId);
+                    const isStatutoryExcluded = STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup);
+                    if (isExcludedByList || isStatutoryExcluded) {
+                        data.cell.styles.fillColor = '#d4edda';
+                        return;
+                    }
+
                     if (data.column.index >= 4) { 
                         const wh = warehouseColumns[data.column.index - 4];
+                        
+                        const isWh290SpecialExclusion = wh === '290' && (item.itemGroup === '20' || item.itemGroup === '74');
+                        if (isWh290SpecialExclusion) {
+                            data.cell.styles.fillColor = '#d4edda';
+                            return;
+                        }
+                        
                         const cellStatus = item.statusesByWarehouse[wh];
                         if (cellStatus && cellStatus !== item.dominantStatusInfo.status) {
                             data.cell.styles.fillColor = '#f8d7da';
