@@ -1,0 +1,54 @@
+/* Language Selector */
+.language-selector {
+    position: relative;
+}
+
+.selector-button {
+    background: none;
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+}
+
+.selector-button:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.selector-button .arrow {
+    font-size: 0.6rem;
+    color: var(--text-light-color);
+}
+
+.selector-dropdown {
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 0;
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    list-style: none;
+    padding: 0.5rem;
+    margin: 0;
+    min-width: 150px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    z-index: 101;
+}
+
+.selector-dropdown li {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.selector-dropdown li:hover {
+    background-color: #f0f4f8;
+}
