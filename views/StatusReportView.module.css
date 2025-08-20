@@ -70,7 +70,7 @@
     margin-top: 1rem;
     overflow-x: auto;
 }
-.summary-table-container table {
+.summary-table-container .summary-table {
     font-size: 0.9rem;
     white-space: nowrap;
 }
@@ -153,6 +153,21 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
+}
+
+.report-progress-section {
+    padding: 2rem;
+    background-color: white;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.report-progress-section h4 {
+    margin: 0;
 }
 
 .status-report-results .table-container {
