@@ -1,912 +1,632 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'preact/hooks';
-import type { VNode } from 'preact';
+import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
-import type { StatusReportResultItem, StatusReportWorkerMessage, StatusReportWorkerRequest, RDC, ExclusionListData } from '../utils/types';
-import { itemGroupMap } from '../utils/itemGroups';
-// @ts-ignore
-import jsPDF from 'jspdf';
-// @ts-ignore
-import autoTable from 'jspdf-autotable';
-import styles from './StatusReportView.module.css';
+import { getUniqueWarehouseIds, findProductsByPartialId, Product, getProductDetails } from '../db';
+import { SimulationResult, InitialStockBatch } from "../simulation.worker";
+import { ManualDelivery, UserSession, ReportResultItem } from '../utils/types';
+import { StockChart } from '../components/StockChart';
+import styles from './SimulationView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
+type SimulationViewProps = {
+    userSession: UserSession | null;
+    initialParams: { warehouseId: string; fullProductId: string; } | null;
+    onSimulationStart: () => void;
+    watchlist: ReportResultItem[];
+    watchlistIndex: number | null;
+    onNavigateWatchlist: (direction: 1 | -1) => void;
+    onClearWatchlist: () => void;
+};
 
-const PAGE_SIZE = 20;
-const SUSPICIOUS_STATUSES = ['5', '6', '7', '9', '10', '11', '12'];
-const EXCLUDABLE_STATUSES = ['5', '6', '7', '8', '9', '10', '11', '12','-'];
-const STATUTORY_EXCLUDED_ITEM_GROUPS = new Set(['10', '11', '12', '13', '73', '90', '91', '92']);
-
-export const StatusReportView = (props: { rdcList: RDC[], exclusionList: ExclusionListData, onUpdateExclusionList: () => void }) => {
-    const { t, language } = useTranslation();
-    const { rdcList, exclusionList, onUpdateExclusionList } = props;
-    const workerRef = useRef<Worker | null>(null);
-
-    const [isLoading, setIsLoading] = useState(false);
-    const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
-    const [reportResults, setReportResults] = useState<StatusReportResultItem[] | null>(null);
-    
-    const [productIdFilter, setProductIdFilter] = useState('');
-    const [pastedProductIds, setPastedProductIds] = useState<string[]>([]);
-    const [dominantStatusFilter, setDominantStatusFilter] = useState('');
-    const [dispoGroupFilter, setDispoGroupFilter] = useState('');
-    const [itemGroupFilter, setItemGroupFilter] = useState('');
-    const [excludeNoStock, setExcludeNoStock] = useState(true);
-    const [showOnlyUndetermined, setShowOnlyUndetermined] = useState(false);
-    const [excludedDominantStatuses, setExcludedDominantStatuses] = useState<string[]>(EXCLUDABLE_STATUSES.filter(s => s !== '8'));
-    const [includeConsistent, setIncludeConsistent] = useState(false);
-    
-    const [currentPage, setCurrentPage] = useState(1);
-    const [sortByWarehouse, setSortByWarehouse] = useState<string | null>(null);
-
-    const [productNameWidth, setProductNameWidth] = useState<number | null>(200);
-    const resizerRef = useRef<HTMLDivElement>(null);
-    const thRef = useRef<HTMLTableCellElement>(null);
-    const isResizingRef = useRef(false);
-    
-    const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
-
-    const [tooltip, setTooltip] = useState<{ visible: boolean; content: VNode | null; x: number; y: number; }>({
-        visible: false, content: null, x: 0, y: 0,
-    });
-    
-    const [isExportModalVisible, setIsExportModalVisible] = useState(false);
-    const [selectedExportWarehouse, setSelectedExportWarehouse] = useState('all');
-    const [exportFormat, setExportFormat] = useState<'summary' | 'comparative'>('summary');
-    const [selectedExportStatus, setSelectedExportStatus] = useState('all');
-
-    const rdcNameMap = useMemo(() => new Map(rdcList.map(r => [r.id, r.name])), [rdcList]);
-
-    useEffect(() => {
-        workerRef.current = new Worker(new URL('../statusReport.worker.ts', import.meta.url), { type: 'module' });
-
-        workerRef.current.onmessage = (e: MessageEvent<StatusReportWorkerMessage>) => {
-            const { type, payload } = e.data;
-            if (type === 'progress') {
-                setProgress(payload);
-            } else if (type === 'complete') {
-                setReportResults(payload);
-                setIsLoading(false);
-                setProgress(null);
-            }
-        };
-
-        return () => workerRef.current?.terminate();
-    }, []);
-
-    const handleRunReport = () => {
-        if (!workerRef.current) return;
-        setIsLoading(true);
-        setReportResults(null);
-        setProgress({ processed: 0, total: 0 });
-        const request: StatusReportWorkerRequest = {
-            allWarehouseIds: rdcList.map(r => r.id),
-        };
-        workerRef.current.postMessage(request);
-    };
-    
-    const availableDominantStatuses = useMemo(() => {
-        if (!reportResults) return [];
-        const statuses = new Set(reportResults.map(r => r.dominantStatusInfo.status).filter(s => s !== '-'));
-        return Array.from(statuses).sort();
-    }, [reportResults]);
-
-    const availableDispoGroups = useMemo(() => {
-        if (!reportResults) return [];
-        const groups = new Set(reportResults.map(r => r.dispoGroup).filter(Boolean));
-        return Array.from(groups).sort();
-    }, [reportResults]);
-
-    const availableItemGroups = useMemo(() => {
-        if (!reportResults) return [];
-        const groups = new Set(reportResults.map(r => r.itemGroup).filter(Boolean));
-        return Array.from(groups).sort();
-    }, [reportResults]);
-
-    const filteredResults = useMemo(() => {
-        if (!reportResults) return [];
-        
-        let results = reportResults;
-
-        if (!includeConsistent) {
-            results = results.filter(item => item.isInconsistent);
-        }
-        
-        return results.filter(item => {
-            if (pastedProductIds.length > 0) {
-                if (!pastedProductIds.includes(item.productId)) {
-                    return false;
-                }
-            } else if (productIdFilter && !item.productId.toLowerCase().includes(productIdFilter.toLowerCase())) {
-                return false;
-            }
-            if (dominantStatusFilter && item.dominantStatusInfo.status !== dominantStatusFilter) {
-                return false;
-            }
-            if (dispoGroupFilter && item.dispoGroup !== dispoGroupFilter) {
-                return false;
-            }
-            if (itemGroupFilter && item.itemGroup !== itemGroupFilter) {
-                return false;
-            }
-            if (excludeNoStock) {
-                const totalStock = Object.values(item.stockByWarehouse).reduce((sum, stock) => sum + stock, 0);
-                if (totalStock <= 0) return false;
-            }
-            if (showOnlyUndetermined && item.dominantStatusInfo.type !== 'none') {
-                return false;
-            }
-            if (excludedDominantStatuses.length > 0 && excludedDominantStatuses.includes(item.dominantStatusInfo.status)) {
-                return false;
-            }
-            return true;
-        });
-    }, [reportResults, productIdFilter, pastedProductIds, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, showOnlyUndetermined, excludedDominantStatuses, includeConsistent]);
-    
-    const combinedSummaryData = useMemo(() => {
-        if (!reportResults) return null;
-
-        const summary: {
-            [whId: string]: {
-                totalItemsInReport: number;
-                filteredItemsChecked: number;
-                filteredStatus8Items: number;
-                filteredSuspiciousCounts: { [status: string]: number };
-                filteredExcludedSuspiciousCount: number;
-            }
-        } = {};
-
-        rdcList.forEach(rdc => {
-            summary[rdc.id] = {
-                totalItemsInReport: 0,
-                filteredItemsChecked: 0,
-                filteredStatus8Items: 0,
-                filteredSuspiciousCounts: {},
-                filteredExcludedSuspiciousCount: 0,
-            };
-        });
-        
-        for (const item of reportResults) {
-            for (const rdc of rdcList) {
-                const whId = rdc.id;
-                if (item.statusesByWarehouse[whId] !== undefined) {
-                    summary[whId].totalItemsInReport++;
-                }
-            }
-        }
-
-        for (const item of filteredResults) {
-             for (const rdc of rdcList) {
-                const whId = rdc.id;
-                 if (item.statusesByWarehouse[whId] !== undefined) {
-                    summary[whId].filteredItemsChecked++;
-                    const status = item.statusesByWarehouse[whId];
-                    if (status === '8') {
-                        summary[whId].filteredStatus8Items++;
-                    }
-                    
-                    const isPotentiallySuspicious = item.isInconsistent && status !== item.dominantStatusInfo.status && SUSPICIOUS_STATUSES.includes(status);
-
-                    if (isPotentiallySuspicious) {
-                        if (exclusionList.list.has(item.productId)) {
-                            summary[whId].filteredExcludedSuspiciousCount++;
-                        } else {
-                            const isStatutoryExcluded = STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup);
-                            const isWh290SpecialExclusion = whId === '290' && (item.itemGroup === '20' || item.itemGroup === '74');
-
-                            if (!isStatutoryExcluded && !isWh290SpecialExclusion) {
-                                summary[whId].filteredSuspiciousCounts[status] = (summary[whId].filteredSuspiciousCounts[status] || 0) + 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        return summary;
-    }, [filteredResults, reportResults, rdcList, exclusionList]);
-    
-    const foundSuspiciousStatuses = useMemo(() => {
-        if (!combinedSummaryData) return [];
-        const statuses = new Set<string>();
-        Object.values(combinedSummaryData).forEach(whData => {
-            Object.keys(whData.filteredSuspiciousCounts).forEach(status => statuses.add(status));
-        });
-        return Array.from(statuses).sort((a,b) => parseInt(a, 10) - parseInt(b, 10));
-    }, [combinedSummaryData]);
-
-    const highlightedValues = useMemo(() => {
-        if (!combinedSummaryData) return new Map<string, Set<number>>();
-        const topValuesMap = new Map<string, Set<number>>();
-
-        for (const status of foundSuspiciousStatuses) {
-            const values = Object.values(combinedSummaryData)
-                .map(whData => whData.filteredSuspiciousCounts[status] || 0)
-                .filter(count => count > 0)
-                .sort((a, b) => b - a);
-            
-            const top3Values = new Set(values.slice(0, 3));
-            topValuesMap.set(status, top3Values);
-        }
-        return topValuesMap;
-    }, [combinedSummaryData, foundSuspiciousStatuses]);
-
-    const sortedAndFilteredResults = useMemo(() => {
-        if (!filteredResults) return [];
-        if (!sortByWarehouse) return filteredResults;
-        
-        return [...filteredResults].sort((a, b) => {
-            const aHasInconsistency = a.statusesByWarehouse[sortByWarehouse] && a.statusesByWarehouse[sortByWarehouse] !== a.dominantStatusInfo.status;
-            const bHasInconsistency = b.statusesByWarehouse[sortByWarehouse] && b.statusesByWarehouse[sortByWarehouse] !== b.dominantStatusInfo.status;
-
-            if (aHasInconsistency && !bHasInconsistency) return -1;
-            if (!aHasInconsistency && bHasInconsistency) return 1;
-            
-            return a.productId.localeCompare(b.productId);
-        });
-    }, [filteredResults, sortByWarehouse]);
-
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [filteredResults, sortByWarehouse]);
-
-    const paginatedResults = useMemo(() => {
-        const startIndex = (currentPage - 1) * PAGE_SIZE;
-        return sortedAndFilteredResults.slice(startIndex, startIndex + PAGE_SIZE);
-    }, [sortedAndFilteredResults, currentPage]);
-    
-    const totalPages = Math.ceil(sortedAndFilteredResults.length / PAGE_SIZE);
-
-    const warehouseColumns = useMemo(() => {
-        if (!reportResults) return [];
-        const allWarehouses = new Set<string>();
-        reportResults.forEach(item => {
-            Object.keys(item.statusesByWarehouse).forEach(wh => allWarehouses.add(wh));
-        });
-        return Array.from(allWarehouses).filter(wh => rdcNameMap.has(wh)).sort();
-    }, [reportResults, rdcNameMap]);
-
-    const handleClearFilters = () => {
-        setProductIdFilter('');
-        setPastedProductIds([]);
-        setDominantStatusFilter('');
-        setDispoGroupFilter('');
-        setItemGroupFilter('');
-        setExcludeNoStock(true);
-        setShowOnlyUndetermined(false);
-        setExcludedDominantStatuses(EXCLUDABLE_STATUSES.filter(s => s !== '8'));
-        setIncludeConsistent(false);
-    };
-
-    const handleExcludeStatusChange = (status: string, isChecked: boolean) => {
-        setExcludedDominantStatuses(prev => {
-            if (isChecked) {
-                return [...prev, status];
-            } else {
-                return prev.filter(s => s !== status);
-            }
-        });
-    };
-
-    const handlePaste = (e: ClipboardEvent) => {
-        e.preventDefault();
-        const pastedText = e.clipboardData?.getData('text');
-        if (pastedText) {
-            const ids = pastedText
-                .split(/[\s,;\t\n]+/)
-                .map(s => {
-                    const trimmed = s.trim();
-                    if (/^\d+$/.test(trimmed)) {
-                        return String(parseInt(trimmed, 10));
-                    }
-                    return trimmed;
-                })
-                .filter(Boolean);
-            if (ids.length > 0) {
-                setPastedProductIds(ids);
-                setProductIdFilter(''); 
-            }
-        }
-    };
-    
-    const handleCellMouseEnter = useCallback((
-        e: MouseEvent,
-        item: StatusReportResultItem,
-        warehouseId: string,
-        isWh290SpecialExclusion: boolean
-    ) => {
-        const isExcluded = exclusionList.list.has(item.productId);
-        const isStatutoryExcluded = STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup);
-
-        let content: VNode | null = null;
-        if (isWh290SpecialExclusion || isExcluded || isStatutoryExcluded) {
-            content = <div><strong>{t('statusReport.tooltips.excluded')}</strong></div>;
-        } else {
-            const stock = item.stockByWarehouse[warehouseId];
-            const orderInfo = item.openOrdersByWarehouse[warehouseId];
-            content = (
-                <div>
-                    <p><strong>{t('columns.product.stockOnHand')}:</strong> {stock !== undefined ? stock.toLocaleString(language) : 'N/A'}</p>
-                    <p><strong>{t('dataType.openOrders')}:</strong> {orderInfo?.hasFutureOrders ? t('common.yesShort') : t('common.noShort')}</p>
-                    {orderInfo?.hasFutureOrders && orderInfo.nextOrderDate && (
-                        <p><strong>{t('columns.openOrder.deliveryDate')}:</strong> {orderInfo.nextOrderDate}</p>
-                    )}
-                </div>
-            );
-        }
-        
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        setTooltip({
-            visible: true,
-            content,
-            x: rect.left,
-            y: rect.top
-        });
-    }, [exclusionList, language, t]);
-
-    const handleCellMouseLeave = () => {
-        setTooltip(prev => ({ ...prev, visible: false }));
-    };
-
-    const getActiveFiltersSummary = () => {
-        const filters = [];
-        if (pastedProductIds.length > 0) filters.push(`${t('columns.product.productId')}: ${t('statusReport.filters.pastedInfo', { count: pastedProductIds.length })}`);
-        else if (productIdFilter) filters.push(`${t('columns.product.productId')}: ${productIdFilter}`);
-        if (dominantStatusFilter) filters.push(`${t('statusReport.filters.dominantStatus')}: ${dominantStatusFilter}`);
-        if (dispoGroupFilter) filters.push(`${t('columns.product.dispoGroup')}: ${dispoGroupFilter}`);
-        if (itemGroupFilter) filters.push(`${t('columns.product.itemGroup')}: ${itemGroupFilter}`);
-        if (excludeNoStock) filters.push(t('statusReport.filters.excludeNoStock'));
-        if (showOnlyUndetermined) filters.push(t('statusReport.filters.showOnlyUndetermined'));
-        if (includeConsistent) filters.push(t('statusReport.filters.includeConsistent'));
-        if (excludedDominantStatuses.length > 0 && excludedDominantStatuses.length < EXCLUDABLE_STATUSES.length) {
-            filters.push(`${t('statusReport.filters.excludeWhenDominantIs')} ${EXCLUDABLE_STATUSES.filter(s => !excludedDominantStatuses.includes(s)).join(', ')}`);
-        }
-        return filters.length > 0 ? filters.join('; ') : 'None';
-    };
-    
-    const generatePdf = () => {
-        if (!sortedAndFilteredResults) return;
-
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-        const now = new Date();
-        const dateStr = now.toLocaleDateString(language);
-        const timeStr = now.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' });
-
-        const addHeader = (docInstance: any) => {
-            docInstance.setFontSize(14);
-            docInstance.text(t('statusReport.title'), 40, 40);
-            docInstance.setFontSize(8);
-            docInstance.text(`${t('statusReport.pdf.generatedOn')}: ${dateStr} ${timeStr}`, 40, 55);
-            docInstance.text(`${t('statusReport.pdf.activeFilters')}: ${getActiveFiltersSummary()}`, 40, 65);
-        };
-        
-        addHeader(doc);
-
-        if (exportFormat === 'comparative') {
-            doc.setFontSize(18);
-            doc.text(t('statusReport.results.title'), 40, 90);
-            
-            const tableHead = [
-                t('columns.product.productId'),
-                t('columns.product.name'),
-                t('columns.product.caseSize'),
-                t('statusReport.results.dominantStatus'),
-                ...warehouseColumns
-            ];
-
-            const tableBody = sortedAndFilteredResults.map(item => [
-                item.productId,
-                item.productName,
-                item.caseSize,
-                `${item.dominantStatusInfo.status} (${t(`statusReport.statusTypes.${item.dominantStatusInfo.type}`)})`,
-                ...warehouseColumns.map(wh => item.statusesByWarehouse[wh] ?? '-')
-            ]);
-
-            autoTable(doc, {
-                head: [tableHead],
-                body: tableBody,
-                startY: 100,
-                theme: 'grid',
-                styles: { fontSize: 7, cellPadding: 2, overflow: 'ellipsize' },
-                headStyles: { fillColor: [248, 249, 250], textColor: [51, 51, 51], fontStyle: 'bold' },
-                didParseCell: (data: any) => {
-                    if (data.section !== 'body') {
-                        // Prevent conditional coloring on header cells
-                        data.cell.styles.fillColor = [248, 249, 250]; 
-                        return;
-                    }
-
-                    const item = sortedAndFilteredResults[data.row.index];
-                    if (!item) return;
-
-                    const isExcludedByList = exclusionList.list.has(item.productId);
-                    const isStatutoryExcluded = STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup);
-                    if (isExcludedByList || isStatutoryExcluded) {
-                        data.cell.styles.fillColor = '#d4edda';
-                        return;
-                    }
-
-                    if (data.column.index >= 4) {
-                        const wh = warehouseColumns[data.column.index - 4];
-                        
-                        const isWh290SpecialExclusion = wh === '290' && (item.itemGroup === '20' || item.itemGroup === '74');
-                        if (isWh290SpecialExclusion) {
-                            data.cell.styles.fillColor = '#d4edda';
-                            return;
-                        }
-                        
-                        const cellStatus = item.statusesByWarehouse[wh];
-                        if (cellStatus && cellStatus !== item.dominantStatusInfo.status) {
-                            data.cell.styles.fillColor = '#f8d7da';
-                            data.cell.styles.textColor = '#721c24';
-                        }
-                    }
-                },
-            });
-
-        } else { // Summary format
-            const warehousesToExport = selectedExportWarehouse === 'all'
-                ? rdcList.filter(rdc => warehouseColumns.includes(rdc.id))
-                : rdcList.filter(rdc => rdc.id === selectedExportWarehouse);
-
-            let isFirstSection = true;
-
-            for (const warehouse of warehousesToExport) {
-                if (!isFirstSection) {
-                    doc.addPage();
-                    addHeader(doc);
-                }
-                
-                doc.setFontSize(16);
-                doc.text(`${t('statusReport.pdf.reportForWarehouse')}: ${warehouse.id} - ${warehouse.name}`, 40, 90);
-
-                const itemsForWarehouse = sortedAndFilteredResults.filter(item => {
-                    const whId = warehouse.id;
-                    const status = item.statusesByWarehouse[whId];
-                
-                    if (!status || !item.isInconsistent || status === item.dominantStatusInfo.status || !SUSPICIOUS_STATUSES.includes(status)) {
-                        return false;
-                    }
-                    if (selectedExportStatus !== 'all' && status !== selectedExportStatus) {
-                        return false;
-                    }
-                    if (exclusionList.list.has(item.productId)) return false;
-                    if (STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup)) return false;
-                    if (whId === '290' && (item.itemGroup === '20' || item.itemGroup === '74')) return false;
-                
-                    return true;
-                });
-
-                if (itemsForWarehouse.length === 0) {
-                    doc.setFontSize(10);
-                    doc.text(t('statusReport.pdf.noInconsistencies'), 40, 110);
-                    isFirstSection = false;
-                    continue;
-                }
-
-                const suspiciousStatusCounts = itemsForWarehouse.reduce((acc, item) => {
-                    const status = item.statusesByWarehouse[warehouse.id];
-                    acc[status] = (acc[status] || 0) + 1;
-                    return acc;
-                }, {} as Record<string, number>);
-
-                const sortedSuspiciousStatuses = Object.keys(suspiciousStatusCounts).sort((a, b) =>
-                    suspiciousStatusCounts[b] - suspiciousStatusCounts[a]
-                );
-                
-                let startY = 110;
-
-                for (const status of sortedSuspiciousStatuses) {
-                    const itemsForStatus = itemsForWarehouse.filter(item => item.statusesByWarehouse[warehouse.id] === status);
-                    
-                    if (startY > doc.internal.pageSize.height - 100) {
-                        doc.addPage();
-                        addHeader(doc);
-                        startY = 90;
-                    }
-                    
-                    doc.setFontSize(12);
-                    doc.text(t('statusReport.pdf.groupedByStatus', { status }), 40, startY);
-                    
-                    const tableHead = [
-                        t('columns.product.productId'),
-                        t('columns.product.name'),
-                        t('columns.product.dispoGroup'),
-                        t('columns.product.itemGroup'),
-                        t('columns.product.caseSize'),
-                        t('statusReport.results.dominantStatus'),
-                        `${t('statusReport.pdf.statusIn')} ${warehouse.id}`,
-                    ];
-
-                    const tableBody = itemsForStatus.map(item => [
-                        item.productId,
-                        item.productName,
-                        item.dispoGroup,
-                        `${item.itemGroup} - ${itemGroupMap[item.itemGroup] || ''}`,
-                        item.caseSize,
-                        `${item.dominantStatusInfo.status} (${t(`statusReport.statusTypes.${item.dominantStatusInfo.type}`)})`,
-                        item.statusesByWarehouse[warehouse.id]
-                    ]);
-
-                    autoTable(doc, {
-                        head: [tableHead],
-                        body: tableBody,
-                        startY: startY + 10,
-                        theme: 'grid',
-                        styles: { fontSize: 8, cellPadding: 2, overflow: 'ellipsize' },
-                        headStyles: { fillColor: [248, 249, 250], textColor: [51, 51, 51], fontStyle: 'bold' },
-                        didParseCell: (data: any) => {
-                           if (data.section === 'body' && data.column.index === 6) {
-                               data.cell.styles.fillColor = '#f8d7da';
-                               data.cell.styles.textColor = '#721c24';
-                           } else if (data.section !== 'body') {
-                               data.cell.styles.fillColor = [248, 249, 250];
-                           }
-                        },
-                    });
-                    startY = (doc as any).lastAutoTable.finalY + 20;
-                }
-                isFirstSection = false;
-            }
-        }
-        
-        doc.save(`oms_status_report_${new Date().toISOString().split('T')[0]}.pdf`);
-        setIsExportModalVisible(false);
-    };
-
-    const handleMouseDown = useCallback((e: MouseEvent) => {
-        isResizingRef.current = true;
-        resizerRef.current?.classList.add(styles.resizing);
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-    }, []);
-
-    const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!isResizingRef.current || !thRef.current) return;
-        const newWidth = e.clientX - thRef.current.getBoundingClientRect().left;
-        if (newWidth > 100) {
-            setProductNameWidth(newWidth);
-        }
-    }, []);
-
-    const handleMouseUp = useCallback(() => {
-        isResizingRef.current = false;
-        resizerRef.current?.classList.remove(styles.resizing);
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-    }, []);
+const WatchlistNavigator = ({ 
+    watchlist, 
+    currentIndex, 
+    onNavigate,
+}: {
+    watchlist: ReportResultItem[];
+    currentIndex: number;
+    onNavigate: (direction: 1 | -1) => void;
+}) => {
+    const { t } = useTranslation();
+    const currentItem = watchlist[currentIndex];
 
     return (
-        <div class={styles.statusReportView}>
-            {isExportModalVisible && (
-                <div class={sharedStyles.loginModalOverlay}>
-                    <div class={sharedStyles.loginModal} style={{textAlign: 'left'}}>
-                        <h3>{t('statusReport.pdf.exportOptionsTitle')}</h3>
-                        <div class={sharedStyles.loginForm}>
-                            <div class={sharedStyles.filterGroup}>
-                                <label for="export-format-select">{t('statusReport.pdf.format')}</label>
-                                <select
-                                    id="export-format-select"
-                                    value={exportFormat}
-                                    onChange={(e) => setExportFormat((e.target as HTMLSelectElement).value as 'summary' | 'comparative')}
-                                >
-                                    <option value="summary">{t('statusReport.pdf.summaryFormat')}</option>
-                                    <option value="comparative">{t('statusReport.pdf.comparativeFormat')}</option>
-                                </select>
-                            </div>
-
-                            <div class={sharedStyles.filterGroup}>
-                                <label for="export-warehouse-select">{t('statusReport.pdf.selectWarehouse')}</label>
-                                <select
-                                    id="export-warehouse-select"
-                                    value={selectedExportWarehouse}
-                                    onChange={(e) => setSelectedExportWarehouse((e.target as HTMLSelectElement).value)}
-                                    disabled={exportFormat === 'comparative'}
-                                >
-                                    <option value="all">{t('statusReport.pdf.allWarehouses')}</option>
-                                    {rdcList.map(rdc => <option key={rdc.id} value={rdc.id}>{rdc.id} - {rdc.name}</option>)}
-                                </select>
-                            </div>
-                            
-                             <div class={sharedStyles.filterGroup}>
-                                <label for="export-status-select">{t('statusReport.pdf.filterByStatus')}</label>
-                                <select
-                                    id="export-status-select"
-                                    value={selectedExportStatus}
-                                    onChange={(e) => setSelectedExportStatus((e.target as HTMLSelectElement).value)}
-                                    disabled={exportFormat === 'comparative'}
-                                >
-                                    <option value="all">{t('statusReport.pdf.allStatuses')}</option>
-                                    {foundSuspiciousStatuses.map(status => <option key={status} value={status}>{status}</option>)}
-                                </select>
-                            </div>
-
-                            <div class={sharedStyles.filterActions} style={{justifyContent: 'center', marginTop: '1rem'}}>
-                                <button class={sharedStyles.buttonPrimary} onClick={generatePdf}>{t('statusReport.pdf.exportButton')}</button>
-                                <button class={sharedStyles.buttonSecondary} onClick={() => setIsExportModalVisible(false)}>{t('statusReport.pdf.cancelButton')}</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {tooltip.visible && (
-                <div 
-                    class={styles.statusReportTooltip}
-                    style={{
-                        left: `${tooltip.x}px`,
-                        top: `${tooltip.y}px`,
-                    }}
-                >
-                    {tooltip.content}
-                </div>
-            )}
-            <div class={styles.statusReportControls}>
-                <h3>{t('statusReport.title')}</h3>
-                <p>{t('statusReport.description')}</p>
-                 {exclusionList.lastUpdated && (
-                    <div class={styles.exclusionListInfoBar}>
-                        <span class={styles.infoText}>
-                            {t('statusReport.exclusionInfo.info', { 
-                                date: exclusionList.lastUpdated.toLocaleDateString(language), 
-                                time: exclusionList.lastUpdated.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit' }),
-                                count: exclusionList.list.size 
-                            })}
-                        </span>
-                        <button class={sharedStyles.buttonSecondary} onClick={onUpdateExclusionList}>
-                            {t('statusReport.exclusionInfo.updateButton')}
-                        </button>
-                    </div>
-                )}
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginTop: '1.5rem'}}>
-                    <button class={sharedStyles.buttonPrimary} onClick={handleRunReport} disabled={isLoading}>
-                        {reportResults ? t('simulations.buttons.rerun') : t('statusReport.runReport')}
-                    </button>
-                    {reportResults && (
-                         <button class={sharedStyles.buttonSecondary} onClick={() => setIsExportModalVisible(true)} disabled={sortedAndFilteredResults.length === 0}>
-                            {t('statusReport.results.exportPdf')}
-                        </button>
-                    )}
-                </div>
-                 {reportResults && (
-                    <div class={styles.statusReportFilters}>
-                        <div class={sharedStyles.filterGroup}>
-                            <label htmlFor="sr-productId">{t('columns.product.productId')}</label>
-                            <input
-                                id="sr-productId"
-                                type="text"
-                                value={pastedProductIds.length > 0 ? t('statusReport.filters.pastedInfo', { count: pastedProductIds.length }) : productIdFilter}
-                                onInput={(e) => {
-                                    if (pastedProductIds.length > 0) setPastedProductIds([]);
-                                    setProductIdFilter((e.target as HTMLInputElement).value);
-                                }}
-                                onPaste={handlePaste}
-                                placeholder={t('dataPreview.filters.productIdPlaceholder')}
-                            />
-                        </div>
-                        <div class={sharedStyles.filterGroup}>
-                            <label htmlFor="sr-dispoGroup">{t('columns.product.dispoGroup')}</label>
-                            <select id="sr-dispoGroup" value={dispoGroupFilter} onChange={(e) => setDispoGroupFilter((e.target as HTMLSelectElement).value)}>
-                                <option value="">{t('dataPreview.filters.all')}</option>
-                                {availableDispoGroups.map(g => <option key={g} value={g}>{g}</option>)}
-                            </select>
-                        </div>
-                        <div class={sharedStyles.filterGroup}>
-                            <label htmlFor="sr-itemGroup">{t('columns.product.itemGroup')}</label>
-                            <select id="sr-itemGroup" value={itemGroupFilter} onChange={(e) => setItemGroupFilter((e.target as HTMLSelectElement).value)}>
-                                <option value="">{t('dataPreview.filters.all')}</option>
-                                {availableItemGroups.map(g => <option key={g} value={g}>{g} - {itemGroupMap[g] || ''}</option>)}
-                            </select>
-                        </div>
-                         <div class={sharedStyles.filterGroup}>
-                            <label htmlFor="sr-dominantStatus">{t('statusReport.filters.dominantStatus')}</label>
-                            <select id="sr-dominantStatus" value={dominantStatusFilter} onChange={(e) => setDominantStatusFilter((e.target as HTMLSelectElement).value)}>
-                                <option value="">{t('dataPreview.filters.all')}</option>
-                                {availableDominantStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </div>
-                        <div class={styles.statusReportCheckboxFilters}>
-                             <label>
-                                <input type="checkbox" checked={excludeNoStock} onChange={(e) => setExcludeNoStock((e.target as HTMLInputElement).checked)} />
-                                {t('statusReport.filters.excludeNoStock')}
-                            </label>
-                            <label>
-                                <input type="checkbox" checked={showOnlyUndetermined} onChange={(e) => setShowOnlyUndetermined((e.target as HTMLInputElement).checked)} />
-                                {t('statusReport.filters.showOnlyUndetermined')}
-                            </label>
-                            <label>
-                                <input type="checkbox" checked={includeConsistent} onChange={(e) => setIncludeConsistent((e.target as HTMLInputElement).checked)} />
-                                {t('statusReport.filters.includeConsistent')}
-                            </label>
-                        </div>
-                        <div class={sharedStyles.filterActions}>
-                            <button class={sharedStyles.buttonSecondary} onClick={handleClearFilters}>{t('dataPreview.filters.clear')}</button>
-                        </div>
-                        <div class={styles.dominantStatusExcludeFilter}>
-                            <label class={styles.filterGroupLabel}>{t('statusReport.filters.excludeWhenDominantIs')}</label>
-                            <div class={styles.checkboxGroup}>
-                                {EXCLUDABLE_STATUSES.map(status => (
-                                    <label key={status}>
-                                        <input
-                                            type="checkbox"
-                                            checked={excludedDominantStatuses.includes(status)}
-                                            onChange={(e) => handleExcludeStatusChange(status, (e.target as HTMLInputElement).checked)}
-                                        />
-                                        {status}
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                 )}
+        <div class={styles.watchlistNavigator}>
+            <div class={styles.watchlistNavigatorInfo}>
+                {t('simulations.watchlist.viewing', { current: currentIndex + 1, total: watchlist.length })}: <strong>{currentItem.productName}</strong>
             </div>
+            <div class={styles.watchlistNavigatorActions}>
+                <button onClick={() => onNavigate(-1)} disabled={currentIndex === 0}>{t('pagination.previous')}</button>
+                <button onClick={() => onNavigate(1)} disabled={currentIndex === watchlist.length - 1}>{t('pagination.next')}</button>
+            </div>
+        </div>
+    );
+};
+
+const SimulationView = ({ userSession, initialParams, onSimulationStart, watchlist, watchlistIndex, onNavigateWatchlist, onClearWatchlist }: SimulationViewProps) => {
+    const { t, language } = useTranslation();
+    const [warehouseId, setWarehouseId] = useState('');
+    const [productId, setProductId] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [productSuggestions, setProductSuggestions] = useState<Product[]>([]);
+    const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
+    const [warehouseIds, setWarehouseIds] = useState<string[]>([]);
+    const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
+    const [isSimulating, setIsSimulating] = useState(false);
+    
+    const [originalSimParams, setOriginalSimParams] = useState<{
+        wDate: number;
+        sDate: number;
+        cDate: number;
+        avgDailySales: number;
+    } | null>(null);
+
+    // State for user overrides
+    const [overrideWDate, setOverrideWDate] = useState('');
+    const [overrideSDate, setOverrideSDate] = useState('');
+    const [overrideCDate, setOverrideCDate] = useState('');
+    const [overrideAvgSales, setOverrideAvgSales] = useState('');
+
+    const [newDelivery, setNewDelivery] = useState({ date: '', quantity: '', bestBeforeDate: '' });
+    const [manualDeliveries, setManualDeliveries] = useState<ManualDelivery[]>([]);
+
+    const [isDirty, setIsDirty] = useState(false);
+    const [isLogExpanded, setIsLogExpanded] = useState(false);
+    const [isChartVisible, setIsChartVisible] = useState(false);
+
+    const debounceTimeoutRef = useRef<number | null>(null);
+    const workerRef = useRef<Worker | null>(null);
+
+    const isRdcMode = userSession?.mode === 'rdc';
+    
+    const runSimulation = useCallback((productToSimulate: Product) => {
+        if (!workerRef.current) return;
+        
+        setIsSimulating(true);
+        setIsChartVisible(false);
+
+        // This ensures we use the state-based overrides if they exist,
+        // otherwise we use the product's default values for the very first run.
+        const wDateOverride = overrideWDate !== '' ? parseFloat(overrideWDate) : productToSimulate.shelfLifeAtReceiving;
+        const sDateOverride = overrideSDate !== '' ? parseFloat(overrideSDate) : productToSimulate.shelfLifeAtStore;
+        const cDateOverride = overrideCDate !== '' ? parseFloat(overrideCDate) : productToSimulate.customerShelfLife;
+        const avgSalesOverride = overrideAvgSales !== '' ? parseFloat(overrideAvgSales) : undefined;
+
+        workerRef.current.postMessage({
+            warehouseId: productToSimulate.warehouseId,
+            fullProductId: productToSimulate.fullProductId,
+            overrides: {
+                wDate: wDateOverride,
+                sDate: sDateOverride,
+                cDate: cDateOverride,
+                avgDailySales: avgSalesOverride
+            },
+            manualDeliveries: manualDeliveries.map(({ id, ...rest }) => rest)
+        });
+    }, [manualDeliveries, overrideWDate, overrideSDate, overrideCDate, overrideAvgSales]);
+
+    useEffect(() => {
+        workerRef.current = new Worker(new URL('../simulation.worker.ts', import.meta.url), { type: 'module' });
+
+        workerRef.current.onmessage = (event: MessageEvent<SimulationResult>) => {
+            const result = event.data;
+            setSimulationResult(result);
+            setIsSimulating(false);
+
+            if (!originalSimParams && selectedProduct) {
+                 setOriginalSimParams({
+                    wDate: selectedProduct.shelfLifeAtReceiving,
+                    sDate: selectedProduct.shelfLifeAtStore,
+                    cDate: selectedProduct.customerShelfLife,
+                    avgDailySales: result.avgDailySales,
+                });
+            }
             
-            {isLoading && (
-                <div class={styles.reportProgressSection}>
-                    <h4>{t('statusReport.runningTitle')}</h4>
-                    {progress && progress.total > 0 ? (
-                        <>
-                            <p>{t('statusReport.runningDescription', { processed: progress.processed, total: progress.total })}</p>
-                            <div class={sharedStyles.progressBarContainer}>
-                                <div class={sharedStyles.progressBar} style={{ width: `${(progress.processed / progress.total) * 100}%` }}></div>
-                            </div>
-                        </>
-                    ) : (
-                        <div class={sharedStyles.spinner}></div>
-                    )}
+            setOverrideAvgSales(result.avgDailySales.toFixed(2));
+            setIsDirty(false);
+        };
+
+        return () => {
+            workerRef.current?.terminate();
+        };
+    }, [originalSimParams, selectedProduct]);
+
+    useEffect(() => {
+        (async () => {
+            const ids = await getUniqueWarehouseIds();
+            setWarehouseIds(ids);
+            if (isRdcMode && !initialParams) {
+                setWarehouseId(userSession.rdc!.id);
+            }
+        })();
+    }, [isRdcMode, userSession, initialParams]);
+
+    const resetOverrides = useCallback(() => {
+        if (selectedProduct) {
+            const baseParams = originalSimParams || {
+                wDate: selectedProduct.shelfLifeAtReceiving,
+                sDate: selectedProduct.shelfLifeAtStore,
+                cDate: selectedProduct.customerShelfLife,
+                avgDailySales: simulationResult?.avgDailySales ?? 0,
+            };
+            
+            setOverrideWDate(String(baseParams.wDate));
+            setOverrideSDate(String(baseParams.sDate));
+            setOverrideCDate(String(baseParams.cDate));
+            setOverrideAvgSales(baseParams.avgDailySales.toFixed(2));
+            
+            const today = new Date();
+            const deliveryDate = today.toLocaleDateString('en-CA');
+            const bbd = new Date();
+            bbd.setDate(today.getDate() + selectedProduct.shelfLifeAtReceiving);
+            const bestBeforeDate = bbd.toLocaleDateString('en-CA');
+            const quantity = selectedProduct.caseSize * selectedProduct.cartonsPerPallet;
+            
+            setNewDelivery({
+                date: deliveryDate,
+                bestBeforeDate: bestBeforeDate,
+                quantity: quantity > 0 ? String(quantity) : ''
+            });
+        } else {
+            setOverrideWDate('');
+            setOverrideSDate('');
+            setOverrideCDate('');
+            setOverrideAvgSales('');
+            setNewDelivery({ date: '', quantity: '', bestBeforeDate: '' });
+        }
+        
+        setManualDeliveries([]);
+        setIsDirty(true);
+    }, [selectedProduct, simulationResult, originalSimParams]);
+    
+    const setupProductState = useCallback((product: Product) => {
+        setSelectedProduct(product);
+        setOverrideWDate(String(product.shelfLifeAtReceiving));
+        setOverrideSDate(String(product.shelfLifeAtStore));
+        setOverrideCDate(String(product.customerShelfLife));
+        setOverrideAvgSales(''); 
+
+        const today = new Date();
+        const deliveryDate = today.toLocaleDateString('en-CA');
+        const bbd = new Date();
+        bbd.setDate(today.getDate() + product.shelfLifeAtReceiving);
+        const bestBeforeDate = bbd.toLocaleDateString('en-CA');
+        const suggestedQuantity = product.caseSize * product.cartonsPerPallet;
+
+        setNewDelivery({
+            date: deliveryDate,
+            bestBeforeDate: bestBeforeDate,
+            quantity: suggestedQuantity > 0 ? String(suggestedQuantity) : '',
+        });
+        
+        setManualDeliveries([]);
+        setIsDirty(false);
+        setOriginalSimParams(null);
+        setSimulationResult(null);
+    }, []);
+    
+    useEffect(() => {
+        if (initialParams) {
+            (async () => {
+                setIsSimulating(true);
+                setWarehouseId(initialParams.warehouseId);
+                const product = await getProductDetails(initialParams.warehouseId, initialParams.fullProductId);
+                if (product) {
+                    setProductId(product.productId);
+                    setupProductState(product);
+                    runSimulation(product);
+                } else {
+                    setIsSimulating(false);
+                }
+                onSimulationStart();
+            })();
+        }
+    }, [initialParams, onSimulationStart, runSimulation, setupProductState]);
+
+
+    const handleProductIdChange = (e: Event) => {
+        onClearWatchlist(); // Clear watchlist when user starts a manual search
+        const value = (e.target as HTMLInputElement).value;
+        setProductId(value);
+        setSelectedProduct(null); // Clear selected product on new input
+        setSimulationResult(null);
+        setOriginalSimParams(null);
+        setIsChartVisible(false);
+
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+        }
+
+        if (value.trim().length < 2) {
+            setProductSuggestions([]);
+            setIsSuggestionsVisible(false);
+            return;
+        }
+
+        debounceTimeoutRef.current = window.setTimeout(async () => {
+            const allProducts = await findProductsByPartialId(value, 10, warehouseId);
+            const stockLevels = new Map<string, number>();
+
+            for (const p of allProducts) {
+                stockLevels.set(p.fullProductId, p.stockOnHand);
+            }
+
+            const sortedSuggestions = allProducts.sort((a, b) => {
+                const statusA = a.status === '8' ? 0 : 1;
+                const statusB = b.status === '8' ? 0 : 1;
+                if (statusA !== statusB) {
+                    return statusA - statusB;
+                }
+                return a.productId.localeCompare(b.productId);
+            });
+            setProductSuggestions(sortedSuggestions);
+            setIsSuggestionsVisible(sortedSuggestions.length > 0);
+        }, 300);
+    };
+
+    const handleSuggestionClick = (product: Product) => {
+        setIsSuggestionsVisible(false);
+        setProductId(product.productId);
+        if (!isRdcMode) {
+            setWarehouseId(product.warehouseId);
+        }
+        setupProductState(product);
+    };
+
+    const handleRunSimulation = () => {
+        if (!selectedProduct) return;
+        runSimulation(selectedProduct);
+    };
+    
+    const handleAddManualDelivery = () => {
+        if (newDelivery.date && newDelivery.quantity && newDelivery.bestBeforeDate) {
+            setManualDeliveries(prev => [...prev, { ...newDelivery, quantity: parseFloat(newDelivery.quantity), id: Date.now() }]);
+            setNewDelivery(prev => ({ ...prev, quantity: '', bestBeforeDate: '' })); 
+            setIsDirty(true);
+        }
+    };
+    
+    const handleRemoveManualDelivery = (id: number) => {
+        setManualDeliveries(prev => prev.filter(d => d.id !== id));
+        setIsDirty(true);
+    };
+
+    const handleOverrideChange = (setter: (val: string) => void, value: string) => {
+        setter(value);
+        setIsDirty(true);
+    }
+    
+    const adjustSales = (percentage: number) => {
+        const currentSales = parseFloat(overrideAvgSales);
+        if (!isNaN(currentSales)) {
+            const newSales = currentSales * (1 + percentage);
+            setOverrideAvgSales(newSales.toFixed(2));
+            setIsDirty(true);
+        }
+    };
+
+    const renderDetail = (labelKey: string, value: any) => {
+        return (
+            <div class={styles.detailItem}>
+                <span class={styles.detailLabel}>{t(labelKey)}</span>
+                <span class={styles.detailValue}>{value ?? 'N/A'}</span>
+            </div>
+        )
+    };
+    
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat(language, { style: 'currency', currency: 'GBP' }).format(value);
+    }
+
+    return (
+        <div class={styles.simulationViewContainer}>
+            {watchlist.length > 0 && watchlistIndex !== null && (
+                <WatchlistNavigator 
+                    watchlist={watchlist}
+                    currentIndex={watchlistIndex}
+                    onNavigate={onNavigateWatchlist}
+                />
+            )}
+            <div class={styles.simulationControls}>
+                <div class={styles.simulationControlsHeader}>
+                    <h2>{t('simulations.controls.title')}</h2>
+                    {selectedProduct && <button class={`${sharedStyles.buttonSecondary} ${styles.resetButton}`} onClick={resetOverrides}>{t('simulations.buttons.resetDefaults')}</button>}
                 </div>
+                <div class={sharedStyles.filterBar}>
+                    <div class={sharedStyles.filterGroup}>
+                        <label htmlFor="sim-warehouseId">{t('simulations.controls.warehouse')}</label>
+                        <select 
+                            id="sim-warehouseId" 
+                            value={warehouseId} 
+                            disabled={isRdcMode}
+                            onChange={(e) => {
+                                onClearWatchlist();
+                                setWarehouseId((e.target as HTMLSelectElement).value);
+                                setSelectedProduct(null);
+                                setProductId('');
+                                setSimulationResult(null);
+                                setOriginalSimParams(null);
+                                setIsChartVisible(false);
+                            }}>
+                            <option value="">{t('simulations.controls.selectWarehouse')}</option>
+                            {warehouseIds.map(id => <option key={id} value={id}>{id}</option>)}
+                        </select>
+                    </div>
+                    <div class={sharedStyles.filterGroup}>
+                        <label htmlFor="sim-productId">{t('simulations.controls.productId')}</label>
+                        <input
+                            type="text"
+                            id="sim-productId"
+                            value={productId}
+                            onInput={handleProductIdChange}
+                            placeholder={t('simulations.controls.productIdPlaceholder')}
+                            disabled={!warehouseId}
+                            autocomplete="off"
+                        />
+                        {isSuggestionsVisible && productSuggestions.length > 0 && (
+                             <ul class={sharedStyles.suggestionsList}>
+                                {productSuggestions.map(p => (
+                                    <li key={`${p.warehouseId}-${p.fullProductId}`} onMouseDown={() => handleSuggestionClick(p)}>
+                                        <div class={sharedStyles.suggestionMain}>
+                                            <strong>{p.productId}</strong> - {p.name}
+                                        </div>
+                                        <div class={sharedStyles.suggestionDetails}>
+                                            <span>{`(${p.status})`}</span>
+                                            <span>{`CS: ${p.caseSize}`}</span>
+                                            <span>{`Stock: ${p.stockOnHand.toLocaleString(language)}`}</span>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                     <div class={sharedStyles.filterActions}>
+                        <button onClick={handleRunSimulation} disabled={!selectedProduct || isSimulating} class={`${sharedStyles.buttonPrimary} ${isDirty ? sharedStyles.dirty : ''}`}>{isDirty ? t('simulations.buttons.rerun') : t('simulations.controls.run')}</button>
+                    </div>
+                </div>
+            </div>
+
+            {isSimulating && (
+                 <div class={styles.simulationLoading}>
+                    <div class={sharedStyles.spinner}></div>
+                    <p>{t('simulations.results.calculating')}</p>
+                 </div>
             )}
 
-            {reportResults && !isLoading && combinedSummaryData && (
-                 <div class={styles.statusReportSummary}>
-                     <div class={`${styles.summaryHeader} ${!isSummaryExpanded ? styles.collapsed : ''}`} onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
-                        <h3>{t('statusReport.summary.title')}</h3>
-                        <span class={styles.arrow}>▼</span>
+            {selectedProduct && !isSimulating && (
+                <>
+                 <div class={styles.productDetailsCard}>
+                    <h3>{t('simulations.details.title')}</h3>
+                    <div class={styles.detailsGrid}>
+                        {renderDetail('columns.product.itemGroup', selectedProduct.itemGroup)}
+                        {renderDetail('columns.product.productId', selectedProduct.productId)}
+                        {renderDetail('columns.product.name', selectedProduct.name)}
+                        {renderDetail('columns.product.caseSize', selectedProduct.caseSize)}
+                        {renderDetail('columns.product.cartonsPerPallet', selectedProduct.cartonsPerPallet)}
+                        {renderDetail('columns.product.price', formatCurrency(selectedProduct.price))}
+                        {renderDetail('columns.product.status', 
+                            <span>
+                                {selectedProduct.status}
+                                {selectedProduct.itemLocked && <span class={styles.statusLocked}> ({t('simulations.details.locked')}: {selectedProduct.itemLocked})</span>}
+                            </span>
+                        )}
+                        {renderDetail('columns.product.supplierId', selectedProduct.supplierId)}
+                        {renderDetail('columns.product.supplierName', selectedProduct.supplierName)}
                     </div>
-                    {isSummaryExpanded && (
-                        <div class={styles.summaryTableContainer}>
-                            <table class={styles.summaryTable}>
+                </div>
+
+                <div class={styles.simulationOverridesCard}>
+                    <h3>{t('simulations.overrides.title')}</h3>
+                    <div class={styles.detailsGrid}>
+                        <div class={styles.detailItem}>
+                            <label class={styles.detailLabel} htmlFor="wdate-override">{t('columns.product.shelfLifeAtReceiving')}</label>
+                            <input id="wdate-override" type="number" value={overrideWDate} onInput={(e) => handleOverrideChange(setOverrideWDate, (e.target as HTMLInputElement).value)} class={styles.detailInput}/>
+                        </div>
+                        <div class={styles.detailItem}>
+                            <label class={styles.detailLabel} htmlFor="sdate-override">{t('columns.product.shelfLifeAtStore')}</label>
+                            <input id="sdate-override" type="number" value={overrideSDate} onInput={(e) => handleOverrideChange(setOverrideSDate, (e.target as HTMLInputElement).value)} class={styles.detailInput}/>
+                        </div>
+                        <div class={styles.detailItem}>
+                            <label class={styles.detailLabel} htmlFor="cdate-override">{t('columns.product.customerShelfLife')}</label>
+                            <input id="cdate-override" type="number" value={overrideCDate} onInput={(e) => handleOverrideChange(setOverrideCDate, (e.target as HTMLInputElement).value)} class={styles.detailInput}/>
+                        </div>
+                    </div>
+                </div>
+                </>
+            )}
+            
+            {simulationResult && !isSimulating && (
+                <div class={styles.simulationResults}>
+                    <h3>{t('simulations.results.title')}</h3>
+                    <div class={styles.kpiGrid}>
+                        <div class={styles.kpiCard}>
+                            <h4>{t('simulations.kpi.totalWriteOffValue')}</h4>
+                            <p>{formatCurrency(simulationResult.totalWriteOffValue)}</p>
+                        </div>
+                        <div class={styles.kpiCard}>
+                            <h4>{t('simulations.kpi.daysOfStock')}</h4>
+                            <p>{simulationResult.daysOfStock.toFixed(1)} {t('simulations.details.days')}</p>
+                        </div>
+                        <div class={styles.kpiCard}>
+                            <h4>{t('simulations.kpi.aldValue')}</h4>
+                            <p>{formatCurrency(simulationResult.initialAldAffectedValue)}</p>
+                            <p class={styles.kpiDescription}>{t('simulations.kpi.aldDescription')}</p>
+                        </div>
+                         <div class={styles.kpiCard}>
+                            <h4>{t('simulations.kpi.avgDailySales')}</h4>
+                            <div class={styles.salesAdjustControls}>
+                               <input 
+                                 type="number" 
+                                 value={overrideAvgSales}
+                                 onInput={(e) => handleOverrideChange(setOverrideAvgSales, (e.target as HTMLInputElement).value)}
+                                 class={styles.kpiInput}
+                                />
+                               <div class={styles.adjustButtons}>
+                                <button class={styles.adjustBtn} onClick={() => adjustSales(0.10)} title={t('simulations.kpi.salesAdjustUp')}>+10%</button>
+                                <button class={styles.adjustBtn} onClick={() => adjustSales(-0.10)} title={t('simulations.kpi.salesAdjustDown')}>-10%</button>
+                               </div>
+                            </div>
+                            <span class={styles.salesResetValue} onClick={() => { setOverrideAvgSales((originalSimParams || simulationResult).avgDailySales.toFixed(2)); setIsDirty(true);}} title={t('simulations.kpi.salesResetTooltip')}>
+                                {t('simulations.kpi.original')}: {(originalSimParams || simulationResult).avgDailySales.toFixed(2)}
+                            </span>
+                        </div>
+                        <div class={styles.kpiCard}>
+                            <h4>{t('simulations.kpi.nonCompliantReceipts')}</h4>
+                            <p>{simulationResult.nonCompliantReceiptsCount}</p>
+                        </div>
+                        <div class={styles.kpiCard}>
+                            <h4>{t('simulations.kpi.firstWriteOffDate')}</h4>
+                            <p>{simulationResult.firstWriteOffDate || t('simulations.results.none')}</p>
+                        </div>
+                    </div>
+
+                    {simulationResult.log && simulationResult.log.length > 0 && (
+                        <div class={styles.expandableSection}>
+                            <div class={styles.expandableHeader} onClick={() => setIsChartVisible(!isChartVisible)}>
+                                <h4>{t('simulations.chart.title')}</h4>
+                                <button>
+                                    {isChartVisible ? t('simulations.buttons.hideChart') : t('simulations.buttons.showChart')}
+                                </button>
+                            </div>
+                            <div class={`${styles.expandableContent} ${isChartVisible ? styles.expanded : ''}`}>
+                                <StockChart data={simulationResult.log.slice(0, 14)} />
+                            </div>
+                        </div>
+                    )}
+
+                    <div class={styles.initialStockComposition}>
+                        <div class={styles.initialStockHeader}>
+                            <h4>{t('simulations.initialStock.title')}</h4>
+                             <div class={styles.tableLegendContainer}>
+                                <div class={styles.legendItem}><div class={`${styles.legendColorBox} ${styles.ald}`}></div><span>{t('simulations.initialStock.legend.ald')}</span></div>
+                                <div class={styles.legendItem}><div class={`${styles.legendColorBox} ${styles.writeOff}`}></div><span>{t('simulations.initialStock.legend.writeOff')}</span></div>
+                                <div class={styles.legendItem}><div class={`${styles.legendColorBox} ${styles.nonCompliant}`}></div><span>{t('simulations.initialStock.legend.nonCompliant')}</span></div>
+                                <div class={styles.legendItem}><div class={`${styles.legendColorBox} ${styles.manual}`}></div><span>{t('simulations.initialStock.legend.manual')}</span></div>
+                            </div>
+                        </div>
+                        {!simulationResult.isStockDataComplete && (
+                            <p class={styles.dataCompletenessWarning}>
+                                {t('simulations.initialStock.warning')}
+                            </p>
+                        )}
+                        <div class={sharedStyles.tableContainer}>
+                            <table class={styles.initialStockTable}>
                                 <thead>
                                     <tr>
-                                        <th rowSpan={2}>{t('statusReport.summary.warehouse')}</th>
-                                        <th rowSpan={2}>{t('statusReport.summary.itemsChecked')}</th>
-                                        <th class={styles.groupHeader} colSpan={foundSuspiciousStatuses.length || 1}>{t('statusReport.summary.suspiciousStatuses')}</th>
-                                        <th rowSpan={2}>{t('statusReport.summary.excluded')}</th>
-                                        <th rowSpan={2}>{t('statusReport.summary.status8Items')}</th>
-                                    </tr>
-                                    <tr>
-                                        {foundSuspiciousStatuses.map(status => <th key={status}>{status}</th>)}
-                                        {foundSuspiciousStatuses.length === 0 && <th>-</th>}
+                                        <th>{t('simulations.initialStock.deliveryDate')}</th>
+                                        <th>{t('simulations.initialStock.bestBeforeDate')}</th>
+                                        <th>{t('simulations.initialStock.daysForSale')}</th>
+                                        <th>{t('simulations.initialStock.regulationBreached')}</th>
+                                        <th>{t('simulations.initialStock.quantity')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {Object.entries(combinedSummaryData)
-                                        .filter(([whId, data]) => rdcNameMap.has(whId) && data.totalItemsInReport > 0)
-                                        .map(([whId, data]) => (
-                                        <tr key={whId}>
-                                            <td><strong>{whId}</strong> - {rdcNameMap.get(whId) || ''}</td>
-                                            <td>{data.filteredItemsChecked.toLocaleString()}</td>
-                                            {foundSuspiciousStatuses.map(status => {
-                                                const count = data.filteredSuspiciousCounts[status] || 0;
-                                                const total = data.totalItemsInReport;
-                                                const percentage = total > 0 ? (count / total * 100).toFixed(1) : '0.0';
-                                                const isHighlighted = highlightedValues.get(status)?.has(count) && count > 0;
-                                                return (
-                                                    <td key={status} class={isHighlighted ? styles.highlightedSuspiciousCell : ''}>
-                                                        <div class={styles.suspiciousStatusCellContent}>
-                                                            {count.toLocaleString()}
-                                                             <span class={styles.suspiciousStatusPercent}>({percentage}%)</span>
-                                                        </div>
-                                                    </td>
-                                                );
-                                            })}
-                                            {foundSuspiciousStatuses.length === 0 && <td>0</td>}
-                                            <td>{data.filteredExcludedSuspiciousCount.toLocaleString()}</td>
-                                            <td>{data.filteredStatus8Items.toLocaleString()}</td>
+                                    {simulationResult.initialStockComposition.map((batch: InitialStockBatch, index) => (
+                                        <tr key={`${batch.deliveryDate}-${batch.bestBeforeDate}-${index}`} class={`${batch.isNonCompliant ? styles.nonCompliantRow : ''} ${batch.isAffectedByWriteOff ? styles.batchRiskRow : ''} ${batch.isManual ? styles.manualDeliveryRow : ''} ${batch.isAldAffected ? styles.aldRiskRow : ''}`}>
+                                            <td>{batch.isUnknown ? t('simulations.initialStock.unknownBatch') : batch.deliveryDate}</td>
+                                            <td>{batch.bestBeforeDate}</td>
+                                            <td>{batch.daysToSell}</td>
+                                            <td>{batch.isNonCompliant ? t('common.yesShort') : t('common.noShort')}</td>
+                                            <td>{batch.quantity.toLocaleString(language)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+
+                    <div class={styles.manualDeliverySection}>
+                        <h4>{t('simulations.manualDelivery.title')}</h4>
+                         <div class={sharedStyles.filterBar}>
+                            <div class={sharedStyles.filterGroup}>
+                                <label htmlFor="manual-delivery-date">{t('simulations.manualDelivery.date')}</label>
+                                <input 
+                                    type="date" 
+                                    id="manual-delivery-date" 
+                                    value={newDelivery.date}
+                                    onInput={(e) => setNewDelivery(prev => ({...prev, date: (e.target as HTMLInputElement).value}))}
+                                />
+                            </div>
+                            <div class={sharedStyles.filterGroup}>
+                                <label htmlFor="manual-best-before-date">{t('simulations.manualDelivery.bestBeforeDate')}</label>
+                                <input 
+                                    type="date" 
+                                    id="manual-best-before-date" 
+                                    value={newDelivery.bestBeforeDate}
+                                    onInput={(e) => setNewDelivery(prev => ({...prev, bestBeforeDate: (e.target as HTMLInputElement).value}))}
+                                />
+                            </div>
+                            <div class={sharedStyles.filterGroup}>
+                                 <label htmlFor="manual-delivery-qty">{t('simulations.manualDelivery.quantity')}</label>
+                                 <input 
+                                    type="number" 
+                                    id="manual-delivery-qty" 
+                                    value={newDelivery.quantity}
+                                    onInput={(e) => setNewDelivery(prev => ({...prev, quantity: (e.target as HTMLInputElement).value}))}
+                                    placeholder="0"
+                                />
+                            </div>
+                            <div class={sharedStyles.filterActions}>
+                                <button class={sharedStyles.buttonPrimary} onClick={handleAddManualDelivery}>{t('simulations.buttons.add')}</button>
+                            </div>
+                         </div>
+                         {manualDeliveries.length > 0 && (
+                            <div class={styles.manualDeliveriesList}>
+                                <h5>{t('simulations.manualDelivery.addedTitle')}</h5>
+                                <ul>
+                                    {manualDeliveries.map(d => (
+                                        <li key={d.id}>
+                                            <span>{d.date} (BBD: {d.bestBeforeDate}): {d.quantity.toLocaleString(language)}</span>
+                                            <button onClick={() => handleRemoveManualDelivery(d.id)}>&times;</button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                         )}
+                    </div>
+                    
+                    <h4>{t('simulations.log.title')}</h4>
+                    <div class={sharedStyles.tableContainer}>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>{t('simulations.log.date')}</th>
+                                    <th>{t('simulations.log.stockStart')}</th>
+                                    <th>{t('simulations.log.sales')}</th>
+                                    <th>{t('simulations.log.receipts')}</th>
+                                    <th>{t('simulations.log.writeOffs')}</th>
+                                    <th>{t('simulations.log.ald')}</th>
+                                    <th>{t('simulations.log.stockEnd')}</th>
+                                    <th>{t('simulations.log.notes')}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(isLogExpanded ? simulationResult.log : simulationResult.log.slice(0, 14)).map(entry => (
+                                    <tr key={entry.date} class={`${entry.writeOffs > 0 ? styles.logWriteOffRow : ''} ${entry.stockEnd === 0 && entry.writeOffs === 0 ? styles.logStockOutRow : ''}`}>
+                                        <td>{entry.date}</td>
+                                        <td>{entry.stockStart.toLocaleString(language)}</td>
+                                        <td>{entry.sales.toLocaleString(language)}</td>
+                                        <td>{entry.receipts.toLocaleString(language)}</td>
+                                        <td>{entry.writeOffs.toLocaleString(language)}</td>
+                                        <td>{entry.aldAffectedStock.toLocaleString(language)}</td>
+                                        <td>{entry.stockEnd.toLocaleString(language)}</td>
+                                        <td>{entry.notes}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                     {simulationResult.log.length > 14 && (
+                        <div class={styles.logToggleContainer}>
+                            <button class={styles.logToggleButton} onClick={() => setIsLogExpanded(!isLogExpanded)}>
+                                {isLogExpanded ? t('simulations.buttons.showLess') : t('simulations.buttons.showMore')}
+                            </button>
+                        </div>
                     )}
                 </div>
             )}
 
-            {reportResults && !isLoading && (
-                <div class={styles.statusReportResults}>
-                    <h3>
-                        {includeConsistent
-                            ? t('statusReport.results.titleWithConsistent', { count: sortedAndFilteredResults.length.toLocaleString(language) })
-                            : `${t('statusReport.results.title')} (${sortedAndFilteredResults.length.toLocaleString(language)})`
-                        }
-                    </h3>
-                    {sortedAndFilteredResults.length > 0 ? (
-                        <>
-                        <div class={sharedStyles.tableContainer}>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>{t('columns.product.productId')}</th>
-                                        <th ref={thRef} class={styles.resizable} style={{ width: productNameWidth ? `${productNameWidth}px` : 'auto', minWidth: '150px' }}>
-                                            {t('columns.product.name')}
-                                            <div ref={resizerRef} class={styles.resizer} onMouseDown={handleMouseDown} />
-                                        </th>
-                                        <th class={styles.smallFontCell}>{t('columns.product.dispoGroup')}</th>
-                                        <th class={`${styles.smallFontCell} ${styles.itemGroupCol}`}>{t('columns.product.itemGroup')}</th>
-                                        <th class={styles.smallFontCell}>{t('columns.product.caseSize')}</th>
-                                        <th>{t('statusReport.results.dominantStatus')}</th>
-                                        {warehouseColumns.map(wh => (
-                                            <th 
-                                                key={wh} 
-                                                class={`${styles.warehouseHeader} ${styles.clickable} ${sortByWarehouse === wh ? styles.sorted : ''}`}
-                                                onClick={() => setSortByWarehouse(sortByWarehouse === wh ? null : wh)}
-                                            >
-                                                {wh}
-                                                <span class={styles.rdcName}>{rdcNameMap.get(wh) || ''}</span>
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {paginatedResults.map(item => {
-                                        const isExcluded = exclusionList.list.has(item.productId);
-                                        const isStatutoryExcluded = STATUTORY_EXCLUDED_ITEM_GROUPS.has(item.itemGroup);
-                                        return (
-                                        <tr key={`${item.productId}-${item.caseSize}`} class={isExcluded || isStatutoryExcluded ? styles.excludedRow : ''}>
-                                            <td>{item.productId}</td>
-                                            <td title={item.productName}>
-                                                <div class={styles.truncatedCellContent} style={{width: `${(productNameWidth || 200) - 24}px`}}>
-                                                    {item.productName}
-                                                </div>
-                                            </td>
-                                            <td class={styles.smallFontCell}>{item.dispoGroup}</td>
-                                            <td class={`${styles.smallFontCell} ${styles.itemGroupCol}`} title={`${item.itemGroup} - ${itemGroupMap[item.itemGroup] || ''}`}>
-                                                <div class={styles.truncatedCellContent}>
-                                                    {item.itemGroup} - {itemGroupMap[item.itemGroup] || ''}
-                                                </div>
-                                            </td>
-                                            <td class={styles.smallFontCell}>{item.caseSize}</td>
-                                            <td>
-                                                <strong>{item.dominantStatusInfo.status}</strong>
-                                                {item.dominantStatusInfo.type !== 'none' && (
-                                                    <span style={{fontSize: '0.8em', marginLeft: '4px', color: 'var(--text-light-color)'}}>
-                                                        ({t(`statusReport.statusTypes.${item.dominantStatusInfo.type}`)})
-                                                    </span>
-                                                )}
-                                            </td>
-                                            {warehouseColumns.map(wh => {
-                                                const status = item.statusesByWarehouse[wh];
-                                                const isConsistent = status === item.dominantStatusInfo.status;
-                                                const isWh290SpecialExclusion = wh === '290' && (item.itemGroup === '20' || item.itemGroup === '74');
-                                                return (
-                                                    <td 
-                                                        key={wh} 
-                                                        class={`${status && !isConsistent && !isWh290SpecialExclusion ? styles.statusInconsistent : ''} ${isWh290SpecialExclusion ? styles.specialExclusionCell : ''}`}
-                                                        onMouseEnter={(e) => handleCellMouseEnter(e, item, wh, isWh290SpecialExclusion)}
-                                                        onMouseLeave={handleCellMouseLeave}
-                                                    >
-                                                        {status ?? '-'}
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
-                                    )})}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class={sharedStyles.pagination}>
-                            <span>{sortedAndFilteredResults.length.toLocaleString(language)} {t('dataPreview.pagination.records')}</span>
-                            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>{t('dataPreview.pagination.previous')}</button>
-                            <span>{t('dataPreview.pagination.page', { currentPage, totalPages })}</span>
-                            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>{t('dataPreview.pagination.next')}</button>
-                        </div>
-                        </>
-                    ) : (
-                         <div class={sharedStyles.placeholderView}>
-                            <p>{t('statusReport.results.noResults')}</p>
-                        </div>
-                    )}
-                </div>
-            )}
         </div>
     );
 };
+
+export default SimulationView;
