@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks';
 import { useTranslation } from '../i18n';
 import { DataType, RDC, UserSession, ExclusionListData } from '../utils/types';
 import styles from './SettingsView.module.css';
-import sharedStyles from '/styles/shared.module.css';
+import sharedStyles from '../styles/shared.module.css';
 
 type SettingsViewProps = {
     linkedFiles: Map<DataType, FileSystemFileHandle>;
