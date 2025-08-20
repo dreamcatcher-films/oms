@@ -61,7 +61,7 @@ export const StockChart = ({ data }: StockChartProps) => {
     }, [data, language]);
 
     if (!chartData) {
-        return <div class={styles.stockChartContainer}><p>{t('simulations.results.none')}</p></div>;
+        return <div class={styles['stock-chart-container']}><p>{t('simulations.results.none')}</p></div>;
     }
     
     const { yMax, linePath, yAxisLabels, xAxisLabels, points } = chartData;
@@ -90,52 +90,52 @@ export const StockChart = ({ data }: StockChartProps) => {
     };
 
     return (
-        <div class={styles.stockChartContainer}>
+        <div class={styles['stock-chart-container']}>
             <svg 
                 viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} 
-                class={styles.stockChartSvg}
+                class={styles['stock-chart-svg']}
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
             >
                 {/* Y-Axis */}
-                <line class={styles.axisLine} x1={PADDING.left} y1={PADDING.top} x2={PADDING.left} y2={SVG_HEIGHT - PADDING.bottom} />
+                <line class={styles['axis-line']} x1={PADDING.left} y1={PADDING.top} x2={PADDING.left} y2={SVG_HEIGHT - PADDING.bottom} />
                 {yAxisLabels.map(({ y, value }) => (
                     <g key={y}>
-                        <text class={styles.axisText} x={PADDING.left - 10} y={y} dominant-baseline="middle" text-anchor="end">{value}</text>
-                        <line class={styles.axisLine} stroke-dasharray="2,2" x1={PADDING.left} y1={y} x2={SVG_WIDTH - PADDING.right} y2={y} />
+                        <text class={styles['axis-text']} x={PADDING.left - 10} y={y} dominant-baseline="middle" text-anchor="end">{value}</text>
+                        <line class={styles['axis-line']} stroke-dasharray="2,2" x1={PADDING.left} y1={y} x2={SVG_WIDTH - PADDING.right} y2={y} />
                     </g>
                 ))}
 
                 {/* X-Axis */}
-                <line class={styles.axisLine} x1={PADDING.left} y1={SVG_HEIGHT - PADDING.bottom} x2={SVG_WIDTH - PADDING.right} y2={SVG_HEIGHT - PADDING.bottom} />
+                <line class={styles['axis-line']} x1={PADDING.left} y1={SVG_HEIGHT - PADDING.bottom} x2={SVG_WIDTH - PADDING.right} y2={SVG_HEIGHT - PADDING.bottom} />
                  {xAxisLabels.map(({ x, label }, i) => (
-                    i % 2 === 0 && <text class={styles.axisText} x={x} y={SVG_HEIGHT - PADDING.bottom + 20} text-anchor="middle">{label}</text>
+                    i % 2 === 0 && <text class={styles['axis-text']} x={x} y={SVG_HEIGHT - PADDING.bottom + 20} text-anchor="middle">{label}</text>
                  ))}
 
                 {/* Data Line */}
-                <path class={styles.stockLine} d={linePath} />
+                <path class={styles['stock-line']} d={linePath} />
 
                 {/* Data Points and Markers */}
                 {points.map(({ x, y, entry }, i) => (
                     <g key={i}>
                         {/* Invisible hover area for each point */}
-                        <circle class={styles.hoverArea} cx={x} cy={y} r="10" />
+                        <circle class={styles['hover-area']} cx={x} cy={y} r="10" />
 
                         {/* Stockout Marker */}
                         {entry.stockEnd === 0 && (
-                            <circle class={styles.dataPointStockout} cx={x} cy={y} r="5" />
+                            <circle class={styles['data-point-stockout']} cx={x} cy={y} r="5" />
                         )}
 
                         {/* Delivery Marker */}
                         {entry.receipts > 0 && (
-                            <circle class={styles.dataPointReceipt} cx={x} cy={y} r="5" />
+                            <circle class={styles['data-point-receipt']} cx={x} cy={y} r="5" />
                         )}
 
                         {/* Write-off Marker */}
                         {entry.writeOffs > 0 && (
                             <g>
-                                <line class={styles.dataPointWriteOff} x1={x - 4} y1={y - 4} x2={x + 4} y2={y + 4} />
-                                <line class={styles.dataPointWriteOff} x1={x - 4} y1={y + 4} x2={x + 4} y2={y - 4} />
+                                <line class={styles['data-point-write-off']} x1={x - 4} y1={y - 4} x2={x + 4} y2={y + 4} />
+                                <line class={styles['data-point-write-off']} x1={x - 4} y1={y + 4} x2={x + 4} y2={y - 4} />
                             </g>
                         )}
                     </g>
@@ -144,7 +144,7 @@ export const StockChart = ({ data }: StockChartProps) => {
                  {/* Tooltip Indicator Line */}
                 {tooltip.visible && (
                     <line 
-                        class={styles.axisLine}
+                        class={styles['axis-line']}
                         stroke-dasharray="3,3" 
                         x1={tooltip.x} y1={PADDING.top} 
                         x2={tooltip.x} y2={SVG_HEIGHT - PADDING.bottom} 
@@ -153,9 +153,9 @@ export const StockChart = ({ data }: StockChartProps) => {
             </svg>
 
             {tooltip.visible && tooltip.entry && (
-                <div class={`${styles.chartTooltip} ${tooltip.visible ? styles.visible : ''}`} style={{ left: `${(tooltip.x / SVG_WIDTH) * 100}%`, top: `${tooltip.y}px` }}>
-                    <span class={styles.tooltipTitle}>{tooltip.entry.date}</span>
-                    <div class={styles.tooltipGrid}>
+                <div class={`${styles['chart-tooltip']} ${tooltip.visible ? styles.visible : ''}`} style={{ left: `${(tooltip.x / SVG_WIDTH) * 100}%`, top: `${tooltip.y}px` }}>
+                    <span class={styles['tooltip-title']}>{tooltip.entry.date}</span>
+                    <div class={styles['tooltip-grid']}>
                         <span>{t('simulations.log.stockEnd')}</span><span>{tooltip.entry.stockEnd.toLocaleString(language)}</span>
                         <span>{t('simulations.log.sales')}</span><span>{tooltip.entry.sales.toLocaleString(language)}</span>
                         <span>{t('simulations.log.receipts')}</span><span>{tooltip.entry.receipts.toLocaleString(language)}</span>
