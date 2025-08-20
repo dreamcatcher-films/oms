@@ -504,8 +504,6 @@ const App = () => {
       const handle = linkedFiles.get(dataType);
       if (!handle) return Promise.reject();
       
-      // Don't set loading state globally if it's an auto-refresh,
-      // as the processFile function will handle it per-file.
       if (!isAuto) setIsLoading(true);
 
       try {
@@ -522,72 +520,69 @@ const App = () => {
                   return Promise.reject();
               }
           }
-          const file = await handle.getFile();
+          const file = await (handle as any).getFile();
           processFile(dataType, file);
           return Promise.resolve();
-      } catch (err) {
-           console.error('Error reloading file:', err);
-           setStatusMessage({ text: t('settings.dataSources.reloadError'), type: 'error' });
-           if (!isAuto) setIsLoading(false);
-           return Promise.reject();
+      } catch (e) {
+          console.error(`Could not read file for ${dataType}`, e);
+          setStatusMessage({ text: t('settings.dataSources.reloadError'), type: 'error' });
+          if (!isAuto) setIsLoading(false);
+          return Promise.reject();
       }
   };
-  
+
+  const handleClearFile = async (dataType: DataType) => {
+      // It's good practice to add a confirmation step for destructive actions.
+      // Assuming a simple confirm for now.
+      if (!confirm(`Are you sure you want to clear all ${t(`dataType.${dataType}`)} data? This cannot be undone.`)) return;
+
+      setIsLoading(true);
+      setStatusMessage({ text: t('status.clear.clearing', { dataTypeName: t(`dataType.${dataType}`) }), type: 'info' });
+      try {
+          switch (dataType) {
+              case 'products': await clearProducts(); break;
+              case 'goodsReceipts': await clearGoodsReceipts(); break;
+              case 'openOrders': await clearOpenOrders(); break;
+              case 'sales': await clearSales(); break;
+          }
+          // After clearing, re-check the DB status to update counts
+          await performInitialCheck();
+          setStatusMessage({ text: t('status.clear.cleared', { dataTypeName: t(`dataType.${dataType}`) }), type: 'success' });
+      } catch (error) {
+          console.error(`Error clearing ${dataType}`, error);
+          setStatusMessage({ text: t('status.clear.clearError', { dataTypeName: t(`dataType.${dataType}`) }), type: 'error' });
+      } finally {
+          setIsLoading(false);
+      }
+  };
+
   const handleClearLink = async (dataType: DataType) => {
-      await deleteSetting(`linkedFile:${dataType}`);
-      setLinkedFiles(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(dataType);
-          return newMap;
-      });
-  };
-
-  const handleClearIndividualData = async (dataType: DataType) => {
-    setIsLoading(true);
-    const dataTypeName = t(`dataType.${dataType}`);
-    let clearFn: () => Promise<void>;
-    
-    switch (dataType) {
-        case 'products': clearFn = clearProducts; break;
-        case 'goodsReceipts': clearFn = clearGoodsReceipts; break;
-        case 'openOrders': clearFn = clearOpenOrders; break;
-        case 'sales': clearFn = clearSales; break;
-    }
-
-    setStatusMessage({ text: t('status.clear.clearing', { dataTypeName }), type: 'info' });
+    if (!confirm(t('settings.dataSources.clearLinkConfirm'))) return;
     try {
-        await clearFn();
-        setCounts(prev => ({...prev, [dataType]: 0}));
-        const metadata = await getImportMetadata();
-        setImportMetadata(metadata);
-        setStatusMessage({ text: t('status.clear.cleared', { dataTypeName }), type: 'success' });
-    } catch(error) {
-        console.error(`Error clearing data for ${dataTypeName}.`, error);
-        setStatusMessage({ text: t('status.clear.clearError', { dataTypeName }), type: 'error' });
-    } finally {
-        setIsLoading(false);
+        await deleteSetting(`linkedFile:${dataType}`);
+        setLinkedFiles(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(dataType);
+            return newMap;
+        });
+        setStatusMessage({ text: t('settings.dataSources.linkClearedSuccess'), type: 'success' });
+    } catch (err) {
+        console.error('Error clearing link:', err);
+        setStatusMessage({ text: t('settings.dataSources.linkClearedError'), type: 'error' });
     }
   };
-
-  const handleClearAllData = async () => {
+  
+  const handleClearAll = async () => {
+    if (!confirm("Are you sure you want to clear ALL data? This will remove products, receipts, orders, and sales data permanently.")) return;
     setIsLoading(true);
     setStatusMessage({ text: t('status.clear.clearingAll'), type: 'info' });
     try {
       await clearAllData();
-      setCounts({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0 });
-      setImportMetadata({ products: null, goodsReceipts: null, openOrders: null, sales: null });
-      
-      const newLinkedFiles = new Map();
-      for (const [key, value] of linkedFiles.entries()) {
-          newLinkedFiles.set(key, value);
-      }
-      for (const key of newLinkedFiles.keys()) {
-          await handleClearLink(key);
-      }
-      
+      await performInitialCheck();
+      setLinkedFiles(new Map());
       setStatusMessage({ text: t('status.clear.clearedAll'), type: 'success' });
     } catch (error) {
-      console.error("Failed to clear DB", error);
+      console.error("Error clearing all data", error);
       setStatusMessage({ text: t('status.clear.clearAllError'), type: 'error' });
     } finally {
       setIsLoading(false);
@@ -595,341 +590,174 @@ const App = () => {
   };
   
   const handleLogin = (session: UserSession) => {
-    setUserSession(session);
     localStorage.setItem('oms-session', JSON.stringify(session));
+    setUserSession(session);
   };
-
+  
   const handleLogout = () => {
-    setUserSession(null);
     localStorage.removeItem('oms-session');
+    setUserSession(null);
     setCurrentView('import');
   };
 
-  const handleAddRdc = async (rdc: RDC) => {
-    const newList = [...rdcList, rdc].sort((a,b) => a.id.localeCompare(b.id));
-    setRdcList(newList);
-    await saveRdcList(newList);
-    setStatusMessage({ text: t('settings.rdcManagement.addSuccess'), type: 'success' });
+  const handleNavigate = (view: View) => {
+      setSimulationContext(null); // Clear context when navigating manually
+      setCurrentView(view);
   };
-  
-  const handleDeleteRdc = async (rdcId: string) => {
-    const newList = rdcList.filter(r => r.id !== rdcId);
-    setRdcList(newList);
-    await saveRdcList(newList);
-    setStatusMessage({ text: t('settings.rdcManagement.deleteSuccess'), type: 'success' });
-  };
-  
-  const handleExportConfig = () => {
-    const config = {
-        rdcList: rdcList,
-        exclusionList: {
-            list: Array.from(exclusionList.list),
-            lastUpdated: exclusionList.lastUpdated,
-        },
-        autoRefreshConfig: autoRefreshConfig,
-    };
-    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `oms_config_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setStatusMessage({ text: t('settings.configManagement.exportSuccess'), type: 'success' });
-  };
-
-  const handleImportClick = () => {
-    importFileInputRef.current?.click();
-  };
-
-  const handleImportConfig = async (event: Event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-
-    try {
-        const text = await file.text();
-        const config = JSON.parse(text);
-        let importedSomething = false;
-
-        if (config.rdcList && Array.isArray(config.rdcList)) {
-            const rdcs = config.rdcList as RDC[];
-            setRdcList(rdcs);
-            await saveRdcList(rdcs);
-            importedSomething = true;
-        }
-
-        if (config.exclusionList) {
-            const exclusionArray = Array.isArray(config.exclusionList) 
-                ? config.exclusionList 
-                : (config.exclusionList.list || []);
-
-            if (Array.isArray(exclusionArray)) {
-                await saveExclusionList(exclusionArray as string[]);
-                const reloadedList = await loadExclusionList();
-                setExclusionList(reloadedList);
-                importedSomething = true;
-            }
-        }
-
-        if (config.autoRefreshConfig) {
-            handleAutoRefreshConfigChange(config.autoRefreshConfig);
-            importedSomething = true;
-        }
-        
-        if (importedSomething) {
-             setStatusMessage({ text: t('settings.configManagement.importSuccess'), type: 'success' });
-        } else {
-            throw new Error("Invalid config file format");
-        }
-    } catch (e) {
-        console.error("Config import failed", e);
-        setStatusMessage({ text: t('settings.configManagement.importError'), type: 'error' });
-    } finally {
-        if(importFileInputRef.current) {
-            importFileInputRef.current.value = '';
-        }
-    }
-  };
-  
-  const handleExclusionImportClick = () => {
-    exclusionFileInputRef.current?.click();
-  };
-  
-  const handleImportExclusionList = async (event: Event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-
-    try {
-        const text = await file.text();
-        const productIds = text.split(/[\r\n]+/)
-            .map(line => {
-                const trimmed = line.trim();
-                // Strip leading zeros from purely numeric IDs to match DB format
-                if (/^\d+$/.test(trimmed)) {
-                    return String(parseInt(trimmed, 10));
-                }
-                return trimmed;
-            })
-            .filter(Boolean);
-            
-        const uniqueIds = new Set(productIds);
-        const idArray = Array.from(uniqueIds);
-        await saveExclusionList(idArray);
-        const reloadedList = await loadExclusionList();
-        setExclusionList(reloadedList);
-        setStatusMessage({ text: t('settings.exclusionList.importSuccess', { count: idArray.length }), type: 'success' });
-    } catch (e) {
-        console.error("Exclusion list import failed", e);
-        setStatusMessage({ text: t('settings.exclusionList.importError'), type: 'error' });
-    } finally {
-        if(exclusionFileInputRef.current) {
-            exclusionFileInputRef.current.value = '';
-        }
-    }
-  }
-  
-  const handleClearExclusionList = async () => {
-    if (confirm(t('settings.exclusionList.clearConfirm'))) {
-        await clearExclusionList();
-        const reloadedList = await loadExclusionList();
-        setExclusionList(reloadedList);
-        setStatusMessage({ text: t('settings.exclusionList.clearSuccess'), type: 'success' });
-    }
-  }
 
   const handleNavigateToSimulation = (warehouseId: string, fullProductId: string) => {
-    setSimulationContext({ warehouseId, fullProductId });
-    setCurrentView('simulations');
+      setSimulationContext({ warehouseId, fullProductId });
+      setCurrentView('simulations');
   };
   
   const handleStartWatchlist = (items: ReportResultItem[]) => {
-      if (items.length === 0) return;
       setWatchlist(items);
       setWatchlistIndex(0);
-      const firstItem = items[0];
-      handleNavigateToSimulation(firstItem.warehouseId, firstItem.fullProductId);
-  };
-  
-  const handleClearWatchlist = () => {
-      setWatchlist([]);
-      setWatchlistIndex(null);
-  }
-
-  const handleNavigateWatchlist = (direction: 1 | -1) => {
-      if (watchlistIndex === null) return;
-      
-      const newIndex = watchlistIndex + direction;
-      if (newIndex >= 0 && newIndex < watchlist.length) {
-          setWatchlistIndex(newIndex);
-          const nextItem = watchlist[newIndex];
-          handleNavigateToSimulation(nextItem.warehouseId, nextItem.fullProductId);
+      if (items.length > 0) {
+          const firstItem = items[0];
+          handleNavigateToSimulation(firstItem.warehouseId, firstItem.fullProductId);
       }
   };
 
-  const renderContent = () => {
-    switch (currentView) {
-      case 'import':
-        return (
-          <ImportView 
-            isLoading={isLoading}
-            importMetadata={importMetadata}
-            counts={counts}
-            onFileSelect={handleFileSelect}
-            onClear={handleClearIndividualData}
-            linkedFiles={linkedFiles}
-            onReload={handleReloadFile}
-            userSession={userSession}
-          />
-        );
-      case 'data-preview':
-        return <DataPreview userSession={userSession} />;
-      case 'report':
-        return <ThreatReportView 
-            userSession={userSession}
-            onNavigateToSimulation={handleNavigateToSimulation}
-            onStartWatchlist={handleStartWatchlist}
-        />;
-      case 'status-report':
-        return <StatusReportView 
-            rdcList={rdcList} 
-            exclusionList={exclusionList}
-            onUpdateExclusionList={handleExclusionImportClick} 
-        />;
-      case 'dashboard':
-        return (
-          <div class={sharedStyles['placeholder-view']}>
-            <h2>{t('placeholders.dashboard.title')}</h2>
-            <p>{t('placeholders.dashboard.description')}</p>
-          </div>
-        );
-      case 'simulations':
-        return <SimulationView 
-          userSession={userSession}
-          initialParams={simulationContext}
-          onSimulationStart={() => setSimulationContext(null)}
-          watchlist={watchlist}
-          watchlistIndex={watchlistIndex}
-          onNavigateWatchlist={handleNavigateWatchlist}
-          onClearWatchlist={handleClearWatchlist}
-        />;
-      case 'settings':
-        return (
-            <SettingsView 
+  const handleNavigateWatchlist = (direction: 1 | -1) => {
+      if (watchlistIndex === null) return;
+      const newIndex = watchlistIndex + direction;
+      if (newIndex >= 0 && newIndex < watchlist.length) {
+          setWatchlistIndex(newIndex);
+          const item = watchlist[newIndex];
+          handleNavigateToSimulation(item.warehouseId, item.fullProductId);
+      }
+  };
+
+  const handleClearWatchlist = () => {
+      setWatchlist([]);
+      setWatchlistIndex(null);
+  };
+  
+  // Render logic
+  const renderView = () => {
+      switch (currentView) {
+          case 'import':
+              return <ImportView
+                isLoading={isLoading}
+                importMetadata={importMetadata}
+                counts={counts}
+                onFileSelect={handleFileSelect}
+                onClear={handleClearFile}
                 linkedFiles={linkedFiles}
+                onReload={handleReloadFile}
+                userSession={userSession}
+                onLinkFile={handleLinkFile}
+                onClearLink={handleClearLink}
+              />;
+          case 'data-preview':
+              return <DataPreview userSession={userSession} />;
+          case 'threat-report':
+              return userSession?.mode === 'hq' ? 
+                <ThreatReportView 
+                    userSession={userSession} 
+                    onNavigateToSimulation={handleNavigateToSimulation}
+                    onStartWatchlist={handleStartWatchlist}
+                /> : 
+                <div class={sharedStyles['placeholder-view']}><h2>{t('placeholders.report.title')}</h2><p>{t('placeholders.report.accessDenied')}</p></div>;
+          case 'status-report':
+                return <StatusReportView rdcList={rdcList} exclusionList={exclusionList} onUpdateExclusionList={() => {}} />;
+          case 'simulations':
+              return <SimulationView 
+                userSession={userSession} 
+                initialParams={simulationContext} 
+                onSimulationStart={() => setSimulationContext(null)}
+                watchlist={watchlist}
+                watchlistIndex={watchlistIndex}
+                onNavigateWatchlist={handleNavigateWatchlist}
+                onClearWatchlist={handleClearWatchlist}
+              />;
+          case 'settings':
+              return <SettingsView 
+                linkedFiles={linkedFiles} 
                 onLinkFile={handleLinkFile}
                 onReloadFile={handleReloadFile}
                 onClearLink={handleClearLink}
                 isLoading={isLoading}
                 userSession={userSession}
                 rdcList={rdcList}
-                onAddRdc={handleAddRdc}
-                onDeleteRdc={handleDeleteRdc}
-                onExportConfig={handleExportConfig}
-                onImportClick={handleImportClick}
+                onAddRdc={() => {}}
+                onDeleteRdc={() => {}}
+                onExportConfig={() => {}}
+                onImportClick={() => {}}
                 exclusionList={exclusionList}
-                onImportExclusionListClick={handleExclusionImportClick}
-                onClearExclusionList={handleClearExclusionList}
-            />
-        );
-      default:
-        return null;
-    }
+                onImportExclusionListClick={() => {}}
+                onClearExclusionList={() => {}}
+              />;
+          default:
+              return <div class={sharedStyles['placeholder-view']}><h2>{t('placeholders.dashboard.title')}</h2><p>{t('placeholders.dashboard.description')}</p></div>;
+      }
   };
 
-  if (isIdle) {
-    return <IdleSplashScreen onContinue={handleContinueFromIdle} />;
-  }
-
-  if (!userSession) {
-    return <LoginModal onLogin={handleLogin} rdcList={rdcList} />;
-  }
-
-  const hasAnyData = counts.products > 0 || counts.goodsReceipts > 0 || counts.openOrders > 0 || counts.sales > 0;
-  const canAnalyze = counts.products > 0 && counts.goodsReceipts > 0 && counts.sales > 0;
-
   return (
-    <>
-      {showCountdownModal && <RefreshCountdownModal countdown={countdown} onCancel={handleCancelRefresh} />}
-      <header class="top-header">
-        <h1>{t('header.title')}</h1>
-        <div class="header-controls">
-          <AutoRefreshControl 
-            config={autoRefreshConfig}
-            onConfigChange={handleAutoRefreshConfigChange}
-            timeToNextRefresh={timeToNextRefresh}
-          />
-          <div class="header-session-info">
-            <span>{t('header.session.mode')}: <strong>{userSession.mode === 'hq' ? 'HQ' : `${userSession.rdc!.id} ${userSession.rdc!.name}`}</strong></span>
-            <button class="button-logout" onClick={handleLogout}>{t('header.session.logout')}</button>
-          </div>
-          <LanguageSelector />
-        </div>
-      </header>
-      <div class="app-layout">
-        <nav class="sidebar">
-          <ul>
-            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('import')}} class={currentView === 'import' ? 'active' : ''}>{t('sidebar.import')}</a></li>
-            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('data-preview')}} class={currentView === 'data-preview' ? 'active' : ''}>{t('sidebar.dataPreview')}</a></li>
-            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('report')}} class={currentView === 'report' ? 'active' : ''}>{t('sidebar.threatReport')}</a></li>
-            {userSession.mode === 'hq' && (
-              <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('status-report')}} class={currentView === 'status-report' ? 'active' : ''}>{t('sidebar.statusReport')}</a></li>
-            )}
-            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('dashboard')}} class={currentView === 'dashboard' ? 'active' : ''}>{t('sidebar.dashboard')}</a></li>
-            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('simulations')}} class={currentView === 'simulations' ? 'active' : ''}>{t('sidebar.simulations')}</a></li>
-            <li><a href="#" onClick={(e) => {e.preventDefault(); setCurrentView('settings')}} class={currentView === 'settings' ? 'active' : ''}>{t('sidebar.settings')}</a></li>
-          </ul>
-          <div class="sidebar-footer">
-              <p>Proof of Concept Supply Chain UK</p>
-              <p>OMS - Outdate Mitigation System</p>
-              <p>&copy; 2025 | Version 0.3 "/ Auto-Refresh"</p>
-          </div>
-        </nav>
-        <main class="main-content">
-          <input type="file" ref={importFileInputRef} style={{ display: 'none' }} onChange={handleImportConfig} accept=".json" />
-          <input type="file" ref={exclusionFileInputRef} style={{ display: 'none' }} onChange={handleImportExclusionList} accept=".txt" />
-          {statusMessage && (
-              <div class={`${sharedStyles['status-container']} ${sharedStyles[statusMessage.type]}`} role="status">
-                <div class={sharedStyles['status-info']}>
-                   {isLoading && statusMessage.type === 'info' && <div class={sharedStyles.spinner}></div>}
-                   <div class={sharedStyles['status-content']}>
-                      <p class={sharedStyles['status-text']}>{statusMessage.text}</p>
-                      {isLoading && typeof statusMessage.progress === 'number' && (
-                        <div class={sharedStyles['progress-bar-container']}>
-                           <div class={sharedStyles['progress-bar']} style={{ width: `${statusMessage.progress}%` }}></div>
-                        </div>
-                      )}
-                   </div>
+    <LanguageProvider>
+      {isIdle && <IdleSplashScreen onContinue={handleContinueFromIdle} />}
+      {!userSession ? (
+        <LoginModal onLogin={handleLogin} rdcList={rdcList} />
+      ) : (
+        <>
+          {showCountdownModal && <RefreshCountdownModal countdown={countdown} onCancel={handleCancelRefresh} />}
+          <div class={`${isLoading ? sharedStyles['app-loading-blur'] : ''}`}>
+            <header class="top-header">
+                <h1>{t('header.title')}</h1>
+                <div class="header-controls">
+                    <AutoRefreshControl 
+                        config={autoRefreshConfig}
+                        onConfigChange={handleAutoRefreshConfigChange}
+                        timeToNextRefresh={timeToNextRefresh}
+                    />
+                    <div class="header-session-info">
+                        <span>{t('header.session.mode')}: <strong>{userSession.mode.toUpperCase()} {userSession.rdc ? `(${userSession.rdc.name})` : ''}</strong></span>
+                        <button class="button-logout" onClick={handleLogout}>{t('header.session.logout')}</button>
+                    </div>
+                    <LanguageSelector />
                 </div>
-                 <button 
-                  class={sharedStyles['status-close-button']}
-                  onClick={() => setStatusMessage(null)}
-                  aria-label={t('status.close')}
-                 >&times;</button>
-              </div>
-          )}
-          <div class="content-wrapper">
-            {renderContent()}
-          </div>
-          {currentView === 'import' && (
-            <div class={sharedStyles['actions-container']}>
-              <button 
-                  class={sharedStyles['button-primary']} 
-                  disabled={!canAnalyze || isLoading}
-                  onClick={() => setCurrentView('simulations')}
-              >
-                {t('actions.runAnalysis')}
-              </button>
-              {hasAnyData && !isLoading && (
-                <button onClick={handleClearAllData} class={sharedStyles['button-secondary']}>{t('actions.clearAll')}</button>
-              )}
+            </header>
+            <div class="app-layout">
+                <nav class="sidebar">
+                    <ul>
+                        <li><a href="#" class={currentView === 'import' ? 'active' : ''} onClick={() => handleNavigate('import')}>{t('sidebar.import')}</a></li>
+                        <li><a href="#" class={currentView === 'data-preview' ? 'active' : ''} onClick={() => handleNavigate('data-preview')}>{t('sidebar.dataPreview')}</a></li>
+                        <li><a href="#" class={currentView === 'threat-report' ? 'active' : ''} onClick={() => handleNavigate('threat-report')}>{t('sidebar.threatReport')}</a></li>
+                        <li><a href="#" class={currentView === 'status-report' ? 'active' : ''} onClick={() => handleNavigate('status-report')}>{t('sidebar.statusReport')}</a></li>
+                        <li><a href="#" class={currentView === 'simulations' ? 'active' : ''} onClick={() => handleNavigate('simulations')}>{t('sidebar.simulations')}</a></li>
+                        <li><a href="#" class={currentView === 'settings' ? 'active' : ''} onClick={() => handleNavigate('settings')}>{t('sidebar.settings')}</a></li>
+                    </ul>
+                    <div class="sidebar-footer">
+                        <button class={sharedStyles['button-secondary']} onClick={handleClearAll} disabled={isLoading}>{t('actions.clearAll')}</button>
+                    </div>
+                </nav>
+                <main class="main-content">
+                  <div class="content-wrapper">
+                    {statusMessage && (
+                      <div class={`${sharedStyles['status-container']} ${sharedStyles[statusMessage.type]}`} role="alert">
+                          <div class={sharedStyles['status-info']}>
+                              <div class={sharedStyles['status-content']}>
+                                  <p class={sharedStyles['status-text']}>{statusMessage.text}</p>
+                                  {typeof statusMessage.progress === 'number' && (
+                                      <div class={sharedStyles['progress-bar-container']}>
+                                          <div class={sharedStyles['progress-bar']} style={{ width: `${statusMessage.progress}%` }}></div>
+                                      </div>
+                                  )}
+                              </div>
+                          </div>
+                          <button class={sharedStyles['status-close-button']} onClick={() => setStatusMessage(null)} aria-label={t('status.close')}>&times;</button>
+                      </div>
+                    )}
+                    {renderView()}
+                  </div>
+                </main>
             </div>
-          )}
-        </main>
-      </div>
-    </>
+          </div>
+        </>
+      )}
+    </LanguageProvider>
   );
 };
 
-render(<LanguageProvider><App /></LanguageProvider>, document.getElementById("root")!);
+render(<App />, document.getElementById("root") as HTMLElement);
