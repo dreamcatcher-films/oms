@@ -2,7 +2,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from '../i18n';
 import { RDC, UserSession } from '../utils/types';
 import styles from './LoginModal.module.css';
-import sharedStyles from '/styles/shared.module.css';
+import sharedStyles from '../styles/shared.module.css';
 
 const HQ_PASSWORD = 'OMS_HQ_2025';
 
