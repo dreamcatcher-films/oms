@@ -3,7 +3,7 @@ import { useTranslation } from '../i18n';
 import { getUniqueWarehouseIds, getUniqueItemGroups, getUniqueProductStatuses } from '../db';
 import type { ReportResultItem, WorkerMessage, WorkerRequest, UserSession } from '../utils/types';
 import styles from './ThreatReportView.module.css';
-import sharedStyles from '/styles/shared.module.css';
+import sharedStyles from '../styles/shared.module.css';
 
 type CheckboxFilterProps = {
     title: string;
