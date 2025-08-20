@@ -5,6 +5,8 @@ import type { ReportResultItem, WorkerMessage, WorkerRequest, UserSession } from
 import styles from './ThreatReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
+const SESSION_STORAGE_KEY = 'threatReportFilters';
+
 type CheckboxFilterProps = {
     title: string;
     options: string[];
@@ -66,13 +68,15 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
     const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
     const [reportResults, setReportResults] = useState<ReportResultItem[] | null>(null);
 
-    const [availableWarehouses, setAvailableWarehouses] = useState<string[]>([]);
     const [availableItemGroups, setAvailableItemGroups] = useState<string[]>([]);
     const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
+    const [availableWarehouses, setAvailableWarehouses] = useState<string[]>([]);
 
-    const [selectedWarehouses, setSelectedWarehouses] = useState<string[]>([]);
-    const [selectedItemGroups, setSelectedItemGroups] = useState<string[]>([]);
-    const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+    const [filters, setFilters] = useState({
+        selectedWarehouses: [] as string[],
+        selectedItemGroups: [] as string[],
+        selectedStatuses: [] as string[],
+    });
     
     const [selectedForWatchlist, setSelectedForWatchlist] = useState<Set<string>>(new Set());
 
@@ -96,27 +100,49 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
     useEffect(() => {
         (async () => {
             const isRdcMode = userSession?.mode === 'rdc';
-            const [ig, st] = await Promise.all([
-                getUniqueItemGroups(),
-                getUniqueProductStatuses(),
-            ]);
-
+            const [ig, st] = await Promise.all([ getUniqueItemGroups(), getUniqueProductStatuses() ]);
+            
+            let initialWarehouses: string[];
             if (isRdcMode) {
                 const rdcId = userSession.rdc!.id;
                 setAvailableWarehouses([rdcId]);
-                setSelectedWarehouses([rdcId]);
+                initialWarehouses = [rdcId];
             } else {
                 const wh = await getUniqueWarehouseIds();
                 setAvailableWarehouses(wh);
-                setSelectedWarehouses(wh);
+                initialWarehouses = wh;
             }
             
             setAvailableItemGroups(ig);
             setAvailableStatuses(st);
-            setSelectedItemGroups(ig);
-            setSelectedStatuses(st);
+
+            try {
+                const savedFiltersJSON = sessionStorage.getItem(SESSION_STORAGE_KEY);
+                if (savedFiltersJSON) {
+                    const savedFilters = JSON.parse(savedFiltersJSON);
+                    setFilters({
+                        selectedWarehouses: isRdcMode ? [userSession.rdc!.id] : (savedFilters.selectedWarehouses || initialWarehouses),
+                        selectedItemGroups: savedFilters.selectedItemGroups || ig,
+                        selectedStatuses: savedFilters.selectedStatuses || st,
+                    });
+                } else {
+                    setFilters({ selectedWarehouses: initialWarehouses, selectedItemGroups: ig, selectedStatuses: st });
+                }
+            } catch (e) {
+                console.error("Failed to load threat report filters", e);
+                setFilters({ selectedWarehouses: initialWarehouses, selectedItemGroups: ig, selectedStatuses: st });
+            }
         })();
     }, [userSession]);
+
+    useEffect(() => {
+        try {
+            sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(filters));
+        } catch (e) {
+            console.error("Failed to save threat report filters", e);
+        }
+    }, [filters]);
+
 
     const handleRunReport = () => {
         if (!workerRef.current) return;
@@ -125,9 +151,9 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
         setSelectedForWatchlist(new Set());
         setProgress({ processed: 0, total: 0 });
         const request: WorkerRequest = {
-            warehouseIds: selectedWarehouses,
-            itemGroupIds: selectedItemGroups,
-            statusIds: selectedStatuses,
+            warehouseIds: filters.selectedWarehouses,
+            itemGroupIds: filters.selectedItemGroups,
+            statusIds: filters.selectedStatuses,
         };
         workerRef.current.postMessage(request);
     };
@@ -160,8 +186,8 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
     };
 
     const canRun = useMemo(() => {
-        return selectedWarehouses.length > 0 && selectedItemGroups.length > 0 && selectedStatuses.length > 0 && !isLoading;
-    }, [selectedWarehouses, selectedItemGroups, selectedStatuses, isLoading]);
+        return filters.selectedWarehouses.length > 0 && filters.selectedItemGroups.length > 0 && filters.selectedStatuses.length > 0 && !isLoading;
+    }, [filters, isLoading]);
     
     const allSelected = reportResults ? reportResults.length > 0 && selectedForWatchlist.size === reportResults.length : false;
 
@@ -179,21 +205,21 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
                     <CheckboxFilterGroup 
                         title={t('threatReport.controls.warehouses')}
                         options={availableWarehouses}
-                        selected={selectedWarehouses}
-                        onChange={setSelectedWarehouses}
+                        selected={filters.selectedWarehouses}
+                        onChange={(selected) => setFilters(prev => ({...prev, selectedWarehouses: selected}))}
                         disabled={userSession?.mode === 'rdc'}
                     />
                      <CheckboxFilterGroup 
                         title={t('threatReport.controls.itemGroups')}
                         options={availableItemGroups}
-                        selected={selectedItemGroups}
-                        onChange={setSelectedItemGroups}
+                        selected={filters.selectedItemGroups}
+                        onChange={(selected) => setFilters(prev => ({...prev, selectedItemGroups: selected}))}
                     />
                      <CheckboxFilterGroup 
                         title={t('threatReport.controls.statuses')}
                         options={availableStatuses}
-                        selected={selectedStatuses}
-                        onChange={setSelectedStatuses}
+                        selected={filters.selectedStatuses}
+                        onChange={(selected) => setFilters(prev => ({...prev, selectedStatuses: selected}))}
                     />
                 </div>
                 <div class={`${sharedStyles['filter-actions']}`} style={{justifyContent: 'flex-start', flexWrap: 'wrap'}}>
