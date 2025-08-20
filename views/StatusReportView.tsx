@@ -13,6 +13,7 @@ const PAGE_SIZE = 20;
 const SUSPICIOUS_STATUSES = ['5', '6', '7', '9', '10', '11', '12'];
 const EXCLUDABLE_STATUSES = ['5', '6', '7', '8', '9', '10', '11', '12','-'];
 const STATUTORY_EXCLUDED_ITEM_GROUPS = new Set(['10', '11', '12', '13', '73', '90', '91', '92']);
+const SESSION_STORAGE_KEY = 'statusReportFilters';
 
 export const StatusReportView = (props: { rdcList: RDC[], exclusionList: ExclusionListData, onUpdateExclusionList: () => void }) => {
     const { t, language } = useTranslation();
@@ -23,15 +24,17 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
     const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
     const [reportResults, setReportResults] = useState<StatusReportResultItem[] | null>(null);
     
-    const [productIdFilter, setProductIdFilter] = useState('');
-    const [pastedProductIds, setPastedProductIds] = useState<string[]>([]);
-    const [dominantStatusFilter, setDominantStatusFilter] = useState('');
-    const [dispoGroupFilter, setDispoGroupFilter] = useState('');
-    const [itemGroupFilter, setItemGroupFilter] = useState('');
-    const [excludeNoStock, setExcludeNoStock] = useState(true);
-    const [showOnlyUndetermined, setShowOnlyUndetermined] = useState(false);
-    const [excludedDominantStatuses, setExcludedDominantStatuses] = useState<string[]>(EXCLUDABLE_STATUSES.filter(s => s !== '8'));
-    const [includeConsistent, setIncludeConsistent] = useState(false);
+    const [filters, setFilters] = useState({
+        productIdFilter: '',
+        pastedProductIds: [] as string[],
+        dominantStatusFilter: '',
+        dispoGroupFilter: '',
+        itemGroupFilter: '',
+        excludeNoStock: true,
+        showOnlyUndetermined: false,
+        excludedDominantStatuses: EXCLUDABLE_STATUSES.filter(s => s !== '8'),
+        includeConsistent: false,
+    });
     
     const [currentPage, setCurrentPage] = useState(1);
     const [sortByWarehouse, setSortByWarehouse] = useState<string | null>(null);
@@ -71,6 +74,29 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
         return () => workerRef.current?.terminate();
     }, []);
 
+    // Load filters from session storage on mount
+    useEffect(() => {
+        try {
+            const savedFiltersJSON = sessionStorage.getItem(SESSION_STORAGE_KEY);
+            if (savedFiltersJSON) {
+                const savedFilters = JSON.parse(savedFiltersJSON);
+                setFilters(prev => ({ ...prev, ...savedFilters }));
+            }
+        } catch (e) {
+            console.error("Failed to load status report filters", e);
+        }
+    }, []);
+
+    // Save filters to session storage on change
+    useEffect(() => {
+        try {
+            sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(filters));
+        } catch (e) {
+            console.error("Failed to save status report filters", e);
+        }
+    }, [filters]);
+
+
     const handleRunReport = () => {
         if (!workerRef.current) return;
         setIsLoading(true);
@@ -105,40 +131,40 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
         
         let results = reportResults;
 
-        if (!includeConsistent) {
+        if (!filters.includeConsistent) {
             results = results.filter(item => item.isInconsistent);
         }
         
         return results.filter(item => {
-            if (pastedProductIds.length > 0) {
-                if (!pastedProductIds.includes(item.productId)) {
+            if (filters.pastedProductIds.length > 0) {
+                if (!filters.pastedProductIds.includes(item.productId)) {
                     return false;
                 }
-            } else if (productIdFilter && !item.productId.toLowerCase().includes(productIdFilter.toLowerCase())) {
+            } else if (filters.productIdFilter && !item.productId.toLowerCase().includes(filters.productIdFilter.toLowerCase())) {
                 return false;
             }
-            if (dominantStatusFilter && item.dominantStatusInfo.status !== dominantStatusFilter) {
+            if (filters.dominantStatusFilter && item.dominantStatusInfo.status !== filters.dominantStatusFilter) {
                 return false;
             }
-            if (dispoGroupFilter && item.dispoGroup !== dispoGroupFilter) {
+            if (filters.dispoGroupFilter && item.dispoGroup !== filters.dispoGroupFilter) {
                 return false;
             }
-            if (itemGroupFilter && item.itemGroup !== itemGroupFilter) {
+            if (filters.itemGroupFilter && item.itemGroup !== filters.itemGroupFilter) {
                 return false;
             }
-            if (excludeNoStock) {
+            if (filters.excludeNoStock) {
                 const totalStock = Object.values(item.stockByWarehouse).reduce((sum, stock) => sum + stock, 0);
                 if (totalStock <= 0) return false;
             }
-            if (showOnlyUndetermined && item.dominantStatusInfo.type !== 'none') {
+            if (filters.showOnlyUndetermined && item.dominantStatusInfo.type !== 'none') {
                 return false;
             }
-            if (excludedDominantStatuses.length > 0 && excludedDominantStatuses.includes(item.dominantStatusInfo.status)) {
+            if (filters.excludedDominantStatuses.length > 0 && filters.excludedDominantStatuses.includes(item.dominantStatusInfo.status)) {
                 return false;
             }
             return true;
         });
-    }, [reportResults, productIdFilter, pastedProductIds, dominantStatusFilter, dispoGroupFilter, itemGroupFilter, excludeNoStock, showOnlyUndetermined, excludedDominantStatuses, includeConsistent]);
+    }, [reportResults, filters]);
     
     const combinedSummaryData = useMemo(() => {
         if (!reportResults) return null;
@@ -264,24 +290,31 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
         return Array.from(allWarehouses).filter(wh => rdcNameMap.has(wh)).sort();
     }, [reportResults, rdcNameMap]);
 
+    const handleFilterChange = (key: keyof typeof filters, value: any) => {
+        setFilters(prev => ({ ...prev, [key]: value }));
+    };
+
     const handleClearFilters = () => {
-        setProductIdFilter('');
-        setPastedProductIds([]);
-        setDominantStatusFilter('');
-        setDispoGroupFilter('');
-        setItemGroupFilter('');
-        setExcludeNoStock(true);
-        setShowOnlyUndetermined(false);
-        setExcludedDominantStatuses(EXCLUDABLE_STATUSES.filter(s => s !== '8'));
-        setIncludeConsistent(false);
+        setFilters({
+            productIdFilter: '',
+            pastedProductIds: [],
+            dominantStatusFilter: '',
+            dispoGroupFilter: '',
+            itemGroupFilter: '',
+            excludeNoStock: true,
+            showOnlyUndetermined: false,
+            excludedDominantStatuses: EXCLUDABLE_STATUSES.filter(s => s !== '8'),
+            includeConsistent: false,
+        });
     };
 
     const handleExcludeStatusChange = (status: string, isChecked: boolean) => {
-        setExcludedDominantStatuses(prev => {
+        setFilters(prev => {
+            const currentExcluded = prev.excludedDominantStatuses;
             if (isChecked) {
-                return [...prev, status];
+                return { ...prev, excludedDominantStatuses: [...currentExcluded, status] };
             } else {
-                return prev.filter(s => s !== status);
+                return { ...prev, excludedDominantStatuses: currentExcluded.filter(s => s !== status) };
             }
         });
     };
@@ -301,8 +334,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                 })
                 .filter(Boolean);
             if (ids.length > 0) {
-                setPastedProductIds(ids);
-                setProductIdFilter(''); 
+                setFilters(prev => ({ ...prev, pastedProductIds: ids, productIdFilter: '' }));
             }
         }
     };
@@ -347,19 +379,19 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
     };
 
     const getActiveFiltersSummary = () => {
-        const filters = [];
-        if (pastedProductIds.length > 0) filters.push(`${t('columns.product.productId')}: ${t('statusReport.filters.pastedInfo', { count: pastedProductIds.length })}`);
-        else if (productIdFilter) filters.push(`${t('columns.product.productId')}: ${productIdFilter}`);
-        if (dominantStatusFilter) filters.push(`${t('statusReport.filters.dominantStatus')}: ${dominantStatusFilter}`);
-        if (dispoGroupFilter) filters.push(`${t('columns.product.dispoGroup')}: ${dispoGroupFilter}`);
-        if (itemGroupFilter) filters.push(`${t('columns.product.itemGroup')}: ${itemGroupFilter}`);
-        if (excludeNoStock) filters.push(t('statusReport.filters.excludeNoStock'));
-        if (showOnlyUndetermined) filters.push(t('statusReport.filters.showOnlyUndetermined'));
-        if (includeConsistent) filters.push(t('statusReport.filters.includeConsistent'));
-        if (excludedDominantStatuses.length > 0 && excludedDominantStatuses.length < EXCLUDABLE_STATUSES.length) {
-            filters.push(`${t('statusReport.filters.excludeWhenDominantIs')} ${EXCLUDABLE_STATUSES.filter(s => !excludedDominantStatuses.includes(s)).join(', ')}`);
+        const activeFilters = [];
+        if (filters.pastedProductIds.length > 0) activeFilters.push(`${t('columns.product.productId')}: ${t('statusReport.filters.pastedInfo', { count: filters.pastedProductIds.length })}`);
+        else if (filters.productIdFilter) activeFilters.push(`${t('columns.product.productId')}: ${filters.productIdFilter}`);
+        if (filters.dominantStatusFilter) activeFilters.push(`${t('statusReport.filters.dominantStatus')}: ${filters.dominantStatusFilter}`);
+        if (filters.dispoGroupFilter) activeFilters.push(`${t('columns.product.dispoGroup')}: ${filters.dispoGroupFilter}`);
+        if (filters.itemGroupFilter) activeFilters.push(`${t('columns.product.itemGroup')}: ${filters.itemGroupFilter}`);
+        if (filters.excludeNoStock) activeFilters.push(t('statusReport.filters.excludeNoStock'));
+        if (filters.showOnlyUndetermined) activeFilters.push(t('statusReport.filters.showOnlyUndetermined'));
+        if (filters.includeConsistent) activeFilters.push(t('statusReport.filters.includeConsistent'));
+        if (filters.excludedDominantStatuses.length > 0 && filters.excludedDominantStatuses.length < EXCLUDABLE_STATUSES.length) {
+            activeFilters.push(`${t('statusReport.filters.excludeWhenDominantIs')} ${EXCLUDABLE_STATUSES.filter(s => !filters.excludedDominantStatuses.includes(s)).join(', ')}`);
         }
-        return filters.length > 0 ? filters.join('; ') : 'None';
+        return activeFilters.length > 0 ? activeFilters.join('; ') : 'None';
     };
     
     const generatePdf = () => {
@@ -672,10 +704,10 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                             <input
                                 id="sr-productId"
                                 type="text"
-                                value={pastedProductIds.length > 0 ? t('statusReport.filters.pastedInfo', { count: pastedProductIds.length }) : productIdFilter}
+                                value={filters.pastedProductIds.length > 0 ? t('statusReport.filters.pastedInfo', { count: filters.pastedProductIds.length }) : filters.productIdFilter}
                                 onInput={(e) => {
-                                    if (pastedProductIds.length > 0) setPastedProductIds([]);
-                                    setProductIdFilter((e.target as HTMLInputElement).value);
+                                    if (filters.pastedProductIds.length > 0) handleFilterChange('pastedProductIds', []);
+                                    handleFilterChange('productIdFilter', (e.target as HTMLInputElement).value);
                                 }}
                                 onPaste={handlePaste}
                                 placeholder={t('dataPreview.filters.productIdPlaceholder')}
@@ -683,36 +715,36 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                         </div>
                         <div class={sharedStyles['filter-group']}>
                             <label htmlFor="sr-dispoGroup">{t('columns.product.dispoGroup')}</label>
-                            <select id="sr-dispoGroup" value={dispoGroupFilter} onChange={(e) => setDispoGroupFilter((e.target as HTMLSelectElement).value)}>
+                            <select id="sr-dispoGroup" value={filters.dispoGroupFilter} onChange={(e) => handleFilterChange('dispoGroupFilter', (e.target as HTMLSelectElement).value)}>
                                 <option value="">{t('dataPreview.filters.all')}</option>
                                 {availableDispoGroups.map(g => <option key={g} value={g}>{g}</option>)}
                             </select>
                         </div>
                         <div class={sharedStyles['filter-group']}>
                             <label htmlFor="sr-itemGroup">{t('columns.product.itemGroup')}</label>
-                            <select id="sr-itemGroup" value={itemGroupFilter} onChange={(e) => setItemGroupFilter((e.target as HTMLSelectElement).value)}>
+                            <select id="sr-itemGroup" value={filters.itemGroupFilter} onChange={(e) => handleFilterChange('itemGroupFilter', (e.target as HTMLSelectElement).value)}>
                                 <option value="">{t('dataPreview.filters.all')}</option>
                                 {availableItemGroups.map(g => <option key={g} value={g}>{g} - {itemGroupMap[g] || ''}</option>)}
                             </select>
                         </div>
                          <div class={sharedStyles['filter-group']}>
                             <label htmlFor="sr-dominantStatus">{t('statusReport.filters.dominantStatus')}</label>
-                            <select id="sr-dominantStatus" value={dominantStatusFilter} onChange={(e) => setDominantStatusFilter((e.target as HTMLSelectElement).value)}>
+                            <select id="sr-dominantStatus" value={filters.dominantStatusFilter} onChange={(e) => handleFilterChange('dominantStatusFilter', (e.target as HTMLSelectElement).value)}>
                                 <option value="">{t('dataPreview.filters.all')}</option>
                                 {availableDominantStatuses.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                         <div class={styles['status-report-checkbox-filters']}>
                              <label>
-                                <input type="checkbox" checked={excludeNoStock} onChange={(e) => setExcludeNoStock((e.target as HTMLInputElement).checked)} />
+                                <input type="checkbox" checked={filters.excludeNoStock} onChange={(e) => handleFilterChange('excludeNoStock', (e.target as HTMLInputElement).checked)} />
                                 {t('statusReport.filters.excludeNoStock')}
                             </label>
                             <label>
-                                <input type="checkbox" checked={showOnlyUndetermined} onChange={(e) => setShowOnlyUndetermined((e.target as HTMLInputElement).checked)} />
+                                <input type="checkbox" checked={filters.showOnlyUndetermined} onChange={(e) => handleFilterChange('showOnlyUndetermined', (e.target as HTMLInputElement).checked)} />
                                 {t('statusReport.filters.showOnlyUndetermined')}
                             </label>
                             <label>
-                                <input type="checkbox" checked={includeConsistent} onChange={(e) => setIncludeConsistent((e.target as HTMLInputElement).checked)} />
+                                <input type="checkbox" checked={filters.includeConsistent} onChange={(e) => handleFilterChange('includeConsistent', (e.target as HTMLInputElement).checked)} />
                                 {t('statusReport.filters.includeConsistent')}
                             </label>
                         </div>
@@ -726,7 +758,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
                                     <label key={status}>
                                         <input
                                             type="checkbox"
-                                            checked={excludedDominantStatuses.includes(status)}
+                                            checked={filters.excludedDominantStatuses.includes(status)}
                                             onChange={(e) => handleExcludeStatusChange(status, (e.target as HTMLInputElement).checked)}
                                         />
                                         {status}
@@ -812,7 +844,7 @@ export const StatusReportView = (props: { rdcList: RDC[], exclusionList: Exclusi
             {reportResults && !isLoading && (
                 <div class={styles['status-report-results']}>
                     <h3>
-                        {includeConsistent
+                        {filters.includeConsistent
                             ? t('statusReport.results.titleWithConsistent', { count: sortedAndFilteredResults.length.toLocaleString(language) })
                             : `${t('statusReport.results.title')} (${sortedAndFilteredResults.length.toLocaleString(language)})`
                         }
