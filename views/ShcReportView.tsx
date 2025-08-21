@@ -334,27 +334,27 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const margin = 40;
     
         const addPageHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
-            // Header
-            docInstance.setFontSize(14);
-            docInstance.setFont('helvetica', 'bold');
-            docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', pageWidth / 2, 40, { align: 'center' });
-    
-            docInstance.setFontSize(8);
-            docInstance.setFont('helvetica', 'normal');
-            docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
-    
-            docInstance.setFontSize(10);
-            docInstance.setFont('helvetica', 'bold');
-            docInstance.text(`RDC: ${rdc?.id || ''} ${rdc?.name || ''}`, pageWidth - margin, 40, { align: 'right' });
-            docInstance.text(`Store: ${store.storeNumber}`, pageWidth - margin, 55, { align: 'right' });
-            
-            docInstance.text(`Target score: less than 100`, pageWidth - margin, 80, { align: 'right' });
-            docInstance.text(`Current score: ${store.discrepancyCount}`, pageWidth - margin, 95, { align: 'right' });
+            // Header (only on first page)
+            if (pageNumber === 1) {
+                docInstance.setFontSize(14);
+                docInstance.setFont('helvetica', 'bold');
+                docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', pageWidth / 2, 40, { align: 'center' });
+        
+                docInstance.setFontSize(8);
+                docInstance.setFont('helvetica', 'normal');
+                docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
+        
+                docInstance.setFontSize(10);
+                docInstance.setFont('helvetica', 'bold');
+                docInstance.text(`Target score: less than 100`, pageWidth - margin, 80, { align: 'right' });
+                docInstance.text(`Current score: ${store.discrepancyCount}`, pageWidth - margin, 95, { align: 'right' });
+            }
 
-            // Footer
+            // Footer (on all pages)
             docInstance.setFontSize(8);
             docInstance.setFont('helvetica', 'normal');
-            docInstance.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, pageHeight - 20, { align: 'center' });
+            docInstance.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, pageHeight - 30, { align: 'center' });
+            docInstance.text(`RDC: ${rdc?.id || ''} ${rdc?.name || ''}   Store: ${store.storeNumber}`, pageWidth - margin, pageHeight - 20, { align: 'right' });
         };
     
         const mainTableBody = store.items.reduce((acc, item, index) => {
@@ -363,9 +363,17 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
 
             if (settingChanged) {
                 acc.push([
-                    { content: `General Store Area: ${item.generalStoreArea}`, colSpan: 2, styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left', fontSize: 7, cellPadding: 2 } },
-                    { content: `Setting specifically for: ${item.settingSpecificallyFor}`, colSpan: 3, styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left', fontSize: 7, cellPadding: 2 } },
-                    { content: `Setting width: ${item.settingWidth}`, colSpan: 2, styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left', fontSize: 7, cellPadding: 2 } },
+                    { 
+                        content: `${item.generalStoreArea} - ${item.settingSpecificallyFor} - ${item.settingWidth}`, 
+                        colSpan: 7, 
+                        styles: { 
+                            fontStyle: 'bold', 
+                            textColor: '#333', 
+                            halign: 'left', 
+                            fontSize: 7, 
+                            cellPadding: 2 
+                        } 
+                    },
                 ]);
             }
             
@@ -374,7 +382,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 item.articleName,
                 item.planShc,
                 item.storeShc,
-                { content: item.diff, styles: { textColor: '#e74c3c' } },
+                { content: item.diff, styles: { fontStyle: 'bold' } },
                 '',
                 ''
             ]);
@@ -383,11 +391,11 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         }, [] as any[][]);
     
         autoTable(doc, {
-            head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Difference', '✓', 'Comments']],
+            head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Diff', '✓', 'Comments']],
             body: mainTableBody,
             theme: 'grid',
             startY: 110,
-            styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#ccc' },
+            styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
             headStyles: { fillColor: '#e0e0e0', textColor: '#333', fontStyle: 'bold', minCellHeight: 20, valign: 'middle' },
             columnStyles: {
                 0: { cellWidth: 55 },
@@ -435,7 +443,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 head: [['General Store Area', 'Setting specifically for', 'Setting width', 'Plan SHC', 'Store SHC', '✓', 'No. of Differences (Unders)', 'No. of items in section checked']],
                 body: summaryBody,
                 theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#ccc' },
+                styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
                 headStyles: { fillColor: '#e0e0e0', textColor: '#333', fontStyle: 'bold', minCellHeight: 20, valign: 'middle' },
                 didDrawPage: (data) => {
                     addPageHeaderAndFooter(doc, data.pageNumber, (doc as any).internal.getNumberOfPages());
