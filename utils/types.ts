@@ -300,6 +300,7 @@ export type ShcWorkerProgressPayload = {
 export type ShcSectionConfigItem = {
     id: string;
     enabled: boolean;
+    order: number;
 };
 
 export type ShcSectionGroup = {
