@@ -326,7 +326,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const now = new Date();
         const year = now.getFullYear().toString().slice(-2);
         const week = getWeekNumber(now);
-        const filename = `SHC_${selectedRdc}_${store.storeNumber}_SHC_vs_Planogram_Report_${year}&W${week}.pdf`;
+        const filename = `SHC_${selectedRdc}_${store.storeNumber}_SHC_vs_Planogram_Report_${year}W${week}.pdf`;
     
         const rdc = rdcList.find(r => r.id === selectedRdc);
         const pageHeight = doc.internal.pageSize.getHeight();
@@ -341,76 +341,52 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
     
             docInstance.setFontSize(8);
             docInstance.setFont('helvetica', 'normal');
-            docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', margin, 60);
+            docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
     
             docInstance.setFontSize(10);
-            docInstance.text('Target score', 220, 80);
-            docInstance.rect(270, 70, 80, 20);
-            docInstance.text('less than 100', 275, 82);
-    
-            docInstance.text(`Current score:`, 360, 80);
             docInstance.setFont('helvetica', 'bold');
-            docInstance.text(`${store.discrepancyCount}`, 425, 80);
-    
-            docInstance.setFont('helvetica', 'bold');
-            docInstance.text(`RDC: ${rdc?.id || ''} ${rdc?.name || ''}`, pageWidth - margin, 60, { align: 'right' });
-            docInstance.text(`Store: ${store.storeNumber}`, pageWidth - margin, 80, { align: 'right' });
-    
+            docInstance.text(`RDC: ${rdc?.id || ''} ${rdc?.name || ''}`, pageWidth - margin, 40, { align: 'right' });
+            docInstance.text(`Store: ${store.storeNumber}`, pageWidth - margin, 55, { align: 'right' });
+            
+            docInstance.text(`Target score: less than 100`, pageWidth - margin, 80, { align: 'right' });
+            docInstance.text(`Current score: ${store.discrepancyCount}`, pageWidth - margin, 95, { align: 'right' });
+
             // Footer
             docInstance.setFontSize(8);
             docInstance.setFont('helvetica', 'normal');
             docInstance.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, pageHeight - 20, { align: 'center' });
         };
     
-        const mainTableBody: any[][] = [];
-        const groupedItems: Record<string, ShcResultItem[]> = {};
-    
-        store.items.forEach(item => {
-            const key = `${item.generalStoreArea}|${item.settingSpecificallyFor}|${item.settingWidth}`;
-            if (!groupedItems[key]) {
-                groupedItems[key] = [];
-            }
-            groupedItems[key].push(item);
-        });
-    
-        Object.values(groupedItems).forEach(group => {
-            const firstItem = group[0];
-            mainTableBody.push([
-                {
-                    content: `General Store Area: ${firstItem.generalStoreArea}`,
-                    colSpan: 2,
-                    styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left' },
-                },
-                {
-                    content: `Setting specifically for: ${firstItem.settingSpecificallyFor}`,
-                    colSpan: 3,
-                    styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left' },
-                },
-                 {
-                    content: `Setting width: ${firstItem.settingWidth}`,
-                    colSpan: 2,
-                    styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left' },
-                },
-            ]);
-    
-            group.forEach(item => {
-                mainTableBody.push([
-                    item.articleNumber,
-                    item.articleName,
-                    item.planShc,
-                    item.storeShc,
-                    { content: item.diff, styles: { textColor: '#e74c3c' } },
-                    '', // Checkbox placeholder
-                    ''  // Comments placeholder
+        const mainTableBody = store.items.reduce((acc, item, index) => {
+            const prevItem = index > 0 ? store.items[index - 1] : null;
+            const settingChanged = !prevItem || prevItem.settingSpecificallyFor !== item.settingSpecificallyFor || prevItem.settingWidth !== item.settingWidth;
+
+            if (settingChanged) {
+                acc.push([
+                    { content: `General Store Area: ${item.generalStoreArea}`, colSpan: 2, styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left', fontSize: 7, cellPadding: 2 } },
+                    { content: `Setting specifically for: ${item.settingSpecificallyFor}`, colSpan: 3, styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left', fontSize: 7, cellPadding: 2 } },
+                    { content: `Setting width: ${item.settingWidth}`, colSpan: 2, styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left', fontSize: 7, cellPadding: 2 } },
                 ]);
-            });
-        });
+            }
+            
+            acc.push([
+                item.articleNumber,
+                item.articleName,
+                item.planShc,
+                item.storeShc,
+                { content: item.diff, styles: { textColor: '#e74c3c' } },
+                '',
+                ''
+            ]);
+
+            return acc;
+        }, [] as any[][]);
     
         autoTable(doc, {
             head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Difference', '✓', 'Comments']],
             body: mainTableBody,
             theme: 'grid',
-            startY: 100,
+            startY: 110,
             styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#ccc' },
             headStyles: { fillColor: '#e0e0e0', textColor: '#333', fontStyle: 'bold', minCellHeight: 20, valign: 'middle' },
             columnStyles: {
