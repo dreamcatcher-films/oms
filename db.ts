@@ -901,5 +901,29 @@ export const loadExclusionList = async (): Promise<ExclusionListData> => {
     return { list: new Set(), lastUpdated: null };
 };
 
+export const getUniqueShcSections = async (): Promise<string[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(CATEGORY_RELATION_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(CATEGORY_RELATION_STORE_NAME);
+    const request = store.openCursor();
+    const sections = new Set<string>();
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const relation: CategoryRelationRow = cursor.value;
+                if (relation.settingSpecificallyFor) {
+                    sections.add(relation.settingSpecificallyFor);
+                }
+                cursor.continue();
+            } else {
+                resolve(Array.from(sections).sort());
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
 export const clearExclusionList = (): Promise<void> => deleteSetting(EXCLUSION_LIST_KEY);
 export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest } from './utils/types';
