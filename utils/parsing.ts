@@ -303,16 +303,22 @@ export const parseShcFile = (dataType: ShcDataType, buffer: ArrayBuffer): any[] 
     if (rows.length === 0) return [];
     
     // Ensure all cells are strings for consistent mapping
-    const stringRows = rows.map(row => row.map(cell => String(cell ?? '')));
+    let stringRows = rows.map(row => row.map(cell => String(cell ?? '')));
     
     // Skip header row for non-planogram files
-    if (dataType !== 'planogram') {
+    if (dataType !== 'planogram' && stringRows.length > 0) {
         stringRows.shift();
     }
 
     switch(dataType) {
         case 'shc':
-            return stringRows.map(shcRowMapper).filter(Boolean);
+            // Pre-filter the raw string rows before mapping for performance.
+            const filteredRows = stringRows.filter(row => {
+                const itemStatus = row[5]?.trim(); // Column F (6th column) is Item Status
+                const shelfCapacityUnit = row[21]?.trim(); // Column V (22nd column) is Shelf capacity unit description
+                return itemStatus === '8' && shelfCapacityUnit === 'C';
+            });
+            return filteredRows.map(shcRowMapper).filter(Boolean);
         case 'planogram':
              // The original `parsePlanogramFileContents` function expects raw rows to handle header detection and fill-down logic
             return parsePlanogramFileContents(rows);
