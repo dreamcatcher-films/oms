@@ -54,8 +54,8 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<Status | null>({ text: 'Inicjalizacja aplikacji...', type: 'info' });
   
-  const [counts, setCounts] = useState({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0 });
-  const [importMetadata, setImportMetadata] = useState<ImportMetadata>({ products: null, goodsReceipts: null, openOrders: null, sales: null });
+  const [counts, setCounts] = useState({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0, shc: 0, planogram: 0, orgStructure: 0, categoryRelation: 0 });
+  const [importMetadata, setImportMetadata] = useState<ImportMetadata>({ products: null, goodsReceipts: null, openOrders: null, sales: null, shc: null, planogram: null, orgStructure: null, categoryRelation: null });
   const [linkedFiles, setLinkedFiles] = useState<Map<DataType, FileSystemFileHandle>>(new Map());
   const [shcFiles, setShcFiles] = useState<Map<ShcDataType, FileSystemFileHandle>>(new Map());
   
@@ -146,11 +146,11 @@ const App = () => {
     setIsLoading(true);
     setStatusMessage({ text: t('status.checkingDb'), type: 'info' });
     try {
-      const [{ productsCount, goodsReceiptsCount, openOrdersCount, salesCount }, metadata] = await Promise.all([
+      const [{ productsCount, goodsReceiptsCount, openOrdersCount, salesCount, shcCount, planogramCount, orgStructureCount, categoryRelationCount }, metadata] = await Promise.all([
           checkDBStatus(),
           getImportMetadata()
       ]);
-      setCounts({ products: productsCount, goodsReceipts: goodsReceiptsCount, openOrders: openOrdersCount, sales: salesCount });
+      setCounts({ products: productsCount, goodsReceipts: goodsReceiptsCount, openOrders: openOrdersCount, sales: salesCount, shc: shcCount, planogram: planogramCount, orgStructure: orgStructureCount, categoryRelation: categoryRelationCount });
       setImportMetadata(metadata);
 
       if (productsCount > 0 || goodsReceiptsCount > 0 || openOrdersCount > 0 || salesCount > 0) {
