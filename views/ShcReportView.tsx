@@ -6,7 +6,7 @@ import styles from './ShcReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
 type Props = {
-    counts: { [key in ShcDataType]: number };
+    counts: { [key in ShcDataType | 'orgStructure']: number };
 };
 
 const SHC_CONFIG_KEY = 'shcSectionConfig';
@@ -65,13 +65,16 @@ export const ShcReportView = ({ counts }: Props) => {
             }
         };
 
-        (async () => {
-            const rdcs = await getUniqueRdcsFromOrgStructure();
-            setAvailableRdcs(rdcs);
-        })();
-
         return () => workerRef.current?.terminate();
     }, []);
+
+    useEffect(() => {
+        if (counts.orgStructure > 0) {
+            getUniqueRdcsFromOrgStructure().then(setAvailableRdcs);
+        } else {
+            setAvailableRdcs([]);
+        }
+    }, [counts.orgStructure]);
 
     const loadAndReconcileConfig = useCallback(async () => {
         setIsLoadingConfig(true);
@@ -109,7 +112,7 @@ export const ShcReportView = ({ counts }: Props) => {
 
     useEffect(() => {
         loadAndReconcileConfig();
-    }, [loadAndReconcileConfig]);
+    }, [loadAndReconcileConfig, counts.categoryRelation]);
 
     const proceedWithAnalysis = async () => {
         setIsValidationModalVisible(false);
