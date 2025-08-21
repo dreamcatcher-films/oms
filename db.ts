@@ -1,4 +1,4 @@
-import { RDC, DataType, ShcDataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcSectionConfig } from './utils/types';
+import { RDC, DataType, ShcDataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcSectionConfig, ShcSectionGroup } from './utils/types';
 
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
@@ -906,6 +906,7 @@ export const getUniqueShcSections = async (): Promise<string[]> => {
     const transaction = db.transaction(CATEGORY_RELATION_STORE_NAME, 'readonly');
     const store = transaction.objectStore(CATEGORY_RELATION_STORE_NAME);
     const request = store.openCursor();
+    
     const sections = new Set<string>();
 
     return new Promise((resolve, reject) => {
@@ -924,6 +925,88 @@ export const getUniqueShcSections = async (): Promise<string[]> => {
         request.onerror = () => reject(request.error);
     });
 };
+
+export const getUniqueShcSectionsGrouped = async (): Promise<ShcSectionGroup[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(CATEGORY_RELATION_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(CATEGORY_RELATION_STORE_NAME);
+    const request = store.openCursor();
+    
+    const groups = new Map<string, Set<string>>();
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const relation: CategoryRelationRow = cursor.value;
+                if (relation.generalStoreArea && relation.settingSpecificallyFor) {
+                    if (!groups.has(relation.generalStoreArea)) {
+                        groups.set(relation.generalStoreArea, new Set());
+                    }
+                    groups.get(relation.generalStoreArea)!.add(relation.settingSpecificallyFor);
+                }
+                cursor.continue();
+            } else {
+                const result: ShcSectionGroup[] = Array.from(groups.entries())
+                    .map(([groupName, sectionsSet]) => ({
+                        groupName,
+                        sections: Array.from(sectionsSet).sort(),
+                    }))
+                    .sort((a, b) => a.groupName.localeCompare(b.groupName));
+                resolve(result);
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+const getUniqueStoreNumbers = async (storeName: string): Promise<Set<string>> => {
+    const db = await openDB();
+    const transaction = db.transaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    const index = store.index('storeNumberIndex');
+    const request = index.openKeyCursor(null, 'nextunique');
+    const numbers = new Set<string>();
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (e) => {
+            const cursor = (e.target as IDBRequest<IDBCursor>).result;
+            if (cursor) {
+                numbers.add(cursor.key as string);
+                cursor.continue();
+            } else {
+                resolve(numbers);
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const validateStoresExistInShc = async (): Promise<string[]> => {
+    const [orgStores, shcStores] = await Promise.all([
+        getUniqueStoreNumbers(ORG_STRUCTURE_STORE_NAME),
+        getUniqueStoreNumbers(SHC_STORE_NAME),
+    ]);
+    
+    const missingStores: string[] = [];
+    orgStores.forEach(storeNum => {
+        if (!shcStores.has(storeNum)) {
+            missingStores.push(storeNum);
+        }
+    });
+    return missingStores.sort();
+};
+
+export const getStoreCountsForShcReport = async (): Promise<{ shcStoreCount: number, orgStoreCount: number }> => {
+     const [orgStores, shcStores] = await Promise.all([
+        getUniqueStoreNumbers(ORG_STRUCTURE_STORE_NAME),
+        getUniqueStoreNumbers(SHC_STORE_NAME),
+    ]);
+    return {
+        shcStoreCount: shcStores.size,
+        orgStoreCount: orgStores.size,
+    };
+};
+
 
 export const clearExclusionList = (): Promise<void> => deleteSetting(EXCLUSION_LIST_KEY);
 export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest, ShcSectionConfig } from './utils/types';
