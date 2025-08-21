@@ -631,12 +631,12 @@ const App = () => {
   const complexShcFileParse = (dataType: ShcDataType, file: File) => {
     setIsLoading(true);
     const dataTypeName = t(`dataType.${dataType}`);
-    setStatusMessage({ text: t('status.import.preparing', { dataTypeName }), type: 'info', progress: 0 });
+    setStatusMessage({ text: t('status.import.starting', { dataTypeName: file.name }), type: 'info', progress: 0 });
 
     const worker = new Worker(new URL('./shc-parsing.worker.ts', import.meta.url), { type: 'module' });
     
     let processedCount = 0;
-    let totalRowsFromFile = 0;
+    let totalRowsToImport = 0;
     const initialCountForDisplay = counts[dataType] || 0;
 
     worker.onmessage = async (e: MessageEvent<ShcParsingWorkerMessage>) => {
@@ -644,7 +644,12 @@ const App = () => {
 
       switch (type) {
         case 'progress':
-          setStatusMessage(prev => ({ ...prev!, text: payload.message, type: 'info' }));
+          setStatusMessage(prev => ({ 
+            ...prev!, 
+            text: payload.message, 
+            type: 'info',
+            progress: typeof payload.percentage === 'number' ? payload.percentage : prev?.progress,
+          }));
           break;
         
         case 'data':
@@ -660,17 +665,17 @@ const App = () => {
           processedCount += batch.length;
           
           const runningTotal = (dataType === 'shc' ? initialCountForDisplay : 0) + processedCount;
+          const savingProgress = totalRowsToImport > 0 ? (processedCount / totalRowsToImport) * 100 : 0;
           
           setStatusMessage(prev => ({
             ...prev!,
             text: t('status.import.processing', { processedCount: runningTotal.toLocaleString(language) }),
             type: 'info',
-            progress: totalRowsFromFile > 0 ? (processedCount / totalRowsFromFile) * 100 : (prev?.progress || 0),
+            progress: savingProgress,
           }));
           break;
 
         case 'complete':
-          totalRowsFromFile = payload.totalRows;
           await updateImportMetadata(dataType);
           
           const finalDbStatus = await checkDBStatus();
