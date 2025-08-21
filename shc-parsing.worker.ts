@@ -1,27 +1,54 @@
 import { parseShcFile } from './utils/parsing';
 import type { ShcParsingWorkerRequest, ShcParsingWorkerMessage } from './utils/types';
 
-// This constant can be tuned based on performance tests
 const BATCH_SIZE_FOR_POSTING = 5000;
+
+const readFileWithProgress = (file: File): Promise<ArrayBuffer> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = (event) => {
+            resolve(event.target?.result as ArrayBuffer);
+        };
+
+        reader.onerror = () => {
+            reject(reader.error);
+        };
+
+        reader.onprogress = (event) => {
+            if (event.lengthComputable) {
+                const percentage = (event.loaded / event.total) * 100;
+                postMessage({
+                    type: 'progress',
+                    payload: { message: 'status.import.readingFile', percentage }
+                } as ShcParsingWorkerMessage);
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+    });
+};
 
 self.onmessage = async (e: MessageEvent<ShcParsingWorkerRequest>) => {
     const { dataType, file } = e.data;
     try {
+        const buffer = await readFileWithProgress(file);
+
         postMessage({
             type: 'progress',
-            payload: { message: `Reading ${file.name} into memory...` }
+            payload: { message: 'status.import.parsingExcel' }
         } as ShcParsingWorkerMessage);
 
-        // The heavy lifting (reading and parsing the entire file) happens here, in the worker.
-        const parsedData = await parseShcFile(dataType, file);
+        const parsedData = parseShcFile(dataType, buffer);
         const totalRows = parsedData.length;
 
+        // Post a single message about saving, the main thread will handle batch progress
         postMessage({
             type: 'progress',
-            payload: { message: `Parsed ${totalRows.toLocaleString()} rows. Saving to database...` }
+            payload: { message: 'status.import.processing', percentage: 0 }
         } as ShcParsingWorkerMessage);
 
-        // Send data back to the main thread in manageable chunks to avoid overwhelming it.
+
         for (let i = 0; i < totalRows; i += BATCH_SIZE_FOR_POSTING) {
             const batch = parsedData.slice(i, i + BATCH_SIZE_FOR_POSTING);
             postMessage({ type: 'data', payload: batch } as ShcParsingWorkerMessage);
