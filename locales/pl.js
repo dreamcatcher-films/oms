@@ -110,7 +110,11 @@ export default {
           "products": "Produkty",
           "goodsReceipts": "Przyjęcie Towaru (eGIN)",
           "openOrders": "Otwarte Zamówienia",
-          "sales": "Odsprzedaże"
+          "sales": "Odsprzedaże",
+          "shc": "Dane SHC",
+          "planogram": "Planogram",
+          "orgStructure": "Struktura Org.",
+          "categoryRelation": "Relacje Kategorii"
       },
       "filters": {
           "warehouse": "Magazyn",
@@ -312,7 +316,11 @@ export default {
     "products": "Dane podstawowe",
     "goodsReceipts": "Przyjęcia towaru",
     "openOrders": "Otwarte zamówienia",
-    "sales": "Dane o odsprzedaży"
+    "sales": "Dane o odsprzedaży",
+    "shc": "Dane ze Sklepów (SHC)",
+    "planogram": "Planogram",
+    "orgStructure": "Struktura Org.",
+    "categoryRelation": "Relacja Kategoria-Sklep"
   },
   "threatReport": {
     "title": "Raport Zagrożeń",
@@ -500,6 +508,39 @@ export default {
       "productId": "Nr artykułu",
       "productName": "Nazwa produktu",
       "quantity": "Sprzedana ilość"
+    },
+    "shc": {
+        "storeNumber": "Numer sklepu",
+        "itemNumber": "Numer artykułu",
+        "itemDescription": "Opis artykułu",
+        "piecesInBox": "Szt. w kartonie",
+        "itemStatus": "Status artykułu",
+        "itemGroup": "Grupa towarowa",
+        "shelfCapacity": "Pojemność półki (SHC)",
+        "shelfCapacityUnit": "Jednostka SHC"
+    },
+    "planogram": {
+        "generalStoreArea": "Ogólny obszar sklepu",
+        "settingSpecificallyFor": "Ustawienie dla",
+        "settingWidth": "Szerokość ustawienia",
+        "itemNumber": "Numer artykułu",
+        "itemName": "Nazwa artykułu",
+        "targetShc": "Docelowe SHC",
+        "facings": "Facingi",
+        "depth": "Głębokość"
+    },
+    "orgStructure": {
+        "storeNumber": "Numer sklepu",
+        "storeName": "Nazwa sklepu",
+        "warehouseId": "ID Magazynu",
+        "areaManager": "Area Manager",
+        "headOfSales": "Head of Sales"
+    },
+    "categoryRelation": {
+        "generalStoreArea": "Ogólny obszar sklepu",
+        "settingSpecificallyFor": "Ustawienie dla",
+        "settingWidth": "Szerokość ustawienia",
+        "storeNumber": "Numer sklepu"
     }
   }
 }
