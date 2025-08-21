@@ -135,7 +135,7 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         { key: 'quantity', labelKey: 'columns.sale.quantity' },
     ];
     
-    const SHC_COLUMNS: { key: keyof ShcDataRow, labelKey: string }[] = [
+    const SHC_COLUMNS: { key: string, labelKey: string }[] = [
         { key: 'storeNumber', labelKey: 'columns.shc.storeNumber' },
         { key: 'itemNumber', labelKey: 'columns.shc.itemNumber' },
         { key: 'itemDescription', labelKey: 'columns.shc.itemDescription' },
@@ -146,7 +146,7 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         { key: 'shelfCapacityUnit', labelKey: 'columns.shc.shelfCapacityUnit' },
     ];
 
-    const PLANOGRAM_COLUMNS: { key: keyof PlanogramRow, labelKey: string }[] = [
+    const PLANOGRAM_COLUMNS: { key: string, labelKey: string }[] = [
         { key: 'generalStoreArea', labelKey: 'columns.planogram.generalStoreArea' },
         { key: 'settingSpecificallyFor', labelKey: 'columns.planogram.settingSpecificallyFor' },
         { key: 'settingWidth', labelKey: 'columns.planogram.settingWidth' },
@@ -157,7 +157,7 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         { key: 'depth', labelKey: 'columns.planogram.depth' },
     ];
 
-    const ORG_STRUCTURE_COLUMNS: { key: keyof OrgStructureRow, labelKey: string }[] = [
+    const ORG_STRUCTURE_COLUMNS: { key: string, labelKey: string }[] = [
         { key: 'storeNumber', labelKey: 'columns.orgStructure.storeNumber' },
         { key: 'storeName', labelKey: 'columns.orgStructure.storeName' },
         { key: 'warehouseId', labelKey: 'columns.orgStructure.warehouseId' },
@@ -165,7 +165,7 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         { key: 'headOfSales', labelKey: 'columns.orgStructure.headOfSales' },
     ];
 
-    const CATEGORY_RELATION_COLUMNS: { key: keyof CategoryRelationRow, labelKey: string }[] = [
+    const CATEGORY_RELATION_COLUMNS: { key: string, labelKey: string }[] = [
         { key: 'storeNumber', labelKey: 'columns.categoryRelation.storeNumber' },
         { key: 'generalStoreArea', labelKey: 'columns.categoryRelation.generalStoreArea' },
         { key: 'settingSpecificallyFor', labelKey: 'columns.categoryRelation.settingSpecificallyFor' },
