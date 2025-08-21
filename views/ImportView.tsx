@@ -155,6 +155,9 @@ export const ImportView = (props: ImportViewProps) => {
                 <div class={styles['import-container']}>
                 {shcDataTypes.map(({ key, titleKey, accept }) => {
                     const count = counts[key] || 0;
+                    const buttonText = key === 'shc'
+                        ? t('import.buttons.addFile')
+                        : (count > 0 ? t('import.buttons.change') : t('import.buttons.selectFile'));
                     return (
                         <div class={`${styles['import-section']} ${styles['shc-import-section']}`} key={key}>
                             <div class={styles['import-section-header']}>
@@ -165,7 +168,7 @@ export const ImportView = (props: ImportViewProps) => {
                                 <div class={styles['import-actions']}>
                                     <input id={`${key}-file-input`} type="file" style={{ display: 'none' }} accept={accept} onChange={(e) => onShcFileSelect(key, e)} disabled={isLoading} />
                                     <label htmlFor={`${key}-file-input`} class={`${sharedStyles.buttonPrimary} ${isLoading ? sharedStyles.disabled : ''}`}>
-                                        {count > 0 ? t('import.buttons.change') : t('import.buttons.selectFile')}
+                                        {buttonText}
                                     </label>
                                     {count > 0 && (
                                         <button onClick={() => onClearShcFile(key)} class={sharedStyles.buttonSecondary} disabled={isLoading}>{t('import.buttons.clear')}</button>
