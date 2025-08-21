@@ -436,8 +436,8 @@ const ResultRow = ({ level, item, itemType, expandedRows, onToggle }: any) => {
                 <>
                     <tr class={`${styles.rowLevel} ${styles[`level-${level+1}`]} ${styles.detailHeader}`}>
                         <td style={{ paddingLeft: `${(level + 1) * 20}px` }}>{t('shcReport.table.itemNumber')} / {t('shcReport.table.itemName')}</td>
-                        <td>{t('shcReport.table.planShc')} / {t('shcReport.table.storeShc')} / {t('shcReport.table.diff')}</td>
                         <td>{t('shcReport.table.section')} / {t('shcReport.table.itemGroup')}</td>
+                        <td>{t('shcReport.table.planShc')} / {t('shcReport.table.storeShc')} / {t('shcReport.table.diff')}</td>
                     </tr>
                     {children.map((detail: ShcResultItem, index: number) => (
                          <tr key={index} class={`${styles.rowLevel} ${styles[`level-${level+1}`]} ${styles.detailRow}`}>
@@ -445,16 +445,16 @@ const ResultRow = ({ level, item, itemType, expandedRows, onToggle }: any) => {
                                 <div>{detail.articleNumber}</div>
                                 <div class={styles.subtext}>{detail.articleName}</div>
                             </td>
-                            <td>
-                                <div>{detail.planShc} / {detail.storeShc}</div>
-                                <div class={styles.diff}>{detail.diff}</div>
-                            </td>
-                            <td>
+                             <td>
                                 <div title={detail.settingSpecificallyFor}>{detail.settingSpecificallyFor}</div>
                                  <div class={styles['item-details-extra']}>
                                     <span class={styles.subtext}>{detail.settingWidth}</span>
-                                    <span class={styles.subtext} title={detail.itemGroup}>{detail.itemGroup.substring(0, 10)}{detail.itemGroup.length > 10 ? '...' : ''}</span>
+                                    <span class={styles.subtext} title={detail.itemGroup}>{detail.itemGroup}</span>
                                 </div>
+                            </td>
+                            <td>
+                                <div>{detail.planShc} / {detail.storeShc}</div>
+                                <div class={styles.diff}>{detail.diff}</div>
                             </td>
                         </tr>
                     ))}
