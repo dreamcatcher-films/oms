@@ -842,7 +842,7 @@ const App = () => {
           case 'status-report':
                 return <StatusReportView rdcList={rdcList} exclusionList={exclusionList} onUpdateExclusionList={() => {}} />;
           case 'shc-report':
-                return <ShcReportView counts={counts} />;
+                return <ShcReportView counts={counts} rdcList={rdcList} />;
           case 'simulations':
               return <SimulationView 
                 userSession={userSession} 
