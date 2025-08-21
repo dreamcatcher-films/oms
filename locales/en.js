@@ -477,7 +477,8 @@ export default {
       "stale": "Stale",
       "selectAll": "Select All",
       "deselectAll": "Deselect All",
-      "activeSectionsSummary": "{{active}} active of {{total}} available"
+      "activeSectionsSummary": "{{active}} active of {{total}} available",
+      "refreshOrder": "Refresh order within section"
     },
     "rdcSelector": {
       "label": "Select RDC",
