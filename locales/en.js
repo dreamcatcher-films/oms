@@ -479,7 +479,8 @@ export default {
       "storeShc": "Store SHC",
       "diff": "Difference",
       "section": "Section",
-      "itemGroup": "Item Group"
+      "itemGroup": "Item Group",
+      "sectionWidth": "Section width"
     }
   },
   "columns": {
