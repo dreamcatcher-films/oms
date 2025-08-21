@@ -101,6 +101,7 @@ export default {
     },
     "buttons": {
         "selectFile": "Select file",
+        "addFile": "Add File",
         "change": "Change",
         "reload": "Reload",
         "clear": "Clear Data"
@@ -429,7 +430,7 @@ export default {
       "readingFiles": "Reading files..."
     },
     "errors": {
-      "allFilesRequired": "All 4 data sets (SHC, Planogram, Org Structure, Category Relation) must be imported for today to run the analysis.",
+      "allFilesRequired": "All 4 data sets must be imported and an RDC must be selected to run the analysis.",
       "fileReadError": "An error occurred while reading one of the linked files."
     },
      "validation": {
@@ -458,6 +459,10 @@ export default {
       "selectAll": "Select All",
       "deselectAll": "Deselect All",
       "activeSectionsSummary": "{{active}} active of {{total}} available"
+    },
+    "rdcSelector": {
+      "label": "Select RDC",
+      "placeholder": "Select an RDC..."
     },
     "table": {
       "warehouse": "Warehouse",
