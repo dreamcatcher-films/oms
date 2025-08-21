@@ -446,7 +446,9 @@ export default {
       "addNew": "Add all new sections",
       "removeStale": "Remove all stale sections",
       "new": "New",
-      "stale": "Stale"
+      "stale": "Stale",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All"
     },
     "table": {
       "warehouse": "Warehouse",
