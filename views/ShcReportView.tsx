@@ -1,17 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import { useTranslation } from '../i18n';
-import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup } from '../utils/types';
-import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport, getUniqueRdcsFromOrgStructure } from '../db';
+import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup, RDC } from '../utils/types';
+import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport } from '../db';
 import styles from './ShcReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
 type Props = {
     counts: { [key in ShcDataType | 'orgStructure']: number };
+    rdcList: RDC[];
 };
 
 const SHC_CONFIG_KEY = 'shcSectionConfig';
 
-export const ShcReportView = ({ counts }: Props) => {
+export const ShcReportView = ({ counts, rdcList }: Props) => {
     const { t } = useTranslation();
     const workerRef = useRef<Worker | null>(null);
     const dragItem = useRef<number | null>(null);
@@ -37,7 +38,6 @@ export const ShcReportView = ({ counts }: Props) => {
     const [missingStores, setMissingStores] = useState<string[]>([]);
     const [storeCounts, setStoreCounts] = useState<{ shcStoreCount: number, orgStoreCount: number } | null>(null);
 
-    const [availableRdcs, setAvailableRdcs] = useState<string[]>([]);
     const [selectedRdc, setSelectedRdc] = useState<string>('');
 
     const canRunAnalysis = counts.shc > 0 && counts.planogram > 0 && counts.orgStructure > 0 && counts.categoryRelation > 0 && config !== null && selectedRdc !== '';
@@ -67,14 +67,6 @@ export const ShcReportView = ({ counts }: Props) => {
 
         return () => workerRef.current?.terminate();
     }, []);
-
-    useEffect(() => {
-        if (counts.orgStructure > 0) {
-            getUniqueRdcsFromOrgStructure().then(setAvailableRdcs);
-        } else {
-            setAvailableRdcs([]);
-        }
-    }, [counts.orgStructure]);
 
     const loadAndReconcileConfig = useCallback(async () => {
         setIsLoadingConfig(true);
@@ -252,7 +244,7 @@ export const ShcReportView = ({ counts }: Props) => {
                          <label for="rdc-select">{t('shcReport.rdcSelector.label')}</label>
                          <select id="rdc-select" value={selectedRdc} onChange={(e) => setSelectedRdc((e.target as HTMLSelectElement).value)}>
                             <option value="">{t('shcReport.rdcSelector.placeholder')}</option>
-                            {availableRdcs.map(rdc => <option key={rdc} value={rdc}>{rdc}</option>)}
+                            {rdcList.map(rdc => <option key={rdc.id} value={rdc.id}>{rdc.id} - {rdc.name}</option>)}
                          </select>
                     </div>
                     <button 
