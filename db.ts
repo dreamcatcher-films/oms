@@ -1,4 +1,4 @@
-import { RDC, DataType, ShcDataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow } from './utils/types';
+import { RDC, DataType, ShcDataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcSectionConfig } from './utils/types';
 
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
@@ -281,7 +281,7 @@ export const clearAllData = async (): Promise<void> => {
     // We only clear linked files.
     const allSettings = await loadAllSettings();
     for (const key of allSettings.keys()) {
-        if(key.startsWith('linkedFile:') || key.startsWith('shcLinkedFile:')) {
+        if(key.startsWith('linkedFile:')) {
             await deleteSetting(key);
         }
     }
@@ -926,4 +926,4 @@ export const getUniqueShcSections = async (): Promise<string[]> => {
 };
 
 export const clearExclusionList = (): Promise<void> => deleteSetting(EXCLUSION_LIST_KEY);
-export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest } from './utils/types';
+export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest, ShcSectionConfig } from './utils/types';
