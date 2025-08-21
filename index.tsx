@@ -11,6 +11,14 @@ import {
   clearGoodsReceipts,
   clearOpenOrders,
   clearSales,
+  addShcData,
+  addPlanogramData,
+  addOrgStructureData,
+  addCategoryRelationData,
+  clearShcData,
+  clearPlanogramData,
+  clearOrgStructureData,
+  clearCategoryRelationData,
   Sale,
   getImportMetadata,
   updateImportMetadata,
@@ -26,7 +34,7 @@ import {
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
-import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper } from './utils/parsing';
+import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper, shcRowMapper, parsePlanogramFileContents, orgStructureRowMapper, categoryRelationRowMapper } from './utils/parsing';
 import { Status, View, DataType, RDC, UserSession, ReportResultItem, ExclusionListData, ShcDataType } from './utils/types';
 
 import { LanguageSelector } from './components/LanguageSelector';
@@ -520,6 +528,9 @@ const App = () => {
           await saveSetting(`shcLinkedFile:${dataType}`, handle);
           setShcFiles(prev => new Map(prev).set(dataType, handle as FileSystemFileHandle));
           setStatusMessage({ text: t('settings.dataSources.linkSuccess'), type: 'success' });
+          // After linking, immediately process the file to populate the DB for preview
+          const file = await (handle as any).getFile();
+          await complexShcFileParse(dataType, file);
       } catch (err) {
           if ((err as Error).name !== 'AbortError') {
             console.error('Error linking file:', err);
@@ -624,6 +635,7 @@ const App = () => {
       await clearAllData();
       await performInitialCheck();
       setLinkedFiles(new Map());
+      setShcFiles(new Map());
       setStatusMessage({ text: t('status.clear.clearedAll'), type: 'success' });
     } catch (error) {
       console.error("Error clearing all data", error);
@@ -631,6 +643,131 @@ const App = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  const complexShcFileParse = async (dataType: ShcDataType, file: File) => {
+    setIsLoading(true);
+    const dataTypeName = t(`dataType.${dataType}`);
+    setStatusMessage({ text: t('status.import.preparing', { dataTypeName }), type: 'info', progress: 0 });
+
+    try {
+        const clearDbFn = {
+            'shc': clearShcData,
+            'planogram': clearPlanogramData,
+            'orgStructure': clearOrgStructureData,
+            'categoryRelation': clearCategoryRelationData,
+        }[dataType];
+        await clearDbFn();
+        setCounts(prev => ({ ...prev, [dataType]: 0 }));
+        
+        setStatusMessage({ text: t('status.import.starting', { dataTypeName }), type: 'info', progress: 0 });
+
+        const fileContent = await file.text();
+        let parsedData: any[] = [];
+        
+        if (dataType === 'planogram') {
+            parsedData = parsePlanogramFileContents(fileContent);
+        } else {
+            const isHeader = dataType === 'categoryRelation';
+            const papaResult = Papa.parse<any>(fileContent, {
+                header: isHeader,
+                skipEmptyLines: true,
+            });
+
+            let rows = papaResult.data;
+            if (!isHeader && rows.length > 0) {
+                 rows.shift();
+            }
+            
+            const rowMapper = {
+                'shc': shcRowMapper,
+                'orgStructure': orgStructureRowMapper,
+                'categoryRelation': categoryRelationRowMapper,
+            }[dataType];
+
+            // @ts-ignore
+            if (rowMapper) parsedData = rows.map(rowMapper).filter(Boolean);
+        }
+        
+        const addDbFn = {
+            'shc': addShcData,
+            'planogram': addPlanogramData,
+            'orgStructure': addOrgStructureData,
+            'categoryRelation': addCategoryRelationData,
+        }[dataType];
+        
+        if (parsedData.length > 0) {
+            for (let i = 0; i < parsedData.length; i += BATCH_SIZE) {
+                const batch = parsedData.slice(i, i + BATCH_SIZE);
+                await addDbFn(batch);
+                const currentCount = i + batch.length;
+                setStatusMessage({
+                    text: t('status.import.processing', { processedCount: currentCount.toLocaleString(language) }),
+                    type: 'info',
+                    progress: (currentCount / parsedData.length) * 100,
+                });
+            }
+        }
+        
+        await updateImportMetadata(dataType);
+        await performInitialCheck();
+        setStatusMessage({ text: t('status.import.complete', { processedCount: parsedData.length.toLocaleString(language), dataTypeName }), type: 'success' });
+
+    } catch (err) {
+        console.error(`Error processing SHC file for ${dataTypeName}`, err);
+        setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const handleReloadShcFile = async (dataType: ShcDataType) => {
+    const handle = shcFiles.get(dataType);
+    if (!handle) return Promise.reject();
+    
+    try {
+        const permission = await (handle as any).queryPermission({ mode: 'read' });
+        if (permission === 'denied') {
+            setStatusMessage({ text: t('settings.dataSources.permissionDenied'), type: 'error' });
+            return Promise.reject();
+        }
+        if (permission === 'prompt') {
+            if ((await (handle as any).requestPermission({ mode: 'read' })) !== 'granted') {
+                setStatusMessage({ text: t('settings.dataSources.permissionNeeded'), type: 'error' });
+                return Promise.reject();
+            }
+        }
+        const file = await (handle as any).getFile();
+        await complexShcFileParse(dataType, file);
+        return Promise.resolve();
+    } catch (e) {
+        console.error(`Could not read file for ${dataType}`, e);
+        setStatusMessage({ text: t('settings.dataSources.reloadError'), type: 'error' });
+        setIsLoading(false);
+        return Promise.reject();
+    }
+  };
+  
+  const handleClearShcFile = async (dataType: ShcDataType) => {
+      if (!confirm(`Are you sure you want to clear all ${t(`dataType.${dataType}`)} data? This cannot be undone.`)) return;
+
+      setIsLoading(true);
+      setStatusMessage({ text: t('status.clear.clearing', { dataTypeName: t(`dataType.${dataType}`) }), type: 'info' });
+      try {
+          switch (dataType) {
+              case 'shc': await clearShcData(); break;
+              case 'planogram': await clearPlanogramData(); break;
+              case 'orgStructure': await clearOrgStructureData(); break;
+              case 'categoryRelation': await clearCategoryRelationData(); break;
+          }
+          await performInitialCheck();
+          setStatusMessage({ text: t('status.clear.cleared', { dataTypeName: t(`dataType.${dataType}`) }), type: 'success' });
+      } catch (error) {
+          console.error(`Error clearing ${dataType}`, error);
+          setStatusMessage({ text: t('status.clear.clearError', { dataTypeName: t(`dataType.${dataType}`) }), type: 'error' });
+      } finally {
+          setIsLoading(false);
+      }
   };
   
   const handleLogin = (session: UserSession) => {
@@ -688,9 +825,11 @@ const App = () => {
                 counts={counts}
                 onFileSelect={handleFileSelect}
                 onClear={handleClearFile}
+                onClearShcFile={handleClearShcFile}
                 linkedFiles={linkedFiles}
                 shcFiles={shcFiles}
                 onReload={handleReloadFile}
+                onReloadShcFile={handleReloadShcFile}
                 userSession={userSession}
                 onLinkFile={handleLinkFile}
                 onClearLink={handleClearLink}
