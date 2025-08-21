@@ -943,37 +943,26 @@ export const getUniqueShcSections = async (): Promise<string[]> => {
 };
 
 export const getUniqueShcSectionsGrouped = async (): Promise<ShcSectionGroup[]> => {
-    const db = await openDB();
-    const transaction = db.transaction(CATEGORY_RELATION_STORE_NAME, 'readonly');
-    const store = transaction.objectStore(CATEGORY_RELATION_STORE_NAME);
-    const request = store.openCursor();
-    
+    const allRelations = await getAllCategoryRelationData();
     const groups = new Map<string, Set<string>>();
 
-    return new Promise((resolve, reject) => {
-        request.onsuccess = (event) => {
-            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-            if (cursor) {
-                const relation: CategoryRelationRow = cursor.value;
-                if (relation.generalStoreArea && relation.settingSpecificallyFor) {
-                    if (!groups.has(relation.generalStoreArea)) {
-                        groups.set(relation.generalStoreArea, new Set());
-                    }
-                    groups.get(relation.generalStoreArea)!.add(relation.settingSpecificallyFor);
-                }
-                cursor.continue();
-            } else {
-                const result: ShcSectionGroup[] = Array.from(groups.entries())
-                    .map(([groupName, sectionsSet]) => ({
-                        groupName,
-                        sections: Array.from(sectionsSet).sort(),
-                    }))
-                    .sort((a, b) => a.groupName.localeCompare(b.groupName));
-                resolve(result);
+    for (const relation of allRelations) {
+        if (relation.generalStoreArea && relation.settingSpecificallyFor) {
+            if (!groups.has(relation.generalStoreArea)) {
+                groups.set(relation.generalStoreArea, new Set());
             }
-        };
-        request.onerror = () => reject(request.error);
-    });
+            groups.get(relation.generalStoreArea)!.add(relation.settingSpecificallyFor);
+        }
+    }
+
+    const result: ShcSectionGroup[] = Array.from(groups.entries())
+        .map(([groupName, sectionsSet]) => ({
+            groupName,
+            sections: Array.from(sectionsSet).sort(),
+        }))
+        .sort((a, b) => a.groupName.localeCompare(b.groupName));
+    
+    return result;
 };
 
 const getUniqueStoreNumbersFromShc = async (): Promise<Set<string>> => {
