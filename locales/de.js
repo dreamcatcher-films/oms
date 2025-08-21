@@ -110,7 +110,11 @@ export default {
           "products": "Produkte",
           "goodsReceipts": "Wareneingang (eGIN)",
           "openOrders": "Offene Bestellungen",
-          "sales": "Verkäufe"
+          "sales": "Verkäufe",
+          "shc": "SHC-Daten",
+          "planogram": "Planogramm",
+          "orgStructure": "Org-Struktur",
+          "categoryRelation": "Kategorie-Beziehung"
       },
       "filters": {
           "warehouse": "Lager",
@@ -312,7 +316,11 @@ export default {
     "products": "Stammdaten",
     "goodsReceipts": "Wareneingänge",
     "openOrders": "Offene Bestellungen",
-    "sales": "Verkaufsdaten"
+    "sales": "Verkaufsdaten",
+    "shc": "Filialdaten (SHC)",
+    "planogram": "Planogramm",
+    "orgStructure": "Org-Struktur",
+    "categoryRelation": "Kategorie-Beziehung"
   },
   "threatReport": {
     "title": "Risikobericht",
@@ -500,6 +508,39 @@ export default {
       "productId": "Artikel-Nr.",
       "productName": "Produktname",
       "quantity": "Verkaufte Menge"
+    },
+    "shc": {
+        "storeNumber": "Filialnummer",
+        "itemNumber": "Artikelnummer",
+        "itemDescription": "Artikelbeschreibung",
+        "piecesInBox": "Stück/Karton",
+        "itemStatus": "Artikelstatus",
+        "itemGroup": "Warengruppe",
+        "shelfCapacity": "Regalkapazität (SHC)",
+        "shelfCapacityUnit": "SHC-Einheit"
+    },
+    "planogram": {
+        "generalStoreArea": "Allgemeiner Filialbereich",
+        "settingSpecificallyFor": "Einstellung für",
+        "settingWidth": "Einstellungsbreite",
+        "itemNumber": "Artikelnummer",
+        "itemName": "Artikelname",
+        "targetShc": "Ziel-SHC",
+        "facings": "Facings",
+        "depth": "Tiefe"
+    },
+    "orgStructure": {
+        "storeNumber": "Filialnummer",
+        "storeName": "Filialname",
+        "warehouseId": "Lager-ID",
+        "areaManager": "Area Manager",
+        "headOfSales": "Head of Sales"
+    },
+    "categoryRelation": {
+        "generalStoreArea": "Allgemeiner Filialbereich",
+        "settingSpecificallyFor": "Einstellung für",
+        "settingWidth": "Einstellungsbreite",
+        "storeNumber": "Filialnummer"
     }
   }
 }
