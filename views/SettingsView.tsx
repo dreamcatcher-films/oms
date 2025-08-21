@@ -19,6 +19,10 @@ type SettingsViewProps = {
     exclusionList: ExclusionListData;
     onImportExclusionListClick: () => void;
     onClearExclusionList: () => void;
+    shcExclusionList: Set<string>;
+    onImportShcExclusionList: () => void;
+    onExportShcExclusionList: () => void;
+    onClearShcExclusionList: () => void;
 };
 
 export const SettingsView = (props: SettingsViewProps) => {
@@ -36,7 +40,11 @@ export const SettingsView = (props: SettingsViewProps) => {
         onImportClick,
         exclusionList,
         onImportExclusionListClick,
-        onClearExclusionList
+        onClearExclusionList,
+        shcExclusionList,
+        onImportShcExclusionList,
+        onExportShcExclusionList,
+        onClearShcExclusionList,
     } = props;
     const { t } = useTranslation();
     const [newRdc, setNewRdc] = useState({ id: '', name: '' });
@@ -45,6 +53,7 @@ export const SettingsView = (props: SettingsViewProps) => {
     const isApiSupported = 'showOpenFilePicker' in window;
     const isHq = userSession?.mode === 'hq';
     const exclusionListSize = exclusionList.list.size;
+    const shcExclusionListSize = shcExclusionList.size;
 
     const handleAddRdc = (e: Event) => {
         e.preventDefault();
@@ -129,12 +138,23 @@ export const SettingsView = (props: SettingsViewProps) => {
             </div>
 
              <div class={styles['settings-section']}>
+                <h3>{t('settings.shcExclusionList.title')}</h3>
+                <p>{t('settings.shcExclusionList.description')}</p>
+                <p><strong>{t('settings.shcExclusionList.currentCount', { count: shcExclusionListSize })}</strong></p>
+                <div class={sharedStyles['filter-actions']}>
+                    <button class={sharedStyles['button-primary']} onClick={onImportShcExclusionList}>{t('settings.shcExclusionList.importButton')}</button>
+                    <button class={sharedStyles['button-secondary']} onClick={onExportShcExclusionList} disabled={shcExclusionListSize === 0}>{t('settings.shcExclusionList.exportButton')}</button>
+                    <button class={sharedStyles['button-clear']} onClick={onClearShcExclusionList} disabled={shcExclusionListSize === 0}>{t('settings.shcExclusionList.clearButton')}</button>
+                </div>
+            </div>
+
+             <div class={styles['settings-section']}>
                 <h3>{t('settings.exclusionList.title')}</h3>
                 <p>{t('settings.exclusionList.description')}</p>
                 <p><strong>{t('settings.exclusionList.currentCount', { count: exclusionListSize })}</strong></p>
                 <div class={sharedStyles['filter-actions']}>
                     <button class={sharedStyles['button-primary']} onClick={onImportExclusionListClick}>{t('settings.exclusionList.importButton')}</button>
-                    <button class={sharedStyles['button-secondary']} onClick={onClearExclusionList} disabled={exclusionListSize === 0}>{t('settings.exclusionList.clearButton')}</button>
+                    <button class={sharedStyles['button-clear']} onClick={onClearExclusionList} disabled={exclusionListSize === 0}>{t('settings.exclusionList.clearButton')}</button>
                 </div>
             </div>
 
