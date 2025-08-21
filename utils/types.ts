@@ -190,6 +190,48 @@ export type StatusReportWorkerMessage =
     | { type: 'complete', payload: StatusReportResultItem[] };
 
 // --- SHC vs Planogram Report Worker Types ---
+
+// Data structures for parsed files
+export type ShcDataRow = {
+    storeNumber: string;
+    itemNumber: string;
+    itemDescription: string;
+    piecesInBox: number;
+    itemStatus: string;
+    itemGroup: string;
+    shelfCapacity: number;
+    shelfCapacityUnit: string;
+};
+
+export type PlanogramRow = {
+    generalStoreArea: string; // X23
+    settingSpecificallyFor: string; // X24
+    settingWidth: string; // X25
+    itemNumber: string;
+    itemName: string;
+    targetShc: number; // Anzahl VSE
+    facings: number;
+    depth: number; // Fronts tief
+    locatorKey?: string;
+};
+
+export type OrgStructureRow = {
+    storeNumber: string;
+    storeName: string;
+    warehouseId: string;
+    areaManager: string;
+    headOfSales: string;
+};
+
+export type CategoryRelationRow = {
+    generalStoreArea: string; // Hierarchy03
+    settingSpecificallyFor: string; // Hierarchy04
+    settingWidth: string; // Hierarchy05
+    storeNumber: string;
+    locatorKey?: string;
+};
+
+
 export type ShcWorkerRequest = {
     files: {
         shc: string;
