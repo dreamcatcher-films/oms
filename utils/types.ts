@@ -113,16 +113,14 @@ export type Sale = {
 };
 
 export type ImportMeta = {
-    dataType: DataType;
+    dataType: DataType | ShcDataType;
     lastImported: Date;
 };
 
 export type ImportMetadata = {
-    products: ImportMeta | null;
-    goodsReceipts: ImportMeta | null;
-    openOrders: ImportMeta | null;
-    sales: ImportMeta | null;
+    [key in DataType | ShcDataType]: ImportMeta | null;
 };
+
 
 // --- Threat Report Worker Types ---
 export type WorkerRequest = {
@@ -193,6 +191,7 @@ export type StatusReportWorkerMessage =
 
 // Data structures for parsed files
 export type ShcDataRow = {
+    id?: number;
     storeNumber: string;
     itemNumber: string;
     itemDescription: string;
@@ -204,6 +203,7 @@ export type ShcDataRow = {
 };
 
 export type PlanogramRow = {
+    id?: number;
     generalStoreArea: string; // X23
     settingSpecificallyFor: string; // X24
     settingWidth: string; // X25
@@ -216,6 +216,7 @@ export type PlanogramRow = {
 };
 
 export type OrgStructureRow = {
+    id?: number;
     storeNumber: string;
     storeName: string;
     warehouseId: string;
@@ -224,6 +225,7 @@ export type OrgStructureRow = {
 };
 
 export type CategoryRelationRow = {
+    id?: number;
     generalStoreArea: string; // Hierarchy03
     settingSpecificallyFor: string; // Hierarchy04
     settingWidth: string; // Hierarchy05
@@ -233,12 +235,6 @@ export type CategoryRelationRow = {
 
 
 export type ShcWorkerRequest = {
-    files: {
-        shc: string;
-        planogram: string;
-        orgStructure: string;
-        categoryRelation: string;
-    };
     sectionConfig: ShcSectionConfig;
 };
 
