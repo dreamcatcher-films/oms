@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import { useTranslation } from '../i18n';
 import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup } from '../utils/types';
-import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport } from '../db';
+import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport, getUniqueRdcsFromOrgStructure } from '../db';
 import styles from './ShcReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
@@ -37,7 +37,10 @@ export const ShcReportView = ({ counts }: Props) => {
     const [missingStores, setMissingStores] = useState<string[]>([]);
     const [storeCounts, setStoreCounts] = useState<{ shcStoreCount: number, orgStoreCount: number } | null>(null);
 
-    const canRunAnalysis = counts.shc > 0 && counts.planogram > 0 && counts.orgStructure > 0 && counts.categoryRelation > 0 && config !== null;
+    const [availableRdcs, setAvailableRdcs] = useState<string[]>([]);
+    const [selectedRdc, setSelectedRdc] = useState<string>('');
+
+    const canRunAnalysis = counts.shc > 0 && counts.planogram > 0 && counts.orgStructure > 0 && counts.categoryRelation > 0 && config !== null && selectedRdc !== '';
 
     useEffect(() => {
         workerRef.current = new Worker(new URL('../shc.worker.ts', import.meta.url), { type: 'module' });
@@ -61,6 +64,11 @@ export const ShcReportView = ({ counts }: Props) => {
                     break;
             }
         };
+
+        (async () => {
+            const rdcs = await getUniqueRdcsFromOrgStructure();
+            setAvailableRdcs(rdcs);
+        })();
 
         return () => workerRef.current?.terminate();
     }, []);
@@ -114,15 +122,15 @@ export const ShcReportView = ({ counts }: Props) => {
         setExpandedRows(new Set());
         setProgress({ message: t('shcReport.status.readingFiles'), percentage: 0 });
 
-        const counts = await getStoreCountsForShcReport();
+        const counts = await getStoreCountsForShcReport(selectedRdc);
         setStoreCounts(counts);
 
-        workerRef.current.postMessage({ sectionConfig: config });
+        workerRef.current.postMessage({ sectionConfig: config, rdcId: selectedRdc });
     };
 
     const handleRunAnalysis = async () => {
         if (!canRunAnalysis || isLoading) return;
-        const missing = await validateStoresExistInShc();
+        const missing = await validateStoresExistInShc(selectedRdc);
         if (missing.length > 0) {
             setMissingStores(missing);
             setIsValidationModalVisible(true);
@@ -237,6 +245,13 @@ export const ShcReportView = ({ counts }: Props) => {
                 <h3>{t('sidebar.shcReport')}</h3>
                 <p>{t('shcReport.description')}</p>
                  <div class={sharedStyles['filter-actions']}>
+                    <div class={styles['rdc-selector-group']}>
+                         <label for="rdc-select">{t('shcReport.rdcSelector.label')}</label>
+                         <select id="rdc-select" value={selectedRdc} onChange={(e) => setSelectedRdc((e.target as HTMLSelectElement).value)}>
+                            <option value="">{t('shcReport.rdcSelector.placeholder')}</option>
+                            {availableRdcs.map(rdc => <option key={rdc} value={rdc}>{rdc}</option>)}
+                         </select>
+                    </div>
                     <button 
                         class={sharedStyles['button-primary']} 
                         onClick={handleRunAnalysis}
