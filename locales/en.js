@@ -433,7 +433,8 @@ export default {
     },
     "results": {
       "title": "Analysis Results",
-      "placeholder": "Run the analysis to see the results here."
+      "placeholder": "Run the analysis to see the results here.",
+      "mismatchesTitle": "Data Mismatches"
     }
   },
   "columns": {
