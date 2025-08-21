@@ -235,7 +235,7 @@ export type CategoryRelationRow = {
 
 
 export type ShcWorkerRequest = {
-    sectionConfig: ShcSectionConfig;
+    sectionConfig: ShcSectionConfigItem[];
 };
 
 export type ShcResultItem = {
@@ -258,16 +258,19 @@ export type ShcStoreResult = {
 
 export type ShcManagerResult = {
     managerName: string;
+    discrepancyCount: number;
     stores: ShcStoreResult[];
 };
 
 export type ShcHeadOfSalesResult = {
     hosName: string;
+    discrepancyCount: number;
     managers: ShcManagerResult[];
 };
 
 export type ShcWarehouseResult = {
     warehouseName: string;
+    discrepancyCount: number;
     hos: ShcHeadOfSalesResult[];
 };
 
@@ -290,10 +293,7 @@ export type ShcSectionConfigItem = {
     enabled: boolean;
 };
 
-export type ShcSectionConfig = {
-    sections: ShcSectionConfigItem[];
-    order: string[];
-};
+export type ShcSectionConfig = ShcSectionConfigItem[];
 
 export type ShcWorkerMessage = 
     | { type: 'progress', payload: ShcWorkerProgressPayload }
