@@ -263,7 +263,7 @@ export const parsePlanogramFileContents = (rows: any[][]): PlanogramRow[] => {
 export const orgStructureRowMapper = (row: string[]): OrgStructureRow => ({
     storeNumber: normalizeStoreNumber(row[0]),
     storeName: row[1]?.trim() || '',
-    warehouseId: row[3]?.trim().substring(0, 3) || '',
+    warehouseId: row[4]?.trim().substring(0, 3) || '',
     areaManager: row[12]?.trim() || '',
     headOfSales: row[13]?.trim() || '',
 });
