@@ -34,7 +34,7 @@ import {
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
-import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper, shcRowMapper, parsePlanogramFileContents, orgStructureRowMapper, categoryRelationRowMapper } from './utils/parsing';
+import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper, parseShcFile } from './utils/parsing';
 import { Status, View, DataType, RDC, UserSession, ReportResultItem, ExclusionListData, ShcDataType } from './utils/types';
 
 import { LanguageSelector } from './components/LanguageSelector';
@@ -662,32 +662,7 @@ const App = () => {
         
         setStatusMessage({ text: t('status.import.starting', { dataTypeName }), type: 'info', progress: 0 });
 
-        const fileContent = await file.text();
-        let parsedData: any[] = [];
-        
-        if (dataType === 'planogram') {
-            parsedData = parsePlanogramFileContents(fileContent);
-        } else {
-            const isHeader = dataType === 'categoryRelation';
-            const papaResult = Papa.parse<any>(fileContent, {
-                header: isHeader,
-                skipEmptyLines: true,
-            });
-
-            let rows = papaResult.data;
-            if (!isHeader && rows.length > 0) {
-                 rows.shift();
-            }
-            
-            const rowMapper = {
-                'shc': shcRowMapper,
-                'orgStructure': orgStructureRowMapper,
-                'categoryRelation': categoryRelationRowMapper,
-            }[dataType];
-
-            // @ts-ignore
-            if (rowMapper) parsedData = rows.map(rowMapper).filter(Boolean);
-        }
+        const parsedData = await parseShcFile(dataType, file);
         
         const addDbFn = {
             'shc': addShcData,
