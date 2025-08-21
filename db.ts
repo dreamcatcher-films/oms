@@ -1,13 +1,17 @@
-import { RDC, DataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData } from './utils/types';
+import { RDC, DataType, ShcDataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow } from './utils/types';
 
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
 const GOODS_RECEIPTS_STORE_NAME = 'goodsReceipts';
 const OPEN_ORDERS_STORE_NAME = 'openOrders';
 const SALES_STORE_NAME = 'sales';
+const SHC_STORE_NAME = 'shc';
+const PLANOGRAM_STORE_NAME = 'planogram';
+const ORG_STRUCTURE_STORE_NAME = 'orgStructure';
+const CATEGORY_RELATION_STORE_NAME = 'categoryRelation';
 const METADATA_STORE_NAME = 'importMetadata';
 const SETTINGS_STORE_NAME = 'settings';
-const DB_VERSION = 12; 
+const DB_VERSION = 13; 
 
 const RDC_LIST_KEY = 'rdcList';
 const EXCLUSION_LIST_KEY = 'exclusionList';
@@ -34,6 +38,10 @@ export type DBStatus = {
   goodsReceiptsCount: number;
   openOrdersCount: number;
   salesCount: number;
+  shcCount: number;
+  planogramCount: number;
+  orgStructureCount: number;
+  categoryRelationCount: number;
 };
 
 const openDB = (): Promise<IDBDatabase> => {
@@ -139,6 +147,25 @@ const openDB = (): Promise<IDBDatabase> => {
               productsStore.deleteIndex('shortIdIndex');
           }
       }
+
+      if (oldVersion < 13) {
+        if (!db.objectStoreNames.contains(SHC_STORE_NAME)) {
+            const store = db.createObjectStore(SHC_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            store.createIndex('storeNumberIndex', 'storeNumber');
+        }
+        if (!db.objectStoreNames.contains(PLANOGRAM_STORE_NAME)) {
+            const store = db.createObjectStore(PLANOGRAM_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            store.createIndex('itemNumberIndex', 'itemNumber');
+        }
+        if (!db.objectStoreNames.contains(ORG_STRUCTURE_STORE_NAME)) {
+            const store = db.createObjectStore(ORG_STRUCTURE_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            store.createIndex('storeNumberIndex', 'storeNumber');
+        }
+        if (!db.objectStoreNames.contains(CATEGORY_RELATION_STORE_NAME)) {
+            const store = db.createObjectStore(CATEGORY_RELATION_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            store.createIndex('storeNumberIndex', 'storeNumber');
+        }
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -152,15 +179,10 @@ const addDataInBatches = async <T>(storeName: string, data: T[]) => {
     const transaction = db.transaction(storeName, 'readwrite');
     const store = transaction.objectStore(storeName);
 
-    const promises = data.map(item => {
-        return new Promise<void>((resolve, reject) => {
-            const request = store.put(item);
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-        });
-    });
-
-    await Promise.all(promises);
+    // No need for individual promises, let the transaction handle it.
+    for (const item of data) {
+        store.put(item);
+    }
     
     return new Promise<void>((resolve, reject) => {
         transaction.oncomplete = () => resolve();
@@ -172,6 +194,10 @@ export const addProducts = (products: Product[]) => addDataInBatches(PRODUCTS_ST
 export const addGoodsReceipts = (receipts: GoodsReceipt[]) => addDataInBatches(GOODS_RECEIPTS_STORE_NAME, receipts);
 export const addOpenOrders = (orders: OpenOrder[]) => addDataInBatches(OPEN_ORDERS_STORE_NAME, orders);
 export const addSales = (sales: Sale[]) => addDataInBatches(SALES_STORE_NAME, sales);
+export const addShcData = (data: ShcDataRow[]) => addDataInBatches(SHC_STORE_NAME, data);
+export const addPlanogramData = (data: PlanogramRow[]) => addDataInBatches(PLANOGRAM_STORE_NAME, data);
+export const addOrgStructureData = (data: OrgStructureRow[]) => addDataInBatches(ORG_STRUCTURE_STORE_NAME, data);
+export const addCategoryRelationData = (data: CategoryRelationRow[]) => addDataInBatches(CATEGORY_RELATION_STORE_NAME, data);
 
 const clearStore = async (storeName: string) => {
     const db = await openDB();
@@ -184,7 +210,7 @@ const clearStore = async (storeName: string) => {
     });
 };
 
-const clearDataAndMetadata = async (storeName: string, dataType: DataType) => {
+const clearDataAndMetadata = async (storeName: string, dataType: DataType | ShcDataType) => {
     await clearStore(storeName);
     const db = await openDB();
     const transaction = db.transaction(METADATA_STORE_NAME, 'readwrite');
@@ -200,40 +226,44 @@ export const clearProducts = () => clearDataAndMetadata(PRODUCTS_STORE_NAME, 'pr
 export const clearGoodsReceipts = () => clearDataAndMetadata(GOODS_RECEIPTS_STORE_NAME, 'goodsReceipts');
 export const clearOpenOrders = () => clearDataAndMetadata(OPEN_ORDERS_STORE_NAME, 'openOrders');
 export const clearSales = () => clearDataAndMetadata(SALES_STORE_NAME, 'sales');
+export const clearShcData = () => clearDataAndMetadata(SHC_STORE_NAME, 'shc');
+export const clearPlanogramData = () => clearDataAndMetadata(PLANOGRAM_STORE_NAME, 'planogram');
+export const clearOrgStructureData = () => clearDataAndMetadata(ORG_STRUCTURE_STORE_NAME, 'orgStructure');
+export const clearCategoryRelationData = () => clearDataAndMetadata(CATEGORY_RELATION_STORE_NAME, 'categoryRelation');
 
 export const checkDBStatus = async (): Promise<DBStatus> => {
     try {
         const db = await openDB();
-        const transaction = db.transaction([PRODUCTS_STORE_NAME, GOODS_RECEIPTS_STORE_NAME, OPEN_ORDERS_STORE_NAME, SALES_STORE_NAME], 'readonly');
-        const productsStore = transaction.objectStore(PRODUCTS_STORE_NAME);
-        const goodsReceiptsStore = transaction.objectStore(GOODS_RECEIPTS_STORE_NAME);
-        const openOrdersStore = transaction.objectStore(OPEN_ORDERS_STORE_NAME);
-        const salesStore = transaction.objectStore(SALES_STORE_NAME);
+        const storeNames = [
+            PRODUCTS_STORE_NAME, GOODS_RECEIPTS_STORE_NAME, OPEN_ORDERS_STORE_NAME, SALES_STORE_NAME,
+            SHC_STORE_NAME, PLANOGRAM_STORE_NAME, ORG_STRUCTURE_STORE_NAME, CATEGORY_RELATION_STORE_NAME
+        ];
+        const transaction = db.transaction(storeNames, 'readonly');
+        
+        const counts = await Promise.all(storeNames.map(name => {
+            return new Promise<number>((resolve, reject) => {
+                const request = transaction.objectStore(name).count();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }));
 
-        const productsCountRequest = productsStore.count();
-        const goodsReceiptsCountRequest = goodsReceiptsStore.count();
-        const openOrdersCountRequest = openOrdersStore.count();
-        const salesCountRequest = salesStore.count();
+        return {
+            productsCount: counts[0],
+            goodsReceiptsCount: counts[1],
+            openOrdersCount: counts[2],
+            salesCount: counts[3],
+            shcCount: counts[4],
+            planogramCount: counts[5],
+            orgStructureCount: counts[6],
+            categoryRelationCount: counts[7],
+        };
 
-        return new Promise((resolve, reject) => {
-            let productsCount = 0;
-            let goodsReceiptsCount = 0;
-            let openOrdersCount = 0;
-            let salesCount = 0;
-
-            productsCountRequest.onsuccess = () => { productsCount = productsCountRequest.result; };
-            goodsReceiptsCountRequest.onsuccess = () => { goodsReceiptsCount = goodsReceiptsCountRequest.result; };
-            openOrdersCountRequest.onsuccess = () => { openOrdersCount = openOrdersCountRequest.result; };
-            salesCountRequest.onsuccess = () => { salesCount = salesCountRequest.result; };
-            
-            transaction.oncomplete = () => {
-                resolve({ productsCount, goodsReceiptsCount, openOrdersCount, salesCount });
-            };
-            
-            transaction.onerror = () => { reject(transaction.error); };
-        });
     } catch (e) {
-        return { productsCount: 0, goodsReceiptsCount: 0, openOrdersCount: 0, salesCount: 0 };
+        return { 
+            productsCount: 0, goodsReceiptsCount: 0, openOrdersCount: 0, salesCount: 0,
+            shcCount: 0, planogramCount: 0, orgStructureCount: 0, categoryRelationCount: 0 
+        };
     }
 };
 
@@ -242,16 +272,70 @@ export const clearAllData = async (): Promise<void> => {
     await clearStore(GOODS_RECEIPTS_STORE_NAME);
     await clearStore(OPEN_ORDERS_STORE_NAME);
     await clearStore(SALES_STORE_NAME);
+    await clearStore(SHC_STORE_NAME);
+    await clearStore(PLANOGRAM_STORE_NAME);
+    await clearStore(ORG_STRUCTURE_STORE_NAME);
+    await clearStore(CATEGORY_RELATION_STORE_NAME);
     await clearStore(METADATA_STORE_NAME);
     // Note: This does NOT clear the SETTINGS_STORE_NAME to preserve RDC list, etc.
     // We only clear linked files.
     const allSettings = await loadAllSettings();
     for (const key of allSettings.keys()) {
-        if(key.startsWith('linkedFile:')) {
+        if(key.startsWith('linkedFile:') || key.startsWith('shcLinkedFile:')) {
             await deleteSetting(key);
         }
     }
 };
+
+const getPaginatedData = async <T>(storeName: string, page: number, pageSize: number): Promise<{ data: T[], total: number }> => {
+    const db = await openDB();
+    const transaction = db.transaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+
+    const totalReq = store.count();
+    
+    return new Promise((resolve, reject) => {
+        totalReq.onsuccess = () => {
+            const total = totalReq.result;
+            const data: T[] = [];
+            if (total === 0) {
+                resolve({ data, total });
+                return;
+            }
+
+            const cursorReq = store.openCursor();
+            let advanced = false;
+            const offset = (page - 1) * pageSize;
+
+            cursorReq.onsuccess = (e) => {
+                const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+                if (!cursor) {
+                    resolve({ data, total });
+                    return;
+                }
+                if (!advanced && offset > 0) {
+                    cursor.advance(offset);
+                    advanced = true;
+                    return;
+                }
+                if (data.length < pageSize) {
+                    data.push(cursor.value);
+                    cursor.continue();
+                } else {
+                    resolve({ data, total });
+                }
+            };
+            cursorReq.onerror = () => reject(cursorReq.error);
+        };
+        totalReq.onerror = () => reject(totalReq.error);
+    });
+};
+
+export const getShcDataPaginated = (page: number, pageSize: number) => getPaginatedData<ShcDataRow>(SHC_STORE_NAME, page, pageSize);
+export const getPlanogramDataPaginated = (page: number, pageSize: number) => getPaginatedData<PlanogramRow>(PLANOGRAM_STORE_NAME, page, pageSize);
+export const getOrgStructureDataPaginated = (page: number, pageSize: number) => getPaginatedData<OrgStructureRow>(ORG_STRUCTURE_STORE_NAME, page, pageSize);
+export const getCategoryRelationDataPaginated = (page: number, pageSize: number) => getPaginatedData<CategoryRelationRow>(CATEGORY_RELATION_STORE_NAME, page, pageSize);
+
 
 export const getProductsPaginatedAndFiltered = async (
     page: number,
@@ -644,6 +728,21 @@ export const getProductDetails = async (warehouseId: string, fullProductId: stri
     });
 };
 
+const getAllFromStore = async <T>(storeName: string): Promise<T[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    const request = store.getAll();
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+            resolve(request.result ?? []);
+        };
+        request.onerror = () => {
+            reject(request.error);
+        };
+    });
+};
+
 const getAllFromIndex = async <T>(storeName: string, indexName: string, key: IDBValidKey): Promise<T[]> => {
     const db = await openDB();
     const transaction = db.transaction(storeName, 'readonly');
@@ -661,35 +760,13 @@ const getAllFromIndex = async <T>(storeName: string, indexName: string, key: IDB
     });
 };
 
-export const getAllProducts = async (): Promise<Product[]> => {
-    const db = await openDB();
-    const transaction = db.transaction(PRODUCTS_STORE_NAME, 'readonly');
-    const store = transaction.objectStore(PRODUCTS_STORE_NAME);
-    const request = store.getAll();
-    return new Promise((resolve, reject) => {
-        request.onsuccess = () => {
-            resolve(request.result ?? []);
-        };
-        request.onerror = () => {
-            reject(request.error);
-        };
-    });
-};
+export const getAllProducts = (): Promise<Product[]> => getAllFromStore<Product>(PRODUCTS_STORE_NAME);
+export const getAllOpenOrders = (): Promise<OpenOrder[]> => getAllFromStore<OpenOrder>(OPEN_ORDERS_STORE_NAME);
+export const getAllShcData = (): Promise<ShcDataRow[]> => getAllFromStore<ShcDataRow>(SHC_STORE_NAME);
+export const getAllPlanogramData = (): Promise<PlanogramRow[]> => getAllFromStore<PlanogramRow>(PLANOGRAM_STORE_NAME);
+export const getAllOrgStructureData = (): Promise<OrgStructureRow[]> => getAllFromStore<OrgStructureRow>(ORG_STRUCTURE_STORE_NAME);
+export const getAllCategoryRelationData = (): Promise<CategoryRelationRow[]> => getAllFromStore<CategoryRelationRow>(CATEGORY_RELATION_STORE_NAME);
 
-export const getAllOpenOrders = async (): Promise<OpenOrder[]> => {
-    const db = await openDB();
-    const transaction = db.transaction(OPEN_ORDERS_STORE_NAME, 'readonly');
-    const store = transaction.objectStore(OPEN_ORDERS_STORE_NAME);
-    const request = store.getAll();
-    return new Promise((resolve, reject) => {
-        request.onsuccess = () => {
-            resolve(request.result ?? []);
-        };
-        request.onerror = () => {
-            reject(request.error);
-        };
-    });
-};
 
 export const getAllGoodsReceiptsForProduct = (warehouseId: string, fullProductId: string): Promise<GoodsReceipt[]> => {
     return getAllFromIndex<GoodsReceipt>(GOODS_RECEIPTS_STORE_NAME, 'productIndex', [warehouseId, fullProductId]);
@@ -703,7 +780,7 @@ export const getAllSalesForProduct = (warehouseId: string, productId: string): P
     return getAllFromIndex<Sale>(SALES_STORE_NAME, 'productIndex', [warehouseId, productId]);
 };
 
-export const updateImportMetadata = async (dataType: DataType): Promise<void> => {
+export const updateImportMetadata = async (dataType: DataType | ShcDataType): Promise<void> => {
     const db = await openDB();
     const transaction = db.transaction(METADATA_STORE_NAME, 'readwrite');
     const store = transaction.objectStore(METADATA_STORE_NAME);
@@ -728,10 +805,14 @@ export const getImportMetadata = async (): Promise<ImportMetadata> => {
                 goodsReceipts: null,
                 openOrders: null,
                 sales: null,
+                shc: null,
+                planogram: null,
+                orgStructure: null,
+                categoryRelation: null,
             };
             const allMeta = request.result as ImportMeta[];
             allMeta.forEach(meta => {
-                result[meta.dataType] = meta;
+                (result as any)[meta.dataType] = meta;
             });
             resolve(result);
         };
