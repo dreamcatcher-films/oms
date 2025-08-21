@@ -435,6 +435,30 @@ export default {
       "title": "Analysis Results",
       "placeholder": "Run the analysis to see the results here.",
       "mismatchesTitle": "Data Mismatches"
+    },
+    "config": {
+      "title": "Section Configuration",
+      "description": "Select and reorder the sections to be included in the analysis. Drag and drop to change the order.",
+      "save": "Save Configuration",
+      "saved": "Configuration saved.",
+      "unsaved": "You have unsaved changes.",
+      "addNew": "Add all new sections",
+      "removeStale": "Remove all stale sections",
+      "new": "New",
+      "stale": "Stale"
+    },
+    "table": {
+      "warehouse": "Warehouse",
+      "hos": "Head of Sales",
+      "am": "Area Manager",
+      "store": "Store",
+      "discrepancies": "Discrepancies",
+      "itemNumber": "Item Number",
+      "itemName": "Item Name",
+      "planShc": "Plan SHC",
+      "storeShc": "Store SHC",
+      "diff": "Difference",
+      "section": "Section"
     }
   },
   "columns": {
