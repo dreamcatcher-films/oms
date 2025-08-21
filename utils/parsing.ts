@@ -1,4 +1,5 @@
-import { Product, GoodsReceipt, OpenOrder, Sale } from '../db';
+import Papa from 'papaparse';
+import { Product, GoodsReceipt, OpenOrder, Sale, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow } from '../db';
 
 export const parseDateToObj = (dateStr: string | undefined): Date | null => {
     if (!dateStr) return null;
@@ -199,5 +200,75 @@ export const saleRowMapper = (row: string[]): Sale | null => {
         productName,
         quantity,
         resaleDateSortable: parseDateToSortableFormat(resaleDate),
+    };
+};
+
+// --- SHC vs Planogram Parsers ---
+
+export const shcRowMapper = (row: string[]): ShcDataRow => ({
+    storeNumber: row[0]?.trim() || '',
+    itemNumber: row[2]?.trim() || '',
+    itemDescription: row[3]?.trim() || '',
+    piecesInBox: parseInt(row[4], 10) || 0,
+    itemStatus: row[5]?.trim() || '',
+    itemGroup: row[9]?.trim() || '',
+    shelfCapacity: parseInt(row[19], 10) || 0,
+    shelfCapacityUnit: row[21]?.trim() || '',
+});
+
+export const parsePlanogramFileContents = (fileContent: string): PlanogramRow[] => {
+    const results = Papa.parse<string[]>(fileContent, { skipEmptyLines: true });
+    const data: PlanogramRow[] = [];
+    let lastSectionDescX23 = '';
+    let lastSectionDescX24 = '';
+    let lastSectionDescX25 = '';
+
+    // Skip header if it exists
+    const startIndex = results.data[0]?.[0]?.toLowerCase().includes('section') ? 1 : 0;
+
+    for (let i = startIndex; i < results.data.length; i++) {
+        const row = results.data[i];
+        const currentSectionDescX23 = row[2]?.trim() || lastSectionDescX23;
+        const currentSectionDescX24 = row[3]?.trim() || lastSectionDescX24;
+        const currentSectionDescX25 = row[4]?.trim() || lastSectionDescX25;
+        
+        if (row[5]?.trim()) {
+            data.push({
+                generalStoreArea: currentSectionDescX23,
+                settingSpecificallyFor: currentSectionDescX24,
+                settingWidth: currentSectionDescX25,
+                itemNumber: row[5]?.trim(),
+                itemName: row[6]?.trim(),
+                targetShc: parseInt(row[7], 10) || 0,
+                facings: parseInt(row[8], 10) || 0,
+                depth: parseInt(row[9], 10) || 0,
+            });
+        }
+
+        lastSectionDescX23 = currentSectionDescX23;
+        lastSectionDescX24 = currentSectionDescX24;
+        lastSectionDescX25 = currentSectionDescX25;
+    }
+    return data;
+};
+
+export const orgStructureRowMapper = (row: string[]): OrgStructureRow => ({
+    storeNumber: row[0]?.trim() || '',
+    storeName: row[1]?.trim() || '',
+    warehouseId: row[3]?.trim().substring(0, 3) || '',
+    areaManager: row[12]?.trim() || '',
+    headOfSales: row[13]?.trim() || '',
+});
+
+export const categoryRelationRowMapper = (row: { [key: string]: string }): CategoryRelationRow => {
+    const storeName = row['StoreName']?.trim() || '';
+    const storeNumberMatch = storeName.match(/(\d{4})$/);
+    const storeNumber = storeNumberMatch ? String(parseInt(storeNumberMatch[1], 10)) : '';
+
+    return {
+        generalStoreArea: row['CategoryHierarchy03']?.trim() || '',
+        settingSpecificallyFor: row['CategoryHierarchy04']?.trim() || '',
+        settingWidth: row['CategoryHierarchy05']?.trim() || '',
+        storeNumber,
     };
 };
