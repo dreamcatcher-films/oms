@@ -28,8 +28,6 @@ const getWeekNumber = (d: Date) => {
 export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusionList }: Props) => {
     const { t } = useTranslation();
     const workerRef = useRef<Worker | null>(null);
-    const dragItem = useRef<number | null>(null);
-    const dragOverItem = useRef<number | null>(null);
 
     const [isLoading, setIsLoading] = useState(false);
     const [progress, setProgress] = useState<{ message: string; percentage: number } | null>(null);
@@ -93,15 +91,20 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             const dbSections = dbGroups.flatMap(g => g.sections);
             const dbSectionsSet = new Set(dbSections);
             
-            let currentConfig: ShcSectionConfigItem[] = savedConfig || dbSections.map(id => ({ id, enabled: true }));
+            let currentConfig: ShcSectionConfigItem[] = savedConfig || dbSections.map((id, index) => ({ id, enabled: true, order: index + 1 }));
             
             const configSectionsSet = new Set(currentConfig.map(s => s.id));
             const foundNew = dbSections.filter(s => !configSectionsSet.has(s));
             const foundStale = currentConfig.filter(s => !dbSectionsSet.has(s.id)).map(s => s.id);
 
-            let reconciledConfig = [...currentConfig];
+            let reconciledConfig = currentConfig.map((item, index) => ({
+                ...item,
+                order: item.order ?? index + 1
+            }));
+
             if (foundNew.length > 0) {
-                reconciledConfig.push(...foundNew.map(id => ({ id, enabled: true })));
+                 const maxOrder = Math.max(0, ...reconciledConfig.map(c => c.order));
+                reconciledConfig.push(...foundNew.map((id, index) => ({ id, enabled: true, order: maxOrder + index + 1 })));
             }
 
             setNewSections(foundNew);
@@ -220,18 +223,27 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const newConfig = config.map(section => sectionsSet.has(section.id) ? { ...section, enabled: false } : section);
         handleConfigChange(newConfig);
     };
-
-    const handleDragStart = (e: DragEvent, position: number) => { dragItem.current = position; };
-    const handleDragEnter = (e: DragEvent, position: number) => { dragOverItem.current = position; };
-
-    const handleDrop = (e: DragEvent) => {
-        if (config === null || dragItem.current === null || dragOverItem.current === null) return;
-        const newConfig = [...config];
-        const dragItemContent = newConfig.splice(dragItem.current, 1)[0];
-        newConfig.splice(dragOverItem.current, 0, dragItemContent);
-        dragItem.current = null;
-        dragOverItem.current = null;
+    
+    const handleOrderChange = (sectionId: string, newOrder: number) => {
+        if (!config) return;
+        const newConfig = config.map(item =>
+            item.id === sectionId ? { ...item, order: newOrder } : item
+        );
         handleConfigChange(newConfig);
+    };
+    
+    const handleRefreshOrder = (groupName: string) => {
+        if (!config) return;
+        const group = sectionGroups.find(g => g.groupName === groupName);
+        if (!group) return;
+
+        const sectionsInGroup = new Set(group.sections);
+        const groupItems = config.filter(c => sectionsInGroup.has(c.id));
+        const otherItems = config.filter(c => !sectionsInGroup.has(c.id));
+
+        groupItems.sort((a, b) => a.order - b.order);
+
+        handleConfigChange([...otherItems, ...groupItems]);
     };
 
     const toggleRow = (key: string) => {
@@ -456,7 +468,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                     <button class={styles['action-button']} onClick={() => handleDeselectAll()}>{t('shcReport.config.deselectAll')}</button>
                 </div>
                 {isLoadingConfig ? <div class={sharedStyles.spinner} /> : (
-                    <div onDragEnd={handleDrop}>
+                    <div>
                         {sectionGroups.map(group => {
                             const sectionsInGroup = config?.filter(c => group.sections.includes(c.id)) || [];
                             if (sectionsInGroup.length === 0) return null;
@@ -466,7 +478,12 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                             return (
                                 <div class={styles['section-group']} key={group.groupName}>
                                     <div class={styles['section-group-header']} onClick={() => toggleGroup(group.groupName)}>
-                                        <span class={styles['section-group-title']}>{group.groupName}</span>
+                                        <div class={styles['section-group-title']}>
+                                            <span>{group.groupName}</span>
+                                            <button class={styles['refresh-order-button']} onClick={(e) => { e.stopPropagation(); handleRefreshOrder(group.groupName); }}>
+                                                {t('shcReport.config.refreshOrder')}
+                                            </button>
+                                        </div>
                                         <div class={styles['section-group-summary']}>
                                             <span class={styles['section-group-counts']}>{t('shcReport.config.activeSectionsSummary', { active: activeCount, total: sectionsInGroup.length })}</span>
                                             <span class={`${styles['section-group-toggle']} ${isGroupExpanded ? styles.expanded : ''}`}>▶</span>
@@ -474,16 +491,19 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                     </div>
                                     <div class={`${styles['section-group-content']} ${isGroupExpanded ? styles.expanded : ''}`}>
                                         <ul class={styles['section-list']}>
-                                            {config?.map((section, index) => {
-                                                if (!group.sections.includes(section.id)) return null;
+                                            {config?.filter(c => group.sections.includes(c.id)).sort((a,b) => a.order - b.order).map(section => {
                                                 return (
-                                                    <li key={section.id} draggable onDragStart={(e) => handleDragStart(e, index)} onDragEnter={(e) => handleDragEnter(e, index)} onDragOver={(e) => e.preventDefault()} class={styles['section-item']}>
-                                                        <span class={styles['drag-handle']}>☰</span>
+                                                    <li key={section.id} class={styles['section-item']}>
                                                         <input type="checkbox" checked={section.enabled} onChange={(e) => {
-                                                            const newConfig = [...config];
-                                                            newConfig[index].enabled = (e.target as HTMLInputElement).checked;
+                                                            const newConfig = config.map(item => item.id === section.id ? { ...item, enabled: (e.target as HTMLInputElement).checked } : item);
                                                             handleConfigChange(newConfig);
                                                         }} />
+                                                        <input 
+                                                            type="number" 
+                                                            class={styles['section-order-input']} 
+                                                            value={section.order} 
+                                                            onInput={(e) => handleOrderChange(section.id, parseInt((e.target as HTMLInputElement).value, 10) || 0)}
+                                                        />
                                                         <span class={styles['section-name']}>{section.id}</span>
                                                         {newSections.includes(section.id) && <span class={`${styles.tag} ${styles.new}`}>{t('shcReport.config.new')}</span>}
                                                         {staleSections.includes(section.id) && <span class={`${styles.tag} ${styles.stale}`}>{t('shcReport.config.stale')}</span>}
