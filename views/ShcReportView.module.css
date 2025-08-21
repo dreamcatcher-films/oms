@@ -244,9 +244,16 @@
 }
 .item-details-extra {
     display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
     margin-top: 0.2rem;
+}
+
+.item-details-extra > span:not(:last-child)::after {
+    content: '/';
+    margin-left: 0.5rem;
+    color: var(--border-color);
 }
 
 
