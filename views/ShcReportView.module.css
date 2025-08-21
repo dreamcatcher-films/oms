@@ -51,15 +51,99 @@
     border: 1px solid var(--border-color);
 }
 
-.json-preview {
+/* Section Configuration */
+.config-panel {
     background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+.config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+.config-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+.section-list {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0 0;
+    max-height: 300px;
+    overflow-y: auto;
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    padding: 1rem;
-    max-height: 500px;
-    overflow: auto;
-    font-family: var(--font-family-mono);
-    font-size: 0.85rem;
-    white-space: pre-wrap;
-    word-break: break-all;
+    background-color: white;
+}
+.section-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    cursor: grab;
+}
+.section-item:last-child {
+    border-bottom: none;
+}
+.drag-handle {
+    color: #ccc;
+    cursor: grab;
+}
+.section-name {
+    flex-grow: 1;
+}
+.tag {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: bold;
+    color: white;
+}
+.tag.new { background-color: var(--success-color); }
+.tag.stale { background-color: var(--warning-color); }
+
+/* Results Table */
+.rowLevel {
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+.rowLevel:hover {
+    background-color: #f8f9fa;
+}
+.level-0 > td { font-weight: bold; background-color: #f1f3f5; }
+.level-1 > td { font-weight: bold; color: var(--text-color); }
+.level-2 > td { font-weight: 500; }
+.level-3 > td { font-style: italic; }
+
+.toggle {
+    display: inline-block;
+    width: 20px;
+    text-align: center;
+    transition: transform 0.2s;
+    font-size: 0.8em;
+}
+.toggle.expanded {
+    transform: rotate(90deg);
+}
+
+.detailHeader > td {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    font-size: 0.85em;
+    color: var(--text-light-color);
+}
+.detailRow > td {
+    font-size: 0.9em;
+}
+.subtext {
+    font-size: 0.9em;
+    color: var(--text-light-color);
+}
+.diff {
+    font-weight: bold;
+    color: var(--danger-color);
 }
