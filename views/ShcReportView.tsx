@@ -1,19 +1,31 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'preact/hooks';
 import { VNode } from 'preact';
 import { useTranslation } from '../i18n';
-import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup, RDC } from '../utils/types';
+import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup, RDC, ShcStoreResult } from '../utils/types';
 import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport } from '../db';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import styles from './ShcReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
 type Props = {
     counts: { [key in ShcDataType | 'orgStructure']: number };
     rdcList: RDC[];
+    exclusionList: Set<string>;
+    onUpdateExclusionList: (newList: Set<string>) => void;
 };
 
 const SHC_CONFIG_KEY = 'shcSectionConfig';
 
-export const ShcReportView = ({ counts, rdcList }: Props) => {
+const getWeekNumber = (d: Date) => {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return weekNo;
+};
+
+export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusionList }: Props) => {
     const { t } = useTranslation();
     const workerRef = useRef<Worker | null>(null);
     const dragItem = useRef<number | null>(null);
@@ -142,6 +154,48 @@ export const ShcReportView = ({ counts, rdcList }: Props) => {
         setIsConfigDirty(false);
     };
 
+    const handleExportConfig = () => {
+        if (!config) return;
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'shc_section_config.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleImportConfig = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) {
+                try {
+                    const text = await file.text();
+                    const importedConfig = JSON.parse(text);
+                    if (Array.isArray(importedConfig) && importedConfig.every(item => 'id' in item && 'enabled' in item)) {
+                        setConfig(importedConfig);
+                        setIsConfigDirty(true);
+                        // Trigger reconciliation after import
+                        await loadAndReconcileConfig();
+                         alert(t('shcReport.config.importSuccess'));
+                    } else {
+                         alert(t('shcReport.config.importError'));
+                    }
+                } catch (err) {
+                    console.error("Error importing config:", err);
+                    alert(t('shcReport.config.importError'));
+                }
+            }
+        };
+        input.click();
+    };
+
+
     const handleConfigChange = (newConfig: ShcSectionConfigItem[]) => {
         setConfig(newConfig);
         setIsConfigDirty(true);
@@ -210,6 +264,96 @@ export const ShcReportView = ({ counts, rdcList }: Props) => {
         });
     };
 
+    const handleToggleExclusion = (storeNumber: string) => {
+        const newList = new Set(exclusionList);
+        if (newList.has(storeNumber)) {
+            newList.delete(storeNumber);
+        } else {
+            newList.add(storeNumber);
+        }
+        onUpdateExclusionList(newList);
+    };
+    
+    const processedResults = useMemo(() => {
+        if (!results) return null;
+        return results.map(warehouse => {
+            let warehouseDiscrepancyCount = 0;
+            let warehouseActiveStoreCount = 0;
+            
+            const newHosList = warehouse.hos.map(hos => {
+                let hosDiscrepancyCount = 0;
+                let hosActiveStoreCount = 0;
+
+                const newManagersList = hos.managers.map(manager => {
+                    let managerDiscrepancyCount = 0;
+                    let managerActiveStoreCount = 0;
+                    
+                    const newStoresList = manager.stores.map(store => {
+                        const isExcluded = exclusionList.has(store.storeNumber);
+                        if (!isExcluded) {
+                            managerDiscrepancyCount += store.discrepancyCount;
+                            managerActiveStoreCount++;
+                        }
+                        return { ...store, isExcluded };
+                    });
+
+                    hosDiscrepancyCount += managerDiscrepancyCount;
+                    hosActiveStoreCount += managerActiveStoreCount;
+                    return { ...manager, stores: newStoresList, discrepancyCount: managerDiscrepancyCount, activeStoreCount: managerActiveStoreCount };
+                });
+                
+                warehouseDiscrepancyCount += hosDiscrepancyCount;
+                warehouseActiveStoreCount += hosActiveStoreCount;
+                return { ...hos, managers: newManagersList, discrepancyCount: hosDiscrepancyCount, activeStoreCount: hosActiveStoreCount };
+            });
+
+            return { ...warehouse, hos: newHosList, discrepancyCount: warehouseDiscrepancyCount, activeStoreCount: warehouseActiveStoreCount };
+        });
+    }, [results, exclusionList]);
+
+    const handleExportStorePdf = (store: ShcStoreResult) => {
+        const doc = new jsPDF();
+        const now = new Date();
+        const year = now.getFullYear().toString().slice(-2);
+        const week = getWeekNumber(now);
+        const filename = `SHC_${selectedRdc}_${store.storeNumber}_SHC_vs_Planogram_Report_${year}&W${week}.pdf`;
+        
+        doc.setFontSize(16);
+        doc.text(`SHC vs Planogram Report - Store ${store.storeNumber}`, 14, 22);
+        doc.setFontSize(10);
+        doc.text(`RDC: ${selectedRdc}`, 14, 32);
+        doc.text(`Generated on: ${now.toLocaleString()}`, 14, 42);
+
+        const tableHead = [[
+            t('shcReport.table.itemNumber'),
+            t('shcReport.table.itemName'),
+            t('shcReport.table.section'),
+            t('shcReport.table.planShc'),
+            t('shcReport.table.storeShc'),
+            t('shcReport.table.diff')
+        ]];
+
+        const tableBody = store.items.map(item => [
+            item.articleNumber,
+            item.articleName,
+            item.settingSpecificallyFor,
+            item.planShc,
+            item.storeShc,
+            item.diff
+        ]);
+
+        autoTable(doc, {
+            head: tableHead,
+            body: tableBody,
+            startY: 50,
+            theme: 'grid',
+            headStyles: { fillColor: [240, 240, 240], textColor: 20 },
+            styles: { fontSize: 8 },
+        });
+
+        doc.save(filename);
+    };
+
     const groupedMismatches = useMemo(() => {
         if (!mismatches || mismatches.length === 0) return null;
         const groups: Record<string, Record<string, ShcMismatchItem[]>> = {};
@@ -227,7 +371,7 @@ export const ShcReportView = ({ counts, rdcList }: Props) => {
     }, [mismatches]);
 
     const renderHierarchicalTable = () => {
-        if (!results) return null;
+        if (!processedResults) return null;
         return (
             <div class={sharedStyles['table-container']}>
                 <table>
@@ -239,8 +383,17 @@ export const ShcReportView = ({ counts, rdcList }: Props) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {results.map(warehouse => (
-                            <ResultRow key={warehouse.warehouseName} level={0} item={warehouse} itemType="warehouse" expandedRows={expandedRows} onToggle={toggleRow} />
+                        {processedResults.map(warehouse => (
+                            <ResultRow 
+                                key={warehouse.warehouseName} 
+                                level={0} 
+                                item={warehouse} 
+                                itemType="warehouse" 
+                                expandedRows={expandedRows} 
+                                onToggle={toggleRow} 
+                                onToggleExclusion={handleToggleExclusion}
+                                onExportPdf={handleExportStorePdf}
+                            />
                         ))}
                     </tbody>
                 </table>
@@ -292,16 +445,8 @@ export const ShcReportView = ({ counts, rdcList }: Props) => {
                 <div class={styles['config-header']}>
                     <h3>{t('shcReport.config.title')}</h3>
                     <div class={styles['config-actions']}>
-                        {newSections.length > 0 && <button class={sharedStyles['button-secondary']} onClick={() => {
-                            const newItems: ShcSectionConfigItem[] = newSections.map(s => ({ id: s, enabled: true }));
-                            handleConfigChange([...(config || []), ...newItems]);
-                            setNewSections([]);
-                        }}>{t('shcReport.config.addNew')}</button>}
-                        {staleSections.length > 0 && <button class={sharedStyles['button-secondary']} onClick={() => {
-                            const staleSet = new Set(staleSections);
-                            handleConfigChange((config || []).filter(s => !staleSet.has(s.id)));
-                            setStaleSections([]);
-                        }}>{t('shcReport.config.removeStale')}</button>}
+                        <button class={sharedStyles['button-secondary']} onClick={handleImportConfig}>{t('shcReport.config.import')}</button>
+                        <button class={sharedStyles['button-secondary']} onClick={handleExportConfig} disabled={!config}>{t('shcReport.config.export')}</button>
                         <button class={sharedStyles['button-primary']} onClick={handleSaveConfig} disabled={!isConfigDirty}>{t('shcReport.config.save')}</button>
                     </div>
                 </div>
@@ -374,7 +519,7 @@ export const ShcReportView = ({ counts, rdcList }: Props) => {
 
             {!isLoading && (results || mismatches.length > 0) && (
                 <div class={styles['results-container']}>
-                    {results && results.length > 0 && (
+                    {processedResults && processedResults.length > 0 && (
                         <div class={styles['results-section']}>
                             <div class={styles['results-header']}>
                                 <h3>{t('shcReport.results.title')}</h3>
@@ -452,7 +597,7 @@ export const ShcReportView = ({ counts, rdcList }: Props) => {
 };
 
 // Recursive component to render table rows
-const ResultRow = ({ level, item, itemType, expandedRows, onToggle }: any) => {
+const ResultRow = ({ level, item, itemType, expandedRows, onToggle, onToggleExclusion, onExportPdf }: any) => {
     const { t } = useTranslation();
     const key = `${itemType}-${item.warehouseName || item.hosName || item.managerName || item.storeNumber}`;
     const isExpanded = expandedRows.has(key);
@@ -460,6 +605,7 @@ const ResultRow = ({ level, item, itemType, expandedRows, onToggle }: any) => {
     let children: any[] = [];
     let childType = '';
     let name = '';
+    let isExcluded = item.isExcluded || false;
     
     switch(itemType) {
         case 'warehouse':
@@ -485,8 +631,8 @@ const ResultRow = ({ level, item, itemType, expandedRows, onToggle }: any) => {
     }
     
     const hasChildren = children && children.length > 0;
-
-    const avgPerStore = item.storeCount > 0 ? (item.discrepancyCount / item.storeCount).toFixed(1) : '0.0';
+    const activeStoreCount = item.activeStoreCount ?? item.storeCount;
+    const avgPerStore = activeStoreCount > 0 ? (item.discrepancyCount / activeStoreCount).toFixed(1) : '0.0';
 
     const renderStoreDetails = () => {
         let lastSection = '';
@@ -516,7 +662,7 @@ const ResultRow = ({ level, item, itemType, expandedRows, onToggle }: any) => {
                         <div title={detail.settingSpecificallyFor}>{detail.settingSpecificallyFor}</div>
                          <div class={styles['item-details-extra']}>
                             <span class={styles.subtext}>{detail.settingWidth}</span>
-                            <span class={styles.subtext} title={detail.itemGroup}>{detail.itemGroup}</span>
+                            <span class={styles.subtext}>{detail.itemGroup}</span>
                         </div>
                     </td>
                     <td>
@@ -531,18 +677,33 @@ const ResultRow = ({ level, item, itemType, expandedRows, onToggle }: any) => {
 
     return (
         <>
-            <tr class={`${styles.rowLevel} ${styles[`level-${level}`]}`} onClick={() => hasChildren && onToggle(key)}>
-                <td>
+            <tr class={`${styles.rowLevel} ${styles[`level-${level}`]} ${isExcluded ? styles.excludedStore : ''}`} onClick={() => hasChildren && onToggle(key)}>
+                <td class={styles.nameCell}>
                     <span style={{ paddingLeft: `${level * 20}px` }}>
                         {hasChildren && <span class={`${styles.toggle} ${isExpanded ? styles.expanded : ''}`}>▼</span>}
                         {name}
+                        {isExcluded && <span class={styles.excludedLabel}>{t('shcReport.table.excluded')}</span>}
                     </span>
+                     {itemType === 'store' && (
+                        <div class={styles.rowActions}>
+                            <button title={t('shcReport.table.tooltip.toggleExclusion')} onClick={(e) => { e.stopPropagation(); onToggleExclusion(item.storeNumber); }} class={styles.actionButton}>👁️</button>
+                            <button title={t('shcReport.table.tooltip.exportPdf')} onClick={(e) => { e.stopPropagation(); onExportPdf(item); }} class={styles.actionButton}>📄</button>
+                        </div>
+                    )}
                 </td>
                 <td>{item.discrepancyCount}</td>
                 <td class={styles['avg-per-store-cell']}>{itemType !== 'store' ? avgPerStore : ''}</td>
             </tr>
             {isExpanded && hasChildren && itemType !== 'store' && children.map((child: any) => (
-                <ResultRow key={child.hosName || child.managerName || child.storeNumber} level={level + 1} item={child} itemType={childType} expandedRows={expandedRows} onToggle={onToggle} />
+                <ResultRow 
+                    key={child.hosName || child.managerName || child.storeNumber} 
+                    level={level + 1} item={child} 
+                    itemType={childType} 
+                    expandedRows={expandedRows} 
+                    onToggle={onToggle} 
+                    onToggleExclusion={onToggleExclusion}
+                    onExportPdf={onExportPdf}
+                />
             ))}
             {isExpanded && itemType === 'store' && (
                 <>
