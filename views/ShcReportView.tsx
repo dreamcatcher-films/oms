@@ -114,6 +114,18 @@ export const ShcReportView = ({ counts }: Props) => {
         setIsConfigDirty(true);
     };
 
+    const handleSelectAll = () => {
+        if (!config) return;
+        const newConfig = config.map(section => ({ ...section, enabled: true }));
+        handleConfigChange(newConfig);
+    };
+
+    const handleDeselectAll = () => {
+        if (!config) return;
+        const newConfig = config.map(section => ({ ...section, enabled: false }));
+        handleConfigChange(newConfig);
+    };
+
     const handleDragStart = (e: DragEvent, position: number) => {
         dragItem.current = position;
     };
@@ -202,6 +214,10 @@ export const ShcReportView = ({ counts }: Props) => {
                     </div>
                 </div>
                 <p>{t('shcReport.config.description')}</p>
+                 <div class={styles['section-actions']}>
+                    <button class={styles['action-button']} onClick={handleSelectAll}>{t('shcReport.config.selectAll')}</button>
+                    <button class={styles['action-button']} onClick={handleDeselectAll}>{t('shcReport.config.deselectAll')}</button>
+                </div>
                 {isLoadingConfig ? <div class={sharedStyles.spinner} /> : (
                     <ul class={styles['section-list']} onDragEnd={handleDrop}>
                         {config?.map((section, index) => (
