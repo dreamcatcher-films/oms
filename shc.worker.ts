@@ -70,10 +70,10 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
             }
         });
 
-        const shcByStoreMap = new Map<string, ShcDataRow[]>();
+        const shcByStoreMap = new Map<string, Map<string, ShcDataRow>>();
         filteredShcData.forEach(row => {
-            if (!shcByStoreMap.has(row.storeNumber)) shcByStoreMap.set(row.storeNumber, []);
-            shcByStoreMap.get(row.storeNumber)!.push(row);
+            if (!shcByStoreMap.has(row.storeNumber)) shcByStoreMap.set(row.storeNumber, new Map());
+            shcByStoreMap.get(row.storeNumber)!.set(row.itemNumber, row);
         });
         
         postMessage({ type: 'progress', payload: { message: 'Grouping stores by hierarchy...', percentage: 25 } } as ShcWorkerMessage);
@@ -104,8 +104,9 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
                         const progressPercentage = 25 + (processedStores / totalStoresToProcess) * 65;
                         postMessage({ type: 'progress', payload: { message: `Analyzing Store ${processedStores}/${totalStoresToProcess}: ${store.storeNumber}`, percentage: progressPercentage } } as ShcWorkerMessage);
 
-                        const storeShcData = shcByStoreMap.get(store.storeNumber);
-                        if (!storeShcData) continue;
+                        const storeShcDataMap = shcByStoreMap.get(store.storeNumber);
+                        if (!storeShcDataMap) continue;
+                        const storeShcData = Array.from(storeShcDataMap.values());
                         
                         const assignedPlanogramLocators = categoryRelationMap.get(store.storeNumber) || [];
                         if (assignedPlanogramLocators.length === 0) {
@@ -133,6 +134,7 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
                                                 locator: locator.locatorKey,
                                                 articleNumber: shcRow.itemNumber,
                                                 articleName: shcRow.itemDescription,
+                                                itemGroup: shcRow.itemGroup,
                                                 planShc, storeShc, diff,
                                                 generalStoreArea: locator.generalStoreArea,
                                                 settingSpecificallyFor: locator.settingSpecificallyFor,
@@ -158,13 +160,13 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
         const resultBuilder = new Map<string, any>();
 
         for(const item of flatResults) {
-            if (!resultBuilder.has(item.warehouseId)) resultBuilder.set(item.warehouseId, { warehouseName: item.warehouseId, hos: new Map(), discrepancyCount: 0 });
+            if (!resultBuilder.has(item.warehouseId)) resultBuilder.set(item.warehouseId, { warehouseName: item.warehouseId, hos: new Map(), storeCount: 0, discrepancyCount: 0 });
             const warehouse = resultBuilder.get(item.warehouseId)!;
 
-            if (!warehouse.hos.has(item.hosName)) warehouse.hos.set(item.hosName, { hosName: item.hosName, managers: new Map(), discrepancyCount: 0 });
+            if (!warehouse.hos.has(item.hosName)) warehouse.hos.set(item.hosName, { hosName: item.hosName, managers: new Map(), storeCount: 0, discrepancyCount: 0 });
             const hos = warehouse.hos.get(item.hosName)!;
 
-            if (!hos.managers.has(item.amName)) hos.managers.set(item.amName, { managerName: item.amName, stores: new Map(), discrepancyCount: 0 });
+            if (!hos.managers.has(item.amName)) hos.managers.set(item.amName, { managerName: item.amName, stores: new Map(), storeCount: 0, discrepancyCount: 0 });
             const am = hos.managers.get(item.amName)!;
 
             if (!am.stores.has(item.storeNumber)) am.stores.set(item.storeNumber, { storeNumber: item.storeNumber, discrepancyCount: 0, items: [] });
@@ -175,9 +177,13 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
 
         resultBuilder.forEach(wh => {
             const hosList: any[] = [];
+            let warehouseStoreCount = 0;
             wh.hos.forEach((hos: any) => {
                 const amList: any[] = [];
+                let hosStoreCount = 0;
                 hos.managers.forEach((am: any) => {
+                    am.storeCount = am.stores.size;
+                    hosStoreCount += am.storeCount;
                     let managerDiscrepancyCount = 0;
                     am.stores.forEach((store: any) => {
                         store.items.sort((a: any, b: any) => {
@@ -191,9 +197,12 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
                     am.discrepancyCount = managerDiscrepancyCount;
                     amList.push({ ...am, stores: Array.from(am.stores.values()) });
                 });
+                hos.storeCount = hosStoreCount;
+                warehouseStoreCount += hos.storeCount;
                 hos.discrepancyCount = amList.reduce((sum, m) => sum + m.discrepancyCount, 0);
                 hosList.push({ ...hos, managers: amList });
             });
+            wh.storeCount = warehouseStoreCount;
             wh.discrepancyCount = hosList.reduce((sum, h) => sum + h.discrepancyCount, 0);
             finalHierarchicalResult.push({ ...wh, hos: hosList });
         });
