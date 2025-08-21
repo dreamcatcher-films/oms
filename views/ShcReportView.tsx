@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
+import { VNode } from 'preact';
 import { useTranslation } from '../i18n';
 import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup, RDC } from '../utils/types';
 import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport } from '../db';
@@ -417,6 +418,47 @@ const ResultRow = ({ level, item, itemType, expandedRows, onToggle }: any) => {
 
     const avgPerStore = item.storeCount > 0 ? (item.discrepancyCount / item.storeCount).toFixed(1) : '0.0';
 
+    const renderStoreDetails = () => {
+        let lastSection = '';
+        return children.reduce((acc: VNode[], detail: ShcResultItem, index: number) => {
+            const currentSection = detail.settingSpecificallyFor;
+            if (currentSection !== lastSection) {
+                acc.push(
+                    <tr key={`divider-${index}`} class={`${styles.rowLevel} ${styles[`level-${level+1}`]} ${styles.dividerRow}`}>
+                        <td colSpan={3} style={{ paddingLeft: `${(level + 1) * 20}px` }}>
+                            <div class={styles.dividerContent}>
+                                <span>{t('shcReport.table.section')}: {currentSection}</span>
+                                <span>{t('shcReport.table.sectionWidth')}: {detail.settingWidth}</span>
+                            </div>
+                        </td>
+                    </tr>
+                );
+                lastSection = currentSection;
+            }
+            
+            acc.push(
+                <tr key={index} class={`${styles.rowLevel} ${styles[`level-${level+1}`]} ${styles.detailRow}`}>
+                    <td style={{ paddingLeft: `${(level + 1) * 20}px` }}>
+                        <div>{detail.articleNumber}</div>
+                        <div class={styles.subtext}>{detail.articleName}</div>
+                    </td>
+                     <td>
+                        <div title={detail.settingSpecificallyFor}>{detail.settingSpecificallyFor}</div>
+                         <div class={styles['item-details-extra']}>
+                            <span class={styles.subtext}>{detail.settingWidth}</span>
+                            <span class={styles.subtext} title={detail.itemGroup}>{detail.itemGroup}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div>{detail.planShc} / {detail.storeShc}</div>
+                        <div class={styles.diff}>{detail.diff}</div>
+                    </td>
+                </tr>
+            );
+            return acc;
+        }, []);
+    };
+
     return (
         <>
             <tr class={`${styles.rowLevel} ${styles[`level-${level}`]}`} onClick={() => hasChildren && onToggle(key)}>
@@ -439,25 +481,7 @@ const ResultRow = ({ level, item, itemType, expandedRows, onToggle }: any) => {
                         <td>{t('shcReport.table.section')} / {t('shcReport.table.itemGroup')}</td>
                         <td>{t('shcReport.table.planShc')} / {t('shcReport.table.storeShc')} / {t('shcReport.table.diff')}</td>
                     </tr>
-                    {children.map((detail: ShcResultItem, index: number) => (
-                         <tr key={index} class={`${styles.rowLevel} ${styles[`level-${level+1}`]} ${styles.detailRow}`}>
-                            <td style={{ paddingLeft: `${(level + 1) * 20}px` }}>
-                                <div>{detail.articleNumber}</div>
-                                <div class={styles.subtext}>{detail.articleName}</div>
-                            </td>
-                             <td>
-                                <div title={detail.settingSpecificallyFor}>{detail.settingSpecificallyFor}</div>
-                                 <div class={styles['item-details-extra']}>
-                                    <span class={styles.subtext}>{detail.settingWidth}</span>
-                                    <span class={styles.subtext} title={detail.itemGroup}>{detail.itemGroup}</span>
-                                </div>
-                            </td>
-                            <td>
-                                <div>{detail.planShc} / {detail.storeShc}</div>
-                                <div class={styles.diff}>{detail.diff}</div>
-                            </td>
-                        </tr>
-                    ))}
+                    {renderStoreDetails()}
                 </>
             )}
         </>
