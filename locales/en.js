@@ -110,7 +110,11 @@ export default {
           "products": "Products",
           "goodsReceipts": "Goods Receipt (eGIN)",
           "openOrders": "Open Orders",
-          "sales": "Sales"
+          "sales": "Sales",
+          "shc": "SHC Data",
+          "planogram": "Planogram",
+          "orgStructure": "Org Structure",
+          "categoryRelation": "Category Relation"
       },
       "filters": {
           "warehouse": "Warehouse",
@@ -312,7 +316,11 @@ export default {
     "products": "Master Data",
     "goodsReceipts": "Goods Receipts",
     "openOrders": "Open Orders",
-    "sales": "Sales Data"
+    "sales": "Sales Data",
+    "shc": "Store Data (SHC)",
+    "planogram": "Planogram",
+    "orgStructure": "Org Structure",
+    "categoryRelation": "Category Relation"
   },
   "threatReport": {
     "title": "Threat Report",
@@ -500,6 +508,39 @@ export default {
       "productId": "Product ID",
       "productName": "Product Name",
       "quantity": "Sold Quantity"
+    },
+    "shc": {
+        "storeNumber": "Store Number",
+        "itemNumber": "Item Number",
+        "itemDescription": "Item Description",
+        "piecesInBox": "Pieces/Box",
+        "itemStatus": "Item Status",
+        "itemGroup": "Item Group",
+        "shelfCapacity": "Shelf Capacity",
+        "shelfCapacityUnit": "SHC Unit"
+    },
+    "planogram": {
+        "generalStoreArea": "General Store Area",
+        "settingSpecificallyFor": "Setting Specifically For",
+        "settingWidth": "Setting Width",
+        "itemNumber": "Item Number",
+        "itemName": "Item Name",
+        "targetShc": "Target SHC",
+        "facings": "Facings",
+        "depth": "Depth"
+    },
+    "orgStructure": {
+        "storeNumber": "Store Number",
+        "storeName": "Store Name",
+        "warehouseId": "Warehouse ID",
+        "areaManager": "Area Manager",
+        "headOfSales": "Head of Sales"
+    },
+    "categoryRelation": {
+        "generalStoreArea": "General Store Area",
+        "settingSpecificallyFor": "Setting Specifically For",
+        "settingWidth": "Setting Width",
+        "storeNumber": "Store Number"
     }
   }
 }
