@@ -167,6 +167,21 @@ const openDB = (): Promise<IDBDatabase> => {
             store.createIndex('storeNumberIndex', 'storeNumber');
         }
       }
+      
+      if (oldVersion < 14) {
+        const orgStore = transaction.objectStore(ORG_STRUCTURE_STORE_NAME);
+        if (!orgStore.indexNames.contains('storeNumberIndex')) {
+          orgStore.createIndex('storeNumberIndex', 'storeNumber');
+        }
+        if (!orgStore.indexNames.contains('warehouseIdIndex')) {
+          orgStore.createIndex('warehouseIdIndex', 'warehouseId');
+        }
+
+        const shcStore = transaction.objectStore(SHC_STORE_NAME);
+        if (!shcStore.indexNames.contains('storeNumberIndex')) {
+          shcStore.createIndex('storeNumberIndex', 'storeNumber');
+        }
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -1039,28 +1054,6 @@ export const getStoreCountsForShcReport = async (rdcId: string): Promise<{ shcSt
         shcStoreCount: shcStoreCountInRdc,
         orgStoreCount: rdcStoreNumbers.size,
     };
-};
-
-export const getUniqueRdcsFromOrgStructure = async (): Promise<string[]> => {
-    const db = await openDB();
-    const transaction = db.transaction(ORG_STRUCTURE_STORE_NAME, 'readonly');
-    const store = transaction.objectStore(ORG_STRUCTURE_STORE_NAME);
-    const index = store.index('warehouseIdIndex');
-    const request = index.openKeyCursor(null, 'nextunique');
-    const rdcs = new Set<string>();
-
-    return new Promise((resolve, reject) => {
-        request.onsuccess = (e) => {
-            const cursor = (e.target as IDBRequest<IDBCursor>).result;
-            if(cursor) {
-                rdcs.add(cursor.key as string);
-                cursor.continue();
-            } else {
-                resolve(Array.from(rdcs).sort());
-            }
-        };
-        request.onerror = () => reject(request.error);
-    });
 };
 
 export const clearExclusionList = (): Promise<void> => deleteSetting(EXCLUSION_LIST_KEY);
