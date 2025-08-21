@@ -31,6 +31,7 @@ import {
   loadExclusionList,
   saveExclusionList,
   clearExclusionList,
+  DBStatus,
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
@@ -675,8 +676,18 @@ const App = () => {
             
             await updateImportMetadata(dataType);
             
-            const finalCounts = await checkDBStatus();
+            const finalDbStatus = await checkDBStatus();
             const finalMetadata = await getImportMetadata();
+            const finalCounts = {
+                products: finalDbStatus.productsCount,
+                goodsReceipts: finalDbStatus.goodsReceiptsCount,
+                openOrders: finalDbStatus.openOrdersCount,
+                sales: finalDbStatus.salesCount,
+                shc: finalDbStatus.shcCount,
+                planogram: finalDbStatus.planogramCount,
+                orgStructure: finalDbStatus.orgStructureCount,
+                categoryRelation: finalDbStatus.categoryRelationCount
+            };
             setCounts(finalCounts);
             setImportMetadata(finalMetadata);
             
