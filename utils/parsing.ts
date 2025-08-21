@@ -206,8 +206,17 @@ export const saleRowMapper = (row: string[]): Sale | null => {
 
 // --- SHC vs Planogram Parsers ---
 
+const normalizeStoreNumber = (storeNumStr: string | undefined): string => {
+    if (!storeNumStr) return '';
+    const trimmed = storeNumStr.trim();
+    if (/^\d+$/.test(trimmed)) {
+        return String(parseInt(trimmed, 10));
+    }
+    return trimmed;
+};
+
 export const shcRowMapper = (row: string[]): ShcDataRow => ({
-    storeNumber: row[0]?.trim() || '',
+    storeNumber: normalizeStoreNumber(row[0]),
     itemNumber: row[2]?.trim() || '',
     itemDescription: row[3]?.trim() || '',
     piecesInBox: parseInt(row[4], 10) || 0,
@@ -252,7 +261,7 @@ export const parsePlanogramFileContents = (rows: any[][]): PlanogramRow[] => {
 };
 
 export const orgStructureRowMapper = (row: string[]): OrgStructureRow => ({
-    storeNumber: row[0]?.trim() || '',
+    storeNumber: normalizeStoreNumber(row[0]),
     storeName: row[1]?.trim() || '',
     warehouseId: row[3]?.trim().substring(0, 3) || '',
     areaManager: row[12]?.trim() || '',
