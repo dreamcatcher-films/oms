@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from '../i18n';
-import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcSectionConfig } from '../utils/types';
+import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcSectionConfig, ShcWorkerMessage } from '../utils/types';
 import styles from './ShcReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
@@ -24,8 +24,24 @@ export const ShcReportView = ({ files }: Props) => {
     useEffect(() => {
         workerRef.current = new Worker(new URL('../shc.worker.ts', import.meta.url), { type: 'module' });
 
-        workerRef.current.onmessage = (e: MessageEvent) => {
-            // TODO: Handle messages from worker (progress, complete, error)
+        workerRef.current.onmessage = (e: MessageEvent<ShcWorkerMessage>) => {
+            const { type, payload } = e.data;
+            switch (type) {
+                case 'progress':
+                    setProgress(payload);
+                    break;
+                case 'complete':
+                    setResults(payload.results);
+                    setMismatches(payload.mismatches);
+                    setIsLoading(false);
+                    setProgress(null);
+                    break;
+                case 'error':
+                    setError(payload);
+                    setIsLoading(false);
+                    setProgress(null);
+                    break;
+            }
         };
 
         return () => workerRef.current?.terminate();
@@ -41,18 +57,12 @@ export const ShcReportView = ({ files }: Props) => {
         setMismatches([]);
         setProgress({ message: t('shcReport.status.readingFiles'), percentage: 0 });
 
-        try {
-            // TODO: Load section config from DB
-            const sectionConfig: ShcSectionConfig = { sections: [], order: [] }; 
+        // TODO: Load section config from DB
+        const sectionConfig: ShcSectionConfig = { sections: [], order: [] }; 
 
-            workerRef.current.postMessage({
-                sectionConfig,
-            });
-
-        } catch (err) {
-            setError(t('shcReport.errors.fileReadError'));
-            setIsLoading(false);
-        }
+        workerRef.current.postMessage({
+            sectionConfig,
+        });
     };
     
     return (
@@ -92,10 +102,29 @@ export const ShcReportView = ({ files }: Props) => {
                 <div class={`${sharedStyles['status-container']} ${sharedStyles.error}`}>{error}</div>
             )}
 
-            {/* TODO: Add Results Display and PDF Export */}
-            {results && !isLoading && (
+            {!isLoading && (results || mismatches.length > 0) && (
+                <div class={styles['results-container']}>
+                    {results && results.length > 0 && (
+                        <div class={styles['results-section']}>
+                            <h3>{t('shcReport.results.title')}</h3>
+                            <pre class={styles['json-preview']}>
+                                {JSON.stringify(results, null, 2)}
+                            </pre>
+                        </div>
+                    )}
+                     {mismatches.length > 0 && (
+                        <div class={styles['results-section']}>
+                            <h3>{t('shcReport.results.mismatchesTitle')} ({mismatches.length})</h3>
+                            <pre class={styles['json-preview']}>
+                                {JSON.stringify(mismatches, null, 2)}
+                            </pre>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {!isLoading && !results && !error && mismatches.length === 0 && (
                  <div class={sharedStyles['placeholder-view']}>
-                    <h2>{t('shcReport.results.title')}</h2>
                     <p>{t('shcReport.results.placeholder')}</p>
                  </div>
             )}
