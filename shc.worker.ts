@@ -12,7 +12,8 @@ import {
     OrgStructureRow,
     CategoryRelationRow,
     ShcMismatchItem,
-    ShcAnalysisResult
+    ShcAnalysisResult,
+    ShcSectionConfigItem
 } from './utils/types';
 
 const createLocatorKey = (s1: string, s2: string): string => {
@@ -39,28 +40,34 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
         
         postMessage({ type: 'progress', payload: { message: 'Filtering & preparing data...', percentage: 15 } } as ShcWorkerMessage);
         
+        const enabledSections = new Set(sectionConfig.filter(s => s.enabled).map(s => s.id));
+        const sectionOrderMap = new Map(sectionConfig.map((s, i) => [s.id, i]));
+        
         const filteredShcData = shcData.filter(row => row.itemStatus === '8' && row.shelfCapacityUnit === 'C');
+        const filteredCategoryRelationData = categoryRelationData.filter(row => enabledSections.has(row.settingSpecificallyFor));
         
         planogramData.forEach(row => {
             row.locatorKey = createLocatorKey(row.settingSpecificallyFor, row.settingWidth);
         });
 
-        categoryRelationData.forEach(row => {
+        filteredCategoryRelationData.forEach(row => {
             row.locatorKey = createLocatorKey(row.settingSpecificallyFor, row.settingWidth);
         });
         
         const orgMap = new Map(orgStructureData.map(row => [row.storeNumber, row]));
         const categoryRelationMap = new Map<string, CategoryRelationRow[]>();
-        categoryRelationData.forEach(row => {
+        filteredCategoryRelationData.forEach(row => {
             if (!categoryRelationMap.has(row.storeNumber)) categoryRelationMap.set(row.storeNumber, []);
             categoryRelationMap.get(row.storeNumber)!.push(row);
         });
 
         const planogramMap = new Map<string, Map<string, PlanogramRow>>();
         planogramData.forEach(row => {
-            const key = row.locatorKey!;
-            if (!planogramMap.has(key)) planogramMap.set(key, new Map());
-            planogramMap.get(key)!.set(row.itemNumber, row);
+            if (enabledSections.has(row.settingSpecificallyFor)) {
+                const key = row.locatorKey!;
+                if (!planogramMap.has(key)) planogramMap.set(key, new Map());
+                planogramMap.get(key)!.set(row.itemNumber, row);
+            }
         });
 
         const shcByStoreMap = new Map<string, ShcDataRow[]>();
@@ -103,7 +110,7 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
                         const assignedPlanogramLocators = categoryRelationMap.get(store.storeNumber) || [];
                         if (assignedPlanogramLocators.length === 0) {
                              storeShcData.forEach(shcRow => {
-                                mismatches.push({ type: 'NO_LOCATION_MATCH', storeNumber: store.storeNumber, articleNumber: shcRow.itemNumber, details: 'No location found in Category-Store Relation file.' });
+                                mismatches.push({ type: 'NO_LOCATION_MATCH', storeNumber: store.storeNumber, articleNumber: shcRow.itemNumber, details: 'No location found in Category-Store Relation file for enabled sections.' });
                             });
                             continue;
                         }
@@ -151,20 +158,19 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
         const resultBuilder = new Map<string, any>();
 
         for(const item of flatResults) {
-            if (!resultBuilder.has(item.warehouseId)) resultBuilder.set(item.warehouseId, { warehouseName: item.warehouseId, hos: new Map() });
+            if (!resultBuilder.has(item.warehouseId)) resultBuilder.set(item.warehouseId, { warehouseName: item.warehouseId, hos: new Map(), discrepancyCount: 0 });
             const warehouse = resultBuilder.get(item.warehouseId)!;
 
-            if (!warehouse.hos.has(item.hosName)) warehouse.hos.set(item.hosName, { hosName: item.hosName, managers: new Map() });
+            if (!warehouse.hos.has(item.hosName)) warehouse.hos.set(item.hosName, { hosName: item.hosName, managers: new Map(), discrepancyCount: 0 });
             const hos = warehouse.hos.get(item.hosName)!;
 
-            if (!hos.managers.has(item.amName)) hos.managers.set(item.amName, { managerName: item.amName, stores: new Map() });
+            if (!hos.managers.has(item.amName)) hos.managers.set(item.amName, { managerName: item.amName, stores: new Map(), discrepancyCount: 0 });
             const am = hos.managers.get(item.amName)!;
 
             if (!am.stores.has(item.storeNumber)) am.stores.set(item.storeNumber, { storeNumber: item.storeNumber, discrepancyCount: 0, items: [] });
             const store = am.stores.get(item.storeNumber)!;
             
             store.items.push(item);
-            store.discrepancyCount++;
         }
 
         resultBuilder.forEach(wh => {
@@ -172,10 +178,23 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
             wh.hos.forEach((hos: any) => {
                 const amList: any[] = [];
                 hos.managers.forEach((am: any) => {
+                    let managerDiscrepancyCount = 0;
+                    am.stores.forEach((store: any) => {
+                        store.items.sort((a: any, b: any) => {
+                            const orderA = sectionOrderMap.get(a.settingSpecificallyFor) ?? Infinity;
+                            const orderB = sectionOrderMap.get(b.settingSpecificallyFor) ?? Infinity;
+                            return orderA - orderB;
+                        });
+                        store.discrepancyCount = store.items.length;
+                        managerDiscrepancyCount += store.discrepancyCount;
+                    });
+                    am.discrepancyCount = managerDiscrepancyCount;
                     amList.push({ ...am, stores: Array.from(am.stores.values()) });
                 });
+                hos.discrepancyCount = amList.reduce((sum, m) => sum + m.discrepancyCount, 0);
                 hosList.push({ ...hos, managers: amList });
             });
+            wh.discrepancyCount = hosList.reduce((sum, h) => sum + h.discrepancyCount, 0);
             finalHierarchicalResult.push({ ...wh, hos: hosList });
         });
 
