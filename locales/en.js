@@ -41,7 +41,9 @@ export default {
         "starting": "Starting file import: {{dataTypeName}}...",
         "processing": "Processing file... Saved {{processedCount}} records.",
         "complete": "Import complete. Saved {{processedCount}} records ({{dataTypeName}}).",
-        "parseError": "Critical error while parsing file: {{dataTypeName}}."
+        "parseError": "Critical error while parsing file: {{dataTypeName}}.",
+        "readingFile": "Reading file into memory...",
+        "parsingExcel": "Parsing Excel data..."
     },
     "clear": {
         "clearing": "Clearing data: {{dataTypeName}}...",
