@@ -49,7 +49,8 @@ export default {
         "clearError": "Error while clearing data: {{dataTypeName}}.",
         "clearingAll": "Clearing all data...",
         "clearedAll": "All data has been cleared. You can load new files.",
-        "clearAllError": "Error while clearing data."
+        "clearAllError": "Error while clearing data.",
+        "outdatedShcCleared": "Outdated SHC vs Planogram data from a previous day has been cleared. Please upload today's files."
     },
     "autoRefresh": {
         "starting": "Starting auto-refresh of linked files...",
@@ -428,7 +429,7 @@ export default {
       "readingFiles": "Reading files..."
     },
     "errors": {
-      "allFilesRequired": "All 4 files must be linked to run the analysis.",
+      "allFilesRequired": "All 4 data sets (SHC, Planogram, Org Structure, Category Relation) must be imported for today to run the analysis.",
       "fileReadError": "An error occurred while reading one of the linked files."
     },
     "results": {
