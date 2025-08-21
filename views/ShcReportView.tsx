@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'preact/hooks';
 import { VNode } from 'preact';
 import { useTranslation } from '../i18n';
 import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup, RDC } from '../utils/types';
@@ -34,6 +34,7 @@ export const ShcReportView = ({ counts, rdcList }: Props) => {
 
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+    const [expandedMismatches, setExpandedMismatches] = useState<Set<string>>(new Set());
     
     const [isValidationModalVisible, setIsValidationModalVisible] = useState(false);
     const [missingStores, setMissingStores] = useState<string[]>([]);
@@ -197,6 +198,34 @@ export const ShcReportView = ({ counts, rdcList }: Props) => {
         });
     };
     
+    const toggleMismatchGroup = (key: string) => {
+        setExpandedMismatches(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(key)) {
+                newSet.delete(key);
+            } else {
+                newSet.add(key);
+            }
+            return newSet;
+        });
+    };
+
+    const groupedMismatches = useMemo(() => {
+        if (!mismatches || mismatches.length === 0) return null;
+        const groups: Record<string, Record<string, ShcMismatchItem[]>> = {};
+        for (const mismatch of mismatches) {
+            const { type, storeNumber } = mismatch;
+            if (!groups[type]) {
+                groups[type] = {};
+            }
+            if (!groups[type][storeNumber]) {
+                groups[type][storeNumber] = [];
+            }
+            groups[type][storeNumber].push(mismatch);
+        }
+        return groups;
+    }, [mismatches]);
+
     const renderHierarchicalTable = () => {
         if (!results) return null;
         return (
@@ -354,18 +383,59 @@ export const ShcReportView = ({ counts, rdcList }: Props) => {
                             {renderHierarchicalTable()}
                         </div>
                     )}
-                     {mismatches.length > 0 && (
+                     {mismatches.length > 0 && groupedMismatches && (
                         <div class={styles['results-section']}>
                             <h3>{t('shcReport.results.mismatchesTitle')} ({mismatches.length})</h3>
-                            <div class={sharedStyles['table-container']}>
-                                <table>
-                                    <thead><tr><th>Type</th><th>Store</th><th>Article</th><th>Details</th></tr></thead>
-                                    <tbody>
-                                        {mismatches.slice(0, 100).map(m => (
-                                            <tr key={`${m.storeNumber}-${m.articleNumber}-${m.type}`}><td>{m.type}</td><td>{m.storeNumber}</td><td>{m.articleNumber}</td><td>{m.details}</td></tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            <div class={styles.mismatchContainer}>
+                                <div class={`${styles.mismatchRow} ${styles.mismatchHeader}`}>
+                                    <span>Type</span>
+                                    <span>Store</span>
+                                    <span>Article</span>
+                                    <span>Details</span>
+                                </div>
+                                {Object.entries(groupedMismatches).map(([type, stores]) => {
+                                    const typeKey = `type-${type}`;
+                                    const isTypeExpanded = expandedMismatches.has(typeKey);
+                                    const typeCount = Object.values(stores).reduce((sum, items) => sum + items.length, 0);
+
+                                    return (
+                                        <div key={typeKey}>
+                                            <div class={`${styles.mismatchRow} ${styles.mismatchTypeHeader}`} onClick={() => toggleMismatchGroup(typeKey)}>
+                                                <span class={styles.mismatchTypeTitle}>
+                                                    <span class={`${styles.mismatchToggle} ${isTypeExpanded ? styles.expanded : ''}`}>▼</span>
+                                                    {type}
+                                                    <span class={styles.mismatchCount}>({typeCount})</span>
+                                                </span>
+                                            </div>
+                                            {isTypeExpanded && Object.entries(stores).map(([storeNumber, items]) => {
+                                                const storeKey = `store-${type}-${storeNumber}`;
+                                                const isStoreExpanded = expandedMismatches.has(storeKey);
+                                                const storeCount = items.length;
+
+                                                return (
+                                                    <div key={storeKey}>
+                                                        <div class={`${styles.mismatchRow} ${styles.mismatchStoreHeader}`} onClick={() => toggleMismatchGroup(storeKey)}>
+                                                            <span></span>
+                                                            <span class={styles.mismatchStoreTitle}>
+                                                                <span class={`${styles.mismatchToggle} ${isStoreExpanded ? styles.expanded : ''}`}>▼</span>
+                                                                {storeNumber}
+                                                                <span class={styles.mismatchCount}>({storeCount})</span>
+                                                            </span>
+                                                        </div>
+                                                        {isStoreExpanded && items.map((item, index) => (
+                                                            <div class={`${styles.mismatchRow} ${styles.mismatchItemRow}`} key={`${storeKey}-${item.articleNumber}-${index}`}>
+                                                                <span></span>
+                                                                <span></span>
+                                                                <span>{item.articleNumber}</span>
+                                                                <span>{item.details}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
