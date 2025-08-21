@@ -256,11 +256,13 @@ export type ShcStoreResult = {
     storeNumber: string;
     discrepancyCount: number;
     items: ShcResultItem[];
+    isExcluded?: boolean;
 };
 
 export type ShcManagerResult = {
     managerName: string;
     storeCount: number;
+    activeStoreCount?: number;
     discrepancyCount: number;
     stores: ShcStoreResult[];
 };
@@ -268,6 +270,7 @@ export type ShcManagerResult = {
 export type ShcHeadOfSalesResult = {
     hosName: string;
     storeCount: number;
+    activeStoreCount?: number;
     discrepancyCount: number;
     managers: ShcManagerResult[];
 };
@@ -275,6 +278,7 @@ export type ShcHeadOfSalesResult = {
 export type ShcWarehouseResult = {
     warehouseName: string;
     storeCount: number;
+    activeStoreCount?: number;
     discrepancyCount: number;
     hos: ShcHeadOfSalesResult[];
 };
@@ -331,4 +335,5 @@ export type ShcParsingWorkerMessage =
     | { type: 'progress', payload: ShcParsingWorkerProgressPayload }
     | { type: 'data', payload: ShcParsingWorkerDataPayload }
     | { type: 'complete', payload: ShcParsingWorkerCompletePayload }
+    | { type: 'save_complete', payload: null }
     | { type: 'error', payload: string };
