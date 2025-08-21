@@ -160,6 +160,7 @@ const openDB = (): Promise<IDBDatabase> => {
         if (!db.objectStoreNames.contains(ORG_STRUCTURE_STORE_NAME)) {
             const store = db.createObjectStore(ORG_STRUCTURE_STORE_NAME, { keyPath: 'id', autoIncrement: true });
             store.createIndex('storeNumberIndex', 'storeNumber');
+            store.createIndex('warehouseIdIndex', 'warehouseId');
         }
         if (!db.objectStoreNames.contains(CATEGORY_RELATION_STORE_NAME)) {
             const store = db.createObjectStore(CATEGORY_RELATION_STORE_NAME, { keyPath: 'id', autoIncrement: true });
@@ -960,10 +961,10 @@ export const getUniqueShcSectionsGrouped = async (): Promise<ShcSectionGroup[]> 
     });
 };
 
-const getUniqueStoreNumbers = async (storeName: string): Promise<Set<string>> => {
+const getUniqueStoreNumbersFromShc = async (): Promise<Set<string>> => {
     const db = await openDB();
-    const transaction = db.transaction(storeName, 'readonly');
-    const store = transaction.objectStore(storeName);
+    const transaction = db.transaction(SHC_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(SHC_STORE_NAME);
     const index = store.index('storeNumberIndex');
     const request = index.openKeyCursor(null, 'nextunique');
     const numbers = new Set<string>();
@@ -981,10 +982,35 @@ const getUniqueStoreNumbers = async (storeName: string): Promise<Set<string>> =>
     });
 };
 
-export const validateStoresExistInShc = async (): Promise<string[]> => {
+const getStoreNumbersFromOrgStructure = async (rdcId?: string): Promise<Set<string>> => {
+    const db = await openDB();
+    const transaction = db.transaction(ORG_STRUCTURE_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(ORG_STRUCTURE_STORE_NAME);
+    const request = store.openCursor();
+    const numbers = new Set<string>();
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (e) => {
+            const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const org: OrgStructureRow = cursor.value;
+                if (!rdcId || org.warehouseId === rdcId) {
+                    numbers.add(org.storeNumber);
+                }
+                cursor.continue();
+            } else {
+                resolve(numbers);
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+
+export const validateStoresExistInShc = async (rdcId: string): Promise<string[]> => {
     const [orgStores, shcStores] = await Promise.all([
-        getUniqueStoreNumbers(ORG_STRUCTURE_STORE_NAME),
-        getUniqueStoreNumbers(SHC_STORE_NAME),
+        getStoreNumbersFromOrgStructure(rdcId),
+        getUniqueStoreNumbersFromShc(),
     ]);
     
     const missingStores: string[] = [];
@@ -996,17 +1022,46 @@ export const validateStoresExistInShc = async (): Promise<string[]> => {
     return missingStores.sort();
 };
 
-export const getStoreCountsForShcReport = async (): Promise<{ shcStoreCount: number, orgStoreCount: number }> => {
-     const [orgStores, shcStores] = await Promise.all([
-        getUniqueStoreNumbers(ORG_STRUCTURE_STORE_NAME),
-        getUniqueStoreNumbers(SHC_STORE_NAME),
+export const getStoreCountsForShcReport = async (rdcId: string): Promise<{ shcStoreCount: number, orgStoreCount: number }> => {
+    const [rdcStoreNumbers, allShcStoreNumbers] = await Promise.all([
+        getStoreNumbersFromOrgStructure(rdcId),
+        getUniqueStoreNumbersFromShc(),
     ]);
+    
+    let shcStoreCountInRdc = 0;
+    rdcStoreNumbers.forEach(storeNum => {
+        if (allShcStoreNumbers.has(storeNum)) {
+            shcStoreCountInRdc++;
+        }
+    });
+
     return {
-        shcStoreCount: shcStores.size,
-        orgStoreCount: orgStores.size,
+        shcStoreCount: shcStoreCountInRdc,
+        orgStoreCount: rdcStoreNumbers.size,
     };
 };
 
+export const getUniqueRdcsFromOrgStructure = async (): Promise<string[]> => {
+    const db = await openDB();
+    const transaction = db.transaction(ORG_STRUCTURE_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(ORG_STRUCTURE_STORE_NAME);
+    const index = store.index('warehouseIdIndex');
+    const request = index.openKeyCursor(null, 'nextunique');
+    const rdcs = new Set<string>();
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = (e) => {
+            const cursor = (e.target as IDBRequest<IDBCursor>).result;
+            if(cursor) {
+                rdcs.add(cursor.key as string);
+                cursor.continue();
+            } else {
+                resolve(Array.from(rdcs).sort());
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
 
 export const clearExclusionList = (): Promise<void> => deleteSetting(EXCLUSION_LIST_KEY);
 export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest, ShcSectionConfig } from './utils/types';
