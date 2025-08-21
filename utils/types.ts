@@ -271,9 +271,7 @@ export type ShcWarehouseResult = {
     hos: ShcHeadOfSalesResult[];
 };
 
-export type ShcAnalysisResult = {
-    [warehouseName: string]: ShcHeadOfSalesResult[];
-};
+export type ShcAnalysisResult = ShcWarehouseResult[];
 
 export type ShcMismatchItem = {
     type: 'NO_PLANOGRAM_MATCH' | 'NO_LOCATION_MATCH' | 'NO_ORG_STRUCTURE_MATCH';
