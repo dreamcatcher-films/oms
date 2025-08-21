@@ -80,18 +80,18 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         return () => workerRef.current?.terminate();
     }, []);
 
-    const loadAndReconcileConfig = useCallback(async () => {
+    const loadAndReconcileConfig = useCallback(async (baseConfig?: ShcSectionConfigItem[]) => {
         setIsLoadingConfig(true);
         try {
-            const [savedConfig, dbGroups] = await Promise.all([
-                loadSetting<ShcSectionConfigItem[]>(SHC_CONFIG_KEY),
+            const [configToProcess, dbGroups] = await Promise.all([
+                baseConfig ? Promise.resolve(baseConfig) : loadSetting<ShcSectionConfigItem[]>(SHC_CONFIG_KEY),
                 getUniqueShcSectionsGrouped()
             ]);
             
             const dbSections = dbGroups.flatMap(g => g.sections);
             const dbSectionsSet = new Set(dbSections);
             
-            let currentConfig: ShcSectionConfigItem[] = savedConfig || dbSections.map((id, index) => ({ id, enabled: true, order: index + 1 }));
+            let currentConfig: ShcSectionConfigItem[] = configToProcess || dbSections.map((id, index) => ({ id, enabled: true, order: index + 1 }));
             
             const configSectionsSet = new Set(currentConfig.map(s => s.id));
             const foundNew = dbSections.filter(s => !configSectionsSet.has(s));
@@ -181,10 +181,8 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                     const text = await file.text();
                     const importedConfig = JSON.parse(text);
                     if (Array.isArray(importedConfig) && importedConfig.every(item => 'id' in item && 'enabled' in item)) {
-                        setConfig(importedConfig);
+                        await loadAndReconcileConfig(importedConfig);
                         setIsConfigDirty(true);
-                        // Trigger reconciliation after import
-                        await loadAndReconcileConfig();
                          alert(t('shcReport.config.importSuccess'));
                     } else {
                          alert(t('shcReport.config.importError'));
