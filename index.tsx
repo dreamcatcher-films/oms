@@ -35,8 +35,8 @@ import {
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
-import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper, parseShcFile } from './utils/parsing';
-import { Status, View, DataType, RDC, UserSession, ReportResultItem, ExclusionListData, ShcDataType } from './utils/types';
+import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper } from './utils/parsing';
+import { Status, View, DataType, RDC, UserSession, ReportResultItem, ExclusionListData, ShcDataType, ShcParsingWorkerMessage } from './utils/types';
 
 import { LanguageSelector } from './components/LanguageSelector';
 import { LoginModal } from './components/LoginModal';
@@ -633,7 +633,87 @@ const App = () => {
     const dataTypeName = t(`dataType.${dataType}`);
     setStatusMessage({ text: t('status.import.preparing', { dataTypeName }), type: 'info', progress: 0 });
 
-    setTimeout(async () => {
+    const worker = new Worker(new URL('./shc-parsing.worker.ts', import.meta.url), { type: 'module' });
+    
+    let processedCount = 0;
+    let totalRowsFromFile = 0;
+    const initialCountForDisplay = counts[dataType] || 0;
+
+    worker.onmessage = async (e: MessageEvent<ShcParsingWorkerMessage>) => {
+      const { type, payload } = e.data;
+
+      switch (type) {
+        case 'progress':
+          setStatusMessage(prev => ({ ...prev!, text: payload.message, type: 'info' }));
+          break;
+        
+        case 'data':
+          const batch = payload;
+          const addDbFn = {
+            'shc': addShcData,
+            'planogram': addPlanogramData,
+            'orgStructure': addOrgStructureData,
+            'categoryRelation': addCategoryRelationData,
+          }[dataType];
+
+          await addDbFn(batch);
+          processedCount += batch.length;
+          
+          const runningTotal = (dataType === 'shc' ? initialCountForDisplay : 0) + processedCount;
+          
+          setStatusMessage(prev => ({
+            ...prev!,
+            text: t('status.import.processing', { processedCount: runningTotal.toLocaleString(language) }),
+            type: 'info',
+            progress: totalRowsFromFile > 0 ? (processedCount / totalRowsFromFile) * 100 : (prev?.progress || 0),
+          }));
+          break;
+
+        case 'complete':
+          totalRowsFromFile = payload.totalRows;
+          await updateImportMetadata(dataType);
+          
+          const finalDbStatus = await checkDBStatus();
+          const finalMetadata = await getImportMetadata();
+          const finalCounts = {
+            products: finalDbStatus.productsCount,
+            goodsReceipts: finalDbStatus.goodsReceiptsCount,
+            openOrders: finalDbStatus.openOrdersCount,
+            sales: finalDbStatus.salesCount,
+            shc: finalDbStatus.shcCount,
+            planogram: finalDbStatus.planogramCount,
+            orgStructure: finalDbStatus.orgStructureCount,
+            categoryRelation: finalDbStatus.categoryRelationCount
+          };
+          setCounts(finalCounts);
+          setImportMetadata(finalMetadata);
+          
+          setStatusMessage({ 
+              text: t('status.import.complete', { processedCount: finalCounts[dataType].toLocaleString(language), dataTypeName }), 
+              type: 'success',
+              progress: 100
+          });
+          setIsLoading(false);
+          worker.terminate();
+          break;
+
+        case 'error':
+          console.error(`Error from SHC parsing worker for ${dataTypeName}`, payload);
+          setStatusMessage({ text: `${t('status.import.parseError', { dataTypeName })}: ${payload}`, type: 'error' });
+          setIsLoading(false);
+          worker.terminate();
+          break;
+      }
+    };
+    
+    worker.onerror = (err) => {
+        console.error(`Unhandled error in SHC parsing worker for ${dataTypeName}`, err);
+        setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
+        setIsLoading(false);
+        worker.terminate();
+    };
+
+    (async () => {
         try {
             if (dataType !== 'shc') {
                 const clearDbFn = {
@@ -645,61 +725,15 @@ const App = () => {
                 setCounts(prev => ({ ...prev, [dataType]: 0 }));
             }
             
-            setStatusMessage({ text: t('status.import.starting', { dataTypeName }), type: 'info', progress: 0 });
-
-            const parsedData = await parseShcFile(dataType, file);
-            
-            const addDbFn = {
-                'shc': addShcData,
-                'planogram': addPlanogramData,
-                'orgStructure': addOrgStructureData,
-                'categoryRelation': addCategoryRelationData,
-            }[dataType];
-            
-            const totalRowsInFile = parsedData.length;
-            if (totalRowsInFile > 0) {
-                const initialCountForDisplay = counts[dataType] || 0;
-                for (let i = 0; i < totalRowsInFile; i += BATCH_SIZE) {
-                    const batch = parsedData.slice(i, i + BATCH_SIZE);
-                    await addDbFn(batch);
-                    
-                    const processedInFile = i + batch.length;
-                    const runningTotal = (dataType === 'shc' ? initialCountForDisplay : 0) + processedInFile;
-
-                    setStatusMessage({
-                        text: t('status.import.processing', { processedCount: runningTotal.toLocaleString(language) }),
-                        type: 'info',
-                        progress: (processedInFile / totalRowsInFile) * 100,
-                    });
-                }
-            }
-            
-            await updateImportMetadata(dataType);
-            
-            const finalDbStatus = await checkDBStatus();
-            const finalMetadata = await getImportMetadata();
-            const finalCounts = {
-                products: finalDbStatus.productsCount,
-                goodsReceipts: finalDbStatus.goodsReceiptsCount,
-                openOrders: finalDbStatus.openOrdersCount,
-                sales: finalDbStatus.salesCount,
-                shc: finalDbStatus.shcCount,
-                planogram: finalDbStatus.planogramCount,
-                orgStructure: finalDbStatus.orgStructureCount,
-                categoryRelation: finalDbStatus.categoryRelationCount
-            };
-            setCounts(finalCounts);
-            setImportMetadata(finalMetadata);
-            
-            setStatusMessage({ text: t('status.import.complete', { processedCount: finalCounts[dataType].toLocaleString(language), dataTypeName }), type: 'success' });
+            worker.postMessage({ dataType, file });
 
         } catch (err) {
-            console.error(`Error processing SHC file for ${dataTypeName}`, err);
-            setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
-        } finally {
+            console.error(`Error preparing for SHC file import for ${dataTypeName}`, err);
+            setStatusMessage({ text: t('status.import.clearError'), type: 'error' });
             setIsLoading(false);
+            worker.terminate();
         }
-    }, 50);
+    })();
   };
   
   const handleShcFileSelect = (dataType: ShcDataType, event: Event) => {
