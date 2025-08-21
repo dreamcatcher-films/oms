@@ -236,6 +236,7 @@ export type CategoryRelationRow = {
 
 export type ShcWorkerRequest = {
     sectionConfig: ShcSectionConfigItem[];
+    rdcId?: string;
 };
 
 export type ShcResultItem = {
