@@ -65,7 +65,6 @@ const App = () => {
   const [counts, setCounts] = useState({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0, shc: 0, planogram: 0, orgStructure: 0, categoryRelation: 0 });
   const [importMetadata, setImportMetadata] = useState<ImportMetadata>({ products: null, goodsReceipts: null, openOrders: null, sales: null, shc: null, planogram: null, orgStructure: null, categoryRelation: null });
   const [linkedFiles, setLinkedFiles] = useState<Map<DataType, FileSystemFileHandle>>(new Map());
-  const [shcFiles, setShcFiles] = useState<Map<ShcDataType, FileSystemFileHandle>>(new Map());
   
   const [currentView, setCurrentView] = useState<View>('import');
   const [userSession, setUserSession] = useState<UserSession | null>(null);
@@ -116,7 +115,6 @@ const App = () => {
         try {
             const settings = await loadAllSettings();
             const fileHandles = new Map<DataType, FileSystemFileHandle>();
-            const shcFileHandles = new Map<ShcDataType, FileSystemFileHandle>();
             let refreshConfig = null;
             for (const [key, value] of settings.entries()) {
                 if (key.startsWith('linkedFile:')) {
@@ -124,12 +122,6 @@ const App = () => {
                     const permission = await (value as any).queryPermission({ mode: 'read' });
                     if (permission === 'granted') {
                       fileHandles.set(dataType, value as FileSystemFileHandle);
-                    }
-                } else if (key.startsWith('shcLinkedFile:')) {
-                    const dataType = key.split(':')[1] as ShcDataType;
-                    const permission = await (value as any).queryPermission({ mode: 'read' });
-                    if (permission === 'granted') {
-                      shcFileHandles.set(dataType, value as FileSystemFileHandle);
                     }
                 } else if (key === 'autoRefreshConfig') {
                     refreshConfig = value;
@@ -140,7 +132,6 @@ const App = () => {
                 setTimeToNextRefresh(refreshConfig.interval * 60);
             }
             setLinkedFiles(fileHandles);
-            setShcFiles(shcFileHandles);
         } catch(e) {
             console.error("Error loading settings:", e);
         }
@@ -173,7 +164,37 @@ const App = () => {
       setIsLoading(false);
     }
   }, [t]);
-  
+
+    const clearOutdatedShcData = useCallback(async () => {
+        const metadata = await getImportMetadata();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let clearedCount = 0;
+
+        const checkAndClear = async (type: ShcDataType, clearFn: () => Promise<void>) => {
+            const meta = metadata[type];
+            if (meta?.lastImported) {
+                const importDate = new Date(meta.lastImported);
+                importDate.setHours(0, 0, 0, 0);
+                if (importDate.getTime() < today.getTime()) {
+                    await clearFn();
+                    clearedCount++;
+                }
+            }
+        };
+
+        await Promise.all([
+            checkAndClear('shc', clearShcData),
+            checkAndClear('planogram', clearPlanogramData),
+            checkAndClear('orgStructure', clearOrgStructureData),
+            checkAndClear('categoryRelation', clearCategoryRelationData)
+        ]);
+        
+        if (clearedCount > 0) {
+            setStatusMessage({ text: t('status.clear.outdatedShcCleared'), type: 'info' });
+        }
+    }, [t]);
+
   // --- Idle Timeout Logic ---
   const resetIdleTimer = useCallback(() => {
     if (idleTimerRef.current) {
@@ -291,9 +312,8 @@ const App = () => {
     if(savedSession) {
         setUserSession(JSON.parse(savedSession));
     }
-    performInitialCheck();
-    loadSettings();
-  }, [performInitialCheck, loadSettings]);
+    clearOutdatedShcData().then(performInitialCheck).then(loadSettings);
+  }, [performInitialCheck, loadSettings, clearOutdatedShcData]);
   
   const processFile = (dataType: DataType, file: File) => {
     switch (dataType) {
@@ -518,27 +538,6 @@ const App = () => {
       }
   };
 
-  const handleLinkShcFile = async (dataType: ShcDataType) => {
-      if (!('showOpenFilePicker' in window)) {
-          alert("Your browser does not support this feature.");
-          return;
-      }
-      try {
-          const [handle] = await (window as any).showOpenFilePicker();
-          await saveSetting(`shcLinkedFile:${dataType}`, handle);
-          setShcFiles(prev => new Map(prev).set(dataType, handle as FileSystemFileHandle));
-          setStatusMessage({ text: t('settings.dataSources.linkSuccess'), type: 'success' });
-          // After linking, immediately process the file to populate the DB for preview
-          const file = await (handle as any).getFile();
-          await complexShcFileParse(dataType, file);
-      } catch (err) {
-          if ((err as Error).name !== 'AbortError') {
-            console.error('Error linking file:', err);
-            setStatusMessage({ text: t('settings.dataSources.linkError'), type: 'error' });
-          }
-      }
-  };
-
   const handleReloadFile = async (dataType: DataType, isAuto: boolean = false) => {
       const handle = linkedFiles.get(dataType);
       if (!handle) return Promise.reject();
@@ -610,22 +609,6 @@ const App = () => {
         setStatusMessage({ text: t('settings.dataSources.linkClearedError'), type: 'error' });
     }
   };
-
-  const handleClearShcLink = async (dataType: ShcDataType) => {
-    if (!confirm(t('settings.dataSources.clearLinkConfirm'))) return;
-    try {
-        await deleteSetting(`shcLinkedFile:${dataType}`);
-        setShcFiles(prev => {
-            const newMap = new Map(prev);
-            newMap.delete(dataType);
-            return newMap;
-        });
-        setStatusMessage({ text: t('settings.dataSources.linkClearedSuccess'), type: 'success' });
-    } catch (err) {
-        console.error('Error clearing shc link:', err);
-        setStatusMessage({ text: t('settings.dataSources.linkClearedError'), type: 'error' });
-    }
-  };
   
   const handleClearAll = async () => {
     if (!confirm("Are you sure you want to clear ALL data? This will remove products, receipts, orders, and sales data permanently.")) return;
@@ -635,7 +618,6 @@ const App = () => {
       await clearAllData();
       await performInitialCheck();
       setLinkedFiles(new Map());
-      setShcFiles(new Map());
       setStatusMessage({ text: t('status.clear.clearedAll'), type: 'success' });
     } catch (error) {
       console.error("Error clearing all data", error);
@@ -695,34 +677,14 @@ const App = () => {
         setIsLoading(false);
     }
   };
-
-  const handleReloadShcFile = async (dataType: ShcDataType) => {
-    const handle = shcFiles.get(dataType);
-    if (!handle) return Promise.reject();
-    
-    try {
-        const permission = await (handle as any).queryPermission({ mode: 'read' });
-        if (permission === 'denied') {
-            setStatusMessage({ text: t('settings.dataSources.permissionDenied'), type: 'error' });
-            return Promise.reject();
-        }
-        if (permission === 'prompt') {
-            if ((await (handle as any).requestPermission({ mode: 'read' })) !== 'granted') {
-                setStatusMessage({ text: t('settings.dataSources.permissionNeeded'), type: 'error' });
-                return Promise.reject();
-            }
-        }
-        const file = await (handle as any).getFile();
-        await complexShcFileParse(dataType, file);
-        return Promise.resolve();
-    } catch (e) {
-        console.error(`Could not read file for ${dataType}`, e);
-        setStatusMessage({ text: t('settings.dataSources.reloadError'), type: 'error' });
-        setIsLoading(false);
-        return Promise.reject();
-    }
-  };
   
+  const handleShcFileSelect = (dataType: ShcDataType, event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    complexShcFileParse(dataType, file);
+    (event.target as HTMLInputElement).value = ''; 
+  };
+
   const handleClearShcFile = async (dataType: ShcDataType) => {
       if (!confirm(`Are you sure you want to clear all ${t(`dataType.${dataType}`)} data? This cannot be undone.`)) return;
 
@@ -801,15 +763,12 @@ const App = () => {
                 onFileSelect={handleFileSelect}
                 onClear={handleClearFile}
                 onClearShcFile={handleClearShcFile}
+                onShcFileSelect={handleShcFileSelect}
                 linkedFiles={linkedFiles}
-                shcFiles={shcFiles}
                 onReload={handleReloadFile}
-                onReloadShcFile={handleReloadShcFile}
                 userSession={userSession}
                 onLinkFile={handleLinkFile}
                 onClearLink={handleClearLink}
-                onLinkShcFile={handleLinkShcFile}
-                onClearShcLink={handleClearShcLink}
                 onClearAll={handleClearAll}
               />;
           case 'data-preview':
@@ -825,7 +784,7 @@ const App = () => {
           case 'status-report':
                 return <StatusReportView rdcList={rdcList} exclusionList={exclusionList} onUpdateExclusionList={() => {}} />;
           case 'shc-report':
-                return <ShcReportView files={shcFiles} />;
+                return <ShcReportView counts={counts} />;
           case 'simulations':
               return <SimulationView 
                 userSession={userSession} 
