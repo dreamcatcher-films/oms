@@ -42,7 +42,7 @@ export default {
         "processing": "Processing file... Saved {{processedCount}} records.",
         "complete": "Import complete. Saved {{processedCount}} records ({{dataTypeName}}).",
         "parseError": "Critical error while parsing file: {{dataTypeName}}.",
-        "readingFile": "Reading file into memory...",
+        "readingFile": "Reading {{dataTypeName}} into memory...",
         "parsingExcel": "Parsing Excel data..."
     },
     "clear": {
@@ -287,6 +287,18 @@ export default {
       "clearSuccess": "Exclusion list has been cleared.",
       "clearConfirm": "Are you sure you want to clear the entire exclusion list?"
     },
+    "shcExclusionList": {
+      "title": "SHC Store Exclusions",
+      "description": "Import or export a list of store numbers to temporarily exclude from SHC report calculations. Excluded stores will be highlighted and not included in summary totals.",
+      "importButton": "Import List (.txt)",
+      "exportButton": "Export List",
+      "clearButton": "Clear List",
+      "currentCount": "There are {{count}} stores on the exclusion list.",
+      "importSuccess": "SHC exclusion list imported. Loaded {{count}} stores.",
+      "importError": "Error importing SHC exclusion list.",
+      "clearSuccess": "SHC exclusion list has been cleared.",
+      "clearConfirm": "Are you sure you want to clear the entire SHC exclusion list?"
+    },
     "watchlists": {
         "title": "Watchlists",
         "description": "Create and manage lists of products to monitor. (Feature under construction)"
@@ -452,6 +464,11 @@ export default {
       "title": "Section Configuration",
       "description": "Select and reorder the sections to be included in the analysis. Drag and drop to change the order.",
       "save": "Save Configuration",
+      "import": "Import",
+      "export": "Export",
+      "importSuccess": "Section configuration imported successfully.",
+      "exportSuccess": "Section configuration exported successfully.",
+      "importError": "Error importing section configuration.",
       "saved": "Configuration saved.",
       "unsaved": "You have unsaved changes.",
       "addNew": "Add all new sections",
@@ -480,7 +497,12 @@ export default {
       "diff": "Difference",
       "section": "Section",
       "itemGroup": "Item Group",
-      "sectionWidth": "Section width"
+      "sectionWidth": "Section width",
+      "excluded": "(Excluded from totals)",
+      "tooltip": {
+        "toggleExclusion": "Toggle Exclusion",
+        "exportPdf": "Export Store to PDF"
+      }
     }
   },
   "columns": {
