@@ -17,6 +17,24 @@
     max-width: 80ch;
 }
 
+.rdc-selector-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.rdc-selector-group label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-light-color);
+}
+.rdc-selector-group select {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    min-width: 200px;
+}
+
 .file-warning {
     font-size: 0.9rem;
     color: var(--warning-color);
