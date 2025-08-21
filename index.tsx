@@ -28,9 +28,12 @@ import {
   deleteSetting,
   loadRdcList,
   saveRdcList,
-  loadExclusionList,
   saveExclusionList,
+  loadExclusionList,
   clearExclusionList,
+  saveShcExclusionList,
+  loadShcExclusionList as loadShcExclusionListDb,
+  clearShcExclusionList as clearShcExclusionListDb,
   DBStatus,
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
@@ -75,6 +78,7 @@ const App = () => {
   const [watchlist, setWatchlist] = useState<ReportResultItem[]>([]);
   const [watchlistIndex, setWatchlistIndex] = useState<number | null>(null);
   const [exclusionList, setExclusionList] = useState<ExclusionListData>({ list: new Set(), lastUpdated: null });
+  const [shcExclusionList, setShcExclusionList] = useState<Set<string>>(new Set());
 
   // New features state
   const [isIdle, setIsIdle] = useState(false);
@@ -137,9 +141,10 @@ const App = () => {
             console.error("Error loading settings:", e);
         }
     }
-    const [rdcs, exclusions] = await Promise.all([loadRdcList(), loadExclusionList()]);
+    const [rdcs, shcExclusions, exclusionListData] = await Promise.all([loadRdcList(), loadShcExclusionListDb(), loadExclusionList()]);
     setRdcList(rdcs);
-    setExclusionList(exclusions);
+    setShcExclusionList(shcExclusions);
+    setExclusionList(exclusionListData);
   }, []);
   
   const performInitialCheck = useCallback(async () => {
@@ -646,7 +651,7 @@ const App = () => {
         case 'progress':
           setStatusMessage(prev => ({ 
             ...prev!, 
-            text: payload.message, 
+            text: t(payload.message, { dataTypeName: file.name }), 
             type: 'info',
             progress: typeof payload.percentage === 'number' ? payload.percentage : prev?.progress,
           }));
@@ -676,6 +681,28 @@ const App = () => {
           break;
 
         case 'complete':
+          totalRowsToImport = payload.totalRows;
+          if (totalRowsToImport === 0 && processedCount === 0) {
+            // This handles the case where parsing is done but no data was sent (e.g., all filtered out)
+            await updateImportMetadata(dataType);
+            const finalDbStatus = await checkDBStatus();
+            const finalMetadata = await getImportMetadata();
+            const finalCounts = { ...counts, [dataType]: (dataType === 'shc' ? initialCountForDisplay : 0) + totalRowsToImport };
+            
+            setCounts(finalCounts);
+            setImportMetadata(finalMetadata);
+            setStatusMessage({ 
+                text: t('status.import.complete', { processedCount: finalCounts[dataType].toLocaleString(language), dataTypeName }), 
+                type: 'success',
+                progress: 100
+            });
+            setIsLoading(false);
+            worker.terminate();
+          }
+          // The saving process will continue via 'data' messages. The final 'complete' comes after the last 'data' message.
+          break;
+        
+        case 'save_complete':
           await updateImportMetadata(dataType);
           
           const finalDbStatus = await checkDBStatus();
@@ -701,6 +728,7 @@ const App = () => {
           setIsLoading(false);
           worker.terminate();
           break;
+
 
         case 'error':
           console.error(`Error from SHC parsing worker for ${dataTypeName}`, payload);
@@ -769,6 +797,11 @@ const App = () => {
           setIsLoading(false);
       }
   };
+
+  const handleUpdateShcExclusionList = async (newList: Set<string>) => {
+    await saveShcExclusionList(Array.from(newList));
+    setShcExclusionList(newList);
+  };
   
   const handleLogin = (session: UserSession) => {
     localStorage.setItem('oms-session', JSON.stringify(session));
@@ -814,6 +847,44 @@ const App = () => {
       setWatchlist([]);
       setWatchlistIndex(null);
   };
+
+  const handleImportShcExclusionList = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt';
+    input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+            const text = await file.text();
+            const storeNumbers = text.split(/[\s,;\t\n]+/).filter(Boolean);
+            await handleUpdateShcExclusionList(new Set(storeNumbers));
+            setStatusMessage({ text: t('settings.shcExclusionList.importSuccess', { count: storeNumbers.length }), type: 'success' });
+        }
+    };
+    input.click();
+  };
+
+  const handleExportShcExclusionList = () => {
+      const content = Array.from(shcExclusionList).join('\n');
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'shc_exclusion_list.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  };
+
+  const handleClearShcExclusionList = async () => {
+      if (confirm(t('settings.shcExclusionList.clearConfirm'))) {
+          await clearShcExclusionListDb();
+          setShcExclusionList(new Set());
+          setStatusMessage({ text: t('settings.shcExclusionList.clearSuccess'), type: 'success' });
+      }
+  };
+
   
   // Render logic
   const renderView = () => {
@@ -847,7 +918,12 @@ const App = () => {
           case 'status-report':
                 return <StatusReportView rdcList={rdcList} exclusionList={exclusionList} onUpdateExclusionList={() => {}} />;
           case 'shc-report':
-                return <ShcReportView counts={counts} rdcList={rdcList} />;
+                return <ShcReportView 
+                    counts={counts} 
+                    rdcList={rdcList}
+                    exclusionList={shcExclusionList}
+                    onUpdateExclusionList={handleUpdateShcExclusionList}
+                />;
           case 'simulations':
               return <SimulationView 
                 userSession={userSession} 
@@ -871,9 +947,13 @@ const App = () => {
                 onDeleteRdc={() => {}}
                 onExportConfig={() => {}}
                 onImportClick={() => {}}
-                exclusionList={exclusionList}
+                exclusionList={exclusionList} // This is for the Status Report
                 onImportExclusionListClick={() => {}}
                 onClearExclusionList={() => {}}
+                shcExclusionList={shcExclusionList}
+                onImportShcExclusionList={handleImportShcExclusionList}
+                onExportShcExclusionList={handleExportShcExclusionList}
+                onClearShcExclusionList={handleClearShcExclusionList}
               />;
           default:
               return <div class={sharedStyles['placeholder-view']}><h2>{t('placeholders.dashboard.title')}</h2><p>{t('placeholders.dashboard.description')}</p></div>;
