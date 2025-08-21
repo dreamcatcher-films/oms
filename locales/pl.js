@@ -49,7 +49,8 @@ export default {
         "clearError": "Błąd podczas usuwania danych: {{dataTypeName}}.",
         "clearingAll": "Usuwanie wszystkich danych...",
         "clearedAll": "Wszystkie dane zostały usunięte. Możesz załadować nowe pliki.",
-        "clearAllError": "Błąd podczas usuwania danych."
+        "clearAllError": "Błąd podczas usuwania danych.",
+        "outdatedShcCleared": "Nieaktualne dane SHC vs Planogram z poprzedniego dnia zostały wyczyszczone. Proszę załadować dzisiejsze pliki."
     },
     "autoRefresh": {
         "starting": "Rozpoczynanie automatycznego odświeżania połączonych plików...",
@@ -100,6 +101,7 @@ export default {
     },
     "buttons": {
         "selectFile": "Wybierz plik",
+        "addFile": "Dodaj plik",
         "change": "Zmień",
         "reload": "Załaduj ponownie",
         "clear": "Wyczyść Dane"
@@ -428,12 +430,54 @@ export default {
       "readingFiles": "Wczytywanie plików..."
     },
     "errors": {
-      "allFilesRequired": "Wszystkie 4 pliki muszą być połączone, aby uruchomić analizę.",
+      "allFilesRequired": "Wszystkie 4 zestawy danych muszą być zaimportowane i należy wybrać RDC, aby uruchomić analizę.",
       "fileReadError": "Wystąpił błąd podczas odczytu jednego z połączonych plików."
+    },
+    "validation": {
+      "title": "Sprawdzenie Spójności Danych",
+      "message": "Znaleziono {{count}} sklepów w Strukturze Organizacyjnej, dla których brakuje danych w dzisiejszym pliku SHC.",
+      "listHeader": "Brakujące sklepy:",
+      "continue": "Kontynuuj mimo wszystko",
+      "cancel": "Anuluj"
     },
     "results": {
       "title": "Wyniki Analizy",
-      "placeholder": "Uruchom analizę, aby zobaczyć tutaj wyniki."
+      "placeholder": "Uruchom analizę, aby zobaczyć tutaj wyniki.",
+      "mismatchesTitle": "Niedopasowania Danych",
+      "storeCountSummary": "Dostępne sklepy w danych SHC: {{shcStoreCount}} / Wszystkie sklepy w RDC: {{orgStoreCount}}"
+    },
+    "config": {
+      "title": "Konfiguracja Sekcji",
+      "description": "Wybierz i uporządkuj sekcje, które mają być uwzględnione w analizie. Przeciągnij i upuść, aby zmienić kolejność.",
+      "save": "Zapisz Konfigurację",
+      "saved": "Konfiguracja zapisana.",
+      "unsaved": "Masz niezapisane zmiany.",
+      "addNew": "Dodaj wszystkie nowe sekcje",
+      "removeStale": "Usuń wszystkie nieaktualne sekcje",
+      "new": "Nowa",
+      "stale": "Nieakt.",
+      "selectAll": "Zaznacz wszystko",
+      "deselectAll": "Odznacz wszystko",
+      "activeSectionsSummary": "{{active}} aktywne z {{total}} dostępnych"
+    },
+    "rdcSelector": {
+      "label": "Wybierz RDC",
+      "placeholder": "Wybierz RDC..."
+    },
+    "table": {
+      "warehouse": "Magazyn",
+      "hos": "Head of Sales",
+      "am": "Area Manager",
+      "store": "Sklep",
+      "discrepancies": "Niezgodności",
+      "avgPerStore": "Śr. na sklep",
+      "itemNumber": "Nr artykułu",
+      "itemName": "Nazwa artykułu",
+      "planShc": "SHC Planogram",
+      "storeShc": "SHC Sklep",
+      "diff": "Różnica",
+      "section": "Sekcja",
+      "itemGroup": "Grupa towarowa"
     }
   },
   "columns": {
