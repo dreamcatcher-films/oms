@@ -432,10 +432,18 @@ export default {
       "allFilesRequired": "All 4 data sets (SHC, Planogram, Org Structure, Category Relation) must be imported for today to run the analysis.",
       "fileReadError": "An error occurred while reading one of the linked files."
     },
+     "validation": {
+      "title": "Data Consistency Check",
+      "message": "{{count}} stores found in Organizational Structure but are missing from today's SHC data.",
+      "listHeader": "Missing Stores:",
+      "continue": "Continue Anyway",
+      "cancel": "Cancel"
+    },
     "results": {
       "title": "Analysis Results",
       "placeholder": "Run the analysis to see the results here.",
-      "mismatchesTitle": "Data Mismatches"
+      "mismatchesTitle": "Data Mismatches",
+      "storeCountSummary": "Available stores in SHC Data: {{shcStoreCount}} / Total stores in RDC: {{orgStoreCount}}"
     },
     "config": {
       "title": "Section Configuration",
@@ -448,7 +456,8 @@ export default {
       "new": "New",
       "stale": "Stale",
       "selectAll": "Select All",
-      "deselectAll": "Deselect All"
+      "deselectAll": "Deselect All",
+      "activeSectionsSummary": "{{active}} active of {{total}} available"
     },
     "table": {
       "warehouse": "Warehouse",
@@ -456,12 +465,14 @@ export default {
       "am": "Area Manager",
       "store": "Store",
       "discrepancies": "Discrepancies",
+      "avgPerStore": "Avg per Store",
       "itemNumber": "Item Number",
       "itemName": "Item Name",
       "planShc": "Plan SHC",
       "storeShc": "Store SHC",
       "diff": "Difference",
-      "section": "Section"
+      "section": "Section",
+      "itemGroup": "Item Group"
     }
   },
   "columns": {
