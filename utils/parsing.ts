@@ -272,8 +272,7 @@ export const categoryRelationRowMapper = (row: { [key: string]: string }): Categ
     };
 };
 
-export const parseShcFile = async (dataType: ShcDataType, file: File): Promise<any[]> => {
-    const buffer = await file.arrayBuffer();
+export const parseShcFile = (dataType: ShcDataType, buffer: ArrayBuffer): any[] => {
     const workbook = XLSX.read(buffer, { type: 'array' });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
