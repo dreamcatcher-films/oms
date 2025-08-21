@@ -633,14 +633,15 @@ const App = () => {
     setStatusMessage({ text: t('status.import.preparing', { dataTypeName }), type: 'info', progress: 0 });
 
     try {
-        const clearDbFn = {
-            'shc': clearShcData,
-            'planogram': clearPlanogramData,
-            'orgStructure': clearOrgStructureData,
-            'categoryRelation': clearCategoryRelationData,
-        }[dataType];
-        await clearDbFn();
-        setCounts(prev => ({ ...prev, [dataType]: 0 }));
+        if (dataType !== 'shc') {
+            const clearDbFn = {
+                'planogram': clearPlanogramData,
+                'orgStructure': clearOrgStructureData,
+                'categoryRelation': clearCategoryRelationData,
+            }[dataType];
+            await clearDbFn();
+            setCounts(prev => ({ ...prev, [dataType]: 0 }));
+        }
         
         setStatusMessage({ text: t('status.import.starting', { dataTypeName }), type: 'info', progress: 0 });
 
@@ -657,18 +658,18 @@ const App = () => {
             for (let i = 0; i < parsedData.length; i += BATCH_SIZE) {
                 const batch = parsedData.slice(i, i + BATCH_SIZE);
                 await addDbFn(batch);
-                const currentCount = i + batch.length;
+                const currentCount = (dataType === 'shc' ? counts.shc : 0) + i + batch.length;
                 setStatusMessage({
                     text: t('status.import.processing', { processedCount: currentCount.toLocaleString(language) }),
                     type: 'info',
-                    progress: (currentCount / parsedData.length) * 100,
+                    progress: (currentCount / ((dataType === 'shc' ? counts.shc : 0) + parsedData.length)) * 100,
                 });
             }
         }
         
         await updateImportMetadata(dataType);
         await performInitialCheck();
-        setStatusMessage({ text: t('status.import.complete', { processedCount: parsedData.length.toLocaleString(language), dataTypeName }), type: 'success' });
+        setStatusMessage({ text: t('status.import.complete', { processedCount: ((dataType === 'shc' ? counts.shc : 0) + parsedData.length).toLocaleString(language), dataTypeName }), type: 'success' });
 
     } catch (err) {
         console.error(`Error processing SHC file for ${dataTypeName}`, err);
