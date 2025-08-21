@@ -318,6 +318,7 @@ export type ShcParsingWorkerRequest = {
 
 export type ShcParsingWorkerProgressPayload = {
     message: string;
+    percentage?: number;
 };
 
 export type ShcParsingWorkerDataPayload = any[];
