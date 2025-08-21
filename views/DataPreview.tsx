@@ -1,19 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
 import {
-  Product,
-  GoodsReceipt,
-  OpenOrder,
-  Sale,
-  getProductsPaginatedAndFiltered,
-  getGoodsReceiptsPaginatedAndFiltered,
-  getOpenOrdersPaginatedAndFiltered,
-  getSalesPaginatedAndFiltered,
-  getUniqueProductStatuses,
-  getUniqueWarehouseIds,
-  getUniqueWarehouseIdsForGoodsReceipts,
-  getUniqueWarehouseIdsForOpenOrders,
-  getUniqueWarehouseIdsForSales,
+  Product, GoodsReceipt, OpenOrder, Sale,
+  ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow,
+  getProductsPaginatedAndFiltered, getGoodsReceiptsPaginatedAndFiltered,
+  getOpenOrdersPaginatedAndFiltered, getSalesPaginatedAndFiltered,
+  getShcDataPaginated, getPlanogramDataPaginated, getOrgStructureDataPaginated, getCategoryRelationDataPaginated,
+  getUniqueProductStatuses, getUniqueWarehouseIds, getUniqueWarehouseIdsForGoodsReceipts,
+  getUniqueWarehouseIdsForOpenOrders, getUniqueWarehouseIdsForSales,
   findProductsByPartialId,
 } from "../db";
 import { UserSession } from "../utils/types";
@@ -22,13 +16,21 @@ import sharedStyles from '../styles/shared.module.css';
 
 const PAGE_SIZE = 20;
 
+type TabType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales' | 'shc' | 'planogram' | 'orgStructure' | 'categoryRelation';
+
 export const DataPreview = ({ userSession }: { userSession: UserSession | null }) => {
   const { t, language } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'products' | 'goodsReceipts' | 'openOrders' | 'sales'>('products');
+  const [activeTab, setActiveTab] = useState<TabType>('products');
+  
   const [products, setProducts] = useState<Product[]>([]);
   const [goodsReceipts, setGoodsReceipts] = useState<GoodsReceipt[]>([]);
   const [openOrders, setOpenOrders] = useState<OpenOrder[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [shcData, setShcData] = useState<ShcDataRow[]>([]);
+  const [planogramData, setPlanogramData] = useState<PlanogramRow[]>([]);
+  const [orgStructureData, setOrgStructureData] = useState<OrgStructureRow[]>([]);
+  const [categoryRelationData, setCategoryRelationData] = useState<CategoryRelationRow[]>([]);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -132,6 +134,44 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         { key: 'productName', labelKey: 'columns.sale.productName' },
         { key: 'quantity', labelKey: 'columns.sale.quantity' },
     ];
+    
+    const SHC_COLUMNS: { key: keyof ShcDataRow, labelKey: string }[] = [
+        { key: 'storeNumber', labelKey: 'columns.shc.storeNumber' },
+        { key: 'itemNumber', labelKey: 'columns.shc.itemNumber' },
+        { key: 'itemDescription', labelKey: 'columns.shc.itemDescription' },
+        { key: 'piecesInBox', labelKey: 'columns.shc.piecesInBox' },
+        { key: 'itemStatus', labelKey: 'columns.shc.itemStatus' },
+        { key: 'itemGroup', labelKey: 'columns.shc.itemGroup' },
+        { key: 'shelfCapacity', labelKey: 'columns.shc.shelfCapacity' },
+        { key: 'shelfCapacityUnit', labelKey: 'columns.shc.shelfCapacityUnit' },
+    ];
+
+    const PLANOGRAM_COLUMNS: { key: keyof PlanogramRow, labelKey: string }[] = [
+        { key: 'generalStoreArea', labelKey: 'columns.planogram.generalStoreArea' },
+        { key: 'settingSpecificallyFor', labelKey: 'columns.planogram.settingSpecificallyFor' },
+        { key: 'settingWidth', labelKey: 'columns.planogram.settingWidth' },
+        { key: 'itemNumber', labelKey: 'columns.planogram.itemNumber' },
+        { key: 'itemName', labelKey: 'columns.planogram.itemName' },
+        { key: 'targetShc', labelKey: 'columns.planogram.targetShc' },
+        { key: 'facings', labelKey: 'columns.planogram.facings' },
+        { key: 'depth', labelKey: 'columns.planogram.depth' },
+    ];
+
+    const ORG_STRUCTURE_COLUMNS: { key: keyof OrgStructureRow, labelKey: string }[] = [
+        { key: 'storeNumber', labelKey: 'columns.orgStructure.storeNumber' },
+        { key: 'storeName', labelKey: 'columns.orgStructure.storeName' },
+        { key: 'warehouseId', labelKey: 'columns.orgStructure.warehouseId' },
+        { key: 'areaManager', labelKey: 'columns.orgStructure.areaManager' },
+        { key: 'headOfSales', labelKey: 'columns.orgStructure.headOfSales' },
+    ];
+
+    const CATEGORY_RELATION_COLUMNS: { key: keyof CategoryRelationRow, labelKey: string }[] = [
+        { key: 'storeNumber', labelKey: 'columns.categoryRelation.storeNumber' },
+        { key: 'generalStoreArea', labelKey: 'columns.categoryRelation.generalStoreArea' },
+        { key: 'settingSpecificallyFor', labelKey: 'columns.categoryRelation.settingSpecificallyFor' },
+        { key: 'settingWidth', labelKey: 'columns.categoryRelation.settingWidth' },
+    ];
+
 
   useEffect(() => {
     if (userSession?.mode === 'rdc') {
@@ -162,58 +202,62 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
     setSalesWarehouseIds(sWarehouses);
   }, []);
   
-  const fetchProducts = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
-    const { data, total } = await getProductsPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedProductFilters);
-    setProducts(data);
-    setTotalItems(total);
-    setIsLoading(false);
-  }, [currentPage, appliedProductFilters]);
-  
-  const fetchGoodsReceipts = useCallback(async () => {
-    setIsLoading(true);
-    const { data, total } = await getGoodsReceiptsPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedGoodsReceiptsFilters);
-    setGoodsReceipts(data);
-    setTotalItems(total);
-    setIsLoading(false);
-  }, [currentPage, appliedGoodsReceiptsFilters]);
-  
-  const fetchOpenOrders = useCallback(async () => {
-    setIsLoading(true);
-    const { data, total } = await getOpenOrdersPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedOpenOrderFilters);
-    setOpenOrders(data);
-    setTotalItems(total);
-    setIsLoading(false);
-  }, [currentPage, appliedOpenOrderFilters]);
+    let result: { data: any[]; total: number; };
 
-  const fetchSales = useCallback(async () => {
-    setIsLoading(true);
-    const { data, total } = await getSalesPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedSalesFilters);
-    setSales(data);
-    setTotalItems(total);
+    switch(activeTab) {
+        case 'products':
+            result = await getProductsPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedProductFilters);
+            setProducts(result.data);
+            break;
+        case 'goodsReceipts':
+            result = await getGoodsReceiptsPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedGoodsReceiptsFilters);
+            setGoodsReceipts(result.data);
+            break;
+        case 'openOrders':
+            result = await getOpenOrdersPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedOpenOrderFilters);
+            setOpenOrders(result.data);
+            break;
+        case 'sales':
+            result = await getSalesPaginatedAndFiltered(currentPage, PAGE_SIZE, appliedSalesFilters);
+            setSales(result.data);
+            break;
+        case 'shc':
+            result = await getShcDataPaginated(currentPage, PAGE_SIZE);
+            setShcData(result.data);
+            break;
+        case 'planogram':
+            result = await getPlanogramDataPaginated(currentPage, PAGE_SIZE);
+            setPlanogramData(result.data);
+            break;
+        case 'orgStructure':
+            result = await getOrgStructureDataPaginated(currentPage, PAGE_SIZE);
+            setOrgStructureData(result.data);
+            break;
+        case 'categoryRelation':
+            result = await getCategoryRelationDataPaginated(currentPage, PAGE_SIZE);
+            setCategoryRelationData(result.data);
+            break;
+        default:
+            result = { data: [], total: 0 };
+    }
+    setTotalItems(result.total);
     setIsLoading(false);
-  }, [currentPage, appliedSalesFilters]);
+  }, [currentPage, activeTab, appliedProductFilters, appliedGoodsReceiptsFilters, appliedOpenOrderFilters, appliedSalesFilters]);
 
   useEffect(() => {
     fetchDropdownData();
   }, [fetchDropdownData]);
   
-  const handleTabChange = (tab: 'products' | 'goodsReceipts' | 'openOrders' | 'sales') => {
+  const handleTabChange = (tab: TabType) => {
       setCurrentPage(1);
       setActiveTab(tab);
   };
 
   useEffect(() => {
-    if (activeTab === 'products') {
-      fetchProducts();
-    } else if (activeTab === 'goodsReceipts') {
-      fetchGoodsReceipts();
-    } else if (activeTab === 'openOrders') {
-      fetchOpenOrders();
-    } else if (activeTab === 'sales') {
-        fetchSales();
-    }
-  }, [currentPage, appliedProductFilters, appliedGoodsReceiptsFilters, appliedOpenOrderFilters, appliedSalesFilters, activeTab, fetchProducts, fetchGoodsReceipts, fetchOpenOrders, fetchSales]);
+    fetchData();
+  }, [currentPage, appliedProductFilters, appliedGoodsReceiptsFilters, appliedOpenOrderFilters, appliedSalesFilters, activeTab, fetchData]);
 
 
   const handleFilterChange = (e: Event, type: 'products' | 'goodsReceipts' | 'openOrders' | 'sales') => {
@@ -339,6 +383,33 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
       setCurrentPage(currentPage + 1);
     }
   };
+
+  const renderSimpleTable = (data: any[], columns: {key: string, labelKey: string}[]) => (
+    <>
+      <div class={sharedStyles['table-container']}>
+        {isLoading ? ( <div class={sharedStyles['spinner-overlay']}><div class={sharedStyles.spinner}></div></div> ) : (
+          <table>
+            <thead>
+              <tr>{columns.map(col => <th key={col.key}>{t(col.labelKey)}</th>)}</tr>
+            </thead>
+            <tbody>
+              {data.map(row => (
+                <tr key={row.id}>
+                  {columns.map(col => <td key={col.key}>{String((row as any)[col.key] ?? '')}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+       <div class={sharedStyles.pagination}>
+        <span>{totalItems.toLocaleString(language)} {t('dataPreview.pagination.records')}</span>
+        <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>{t('dataPreview.pagination.previous')}</button>
+        <span>{t('dataPreview.pagination.page', { currentPage, totalPages })}</span>
+        <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>{t('dataPreview.pagination.next')}</button>
+      </div>
+    </>
+  );
   
   const isRdcMode = userSession?.mode === 'rdc';
 
@@ -349,6 +420,10 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         <button class={`${sharedStyles.tab} ${activeTab === 'goodsReceipts' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('goodsReceipts')}>{t('dataPreview.tabs.goodsReceipts')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'openOrders' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('openOrders')}>{t('dataPreview.tabs.openOrders')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'sales' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('sales')}>{t('dataPreview.tabs.sales')}</button>
+        <button class={`${sharedStyles.tab} ${activeTab === 'shc' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('shc')}>{t('dataPreview.tabs.shc')}</button>
+        <button class={`${sharedStyles.tab} ${activeTab === 'planogram' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('planogram')}>{t('dataPreview.tabs.planogram')}</button>
+        <button class={`${sharedStyles.tab} ${activeTab === 'orgStructure' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('orgStructure')}>{t('dataPreview.tabs.orgStructure')}</button>
+        <button class={`${sharedStyles.tab} ${activeTab === 'categoryRelation' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('categoryRelation')}>{t('dataPreview.tabs.categoryRelation')}</button>
       </div>
 
       {activeTab === 'products' && (
@@ -604,6 +679,11 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
          </div>
          </>
       )}
+
+      {activeTab === 'shc' && renderSimpleTable(shcData, SHC_COLUMNS)}
+      {activeTab === 'planogram' && renderSimpleTable(planogramData, PLANOGRAM_COLUMNS)}
+      {activeTab === 'orgStructure' && renderSimpleTable(orgStructureData, ORG_STRUCTURE_COLUMNS)}
+      {activeTab === 'categoryRelation' && renderSimpleTable(categoryRelationData, CATEGORY_RELATION_COLUMNS)}
 
     </div>
   );
