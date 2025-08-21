@@ -41,7 +41,9 @@ export default {
         "starting": "Dateiimport wird gestartet: {{dataTypeName}}...",
         "processing": "Datei wird verarbeitet... {{processedCount}} Datensätze gespeichert.",
         "complete": "Import abgeschlossen. {{processedCount}} Datensätze gespeichert ({{dataTypeName}}).",
-        "parseError": "Kritischer Fehler beim Parsen der Datei: {{dataTypeName}}."
+        "parseError": "Kritischer Fehler beim Parsen der Datei: {{dataTypeName}}.",
+        "readingFile": "Datei {{dataTypeName}} wird in den Speicher gelesen...",
+        "parsingExcel": "Excel-Daten werden verarbeitet..."
     },
     "clear": {
         "clearing": "Daten werden gelöscht: {{dataTypeName}}...",
@@ -285,6 +287,18 @@ export default {
       "clearSuccess": "Ausschlussliste gelöscht.",
       "clearConfirm": "Möchten Sie die gesamte Ausschlussliste wirklich löschen?"
     },
+    "shcExclusionList": {
+      "title": "SHC-Filialausschlüsse",
+      "description": "Importieren oder exportieren Sie eine Liste von Filialnummern, um sie vorübergehend von den Berechnungen im SHC-Bericht auszuschließen. Ausgeschlossene Filialen werden hervorgehoben und nicht in den Gesamtsummen berücksichtigt.",
+      "importButton": "Liste importieren (.txt)",
+      "exportButton": "Liste exportieren",
+      "clearButton": "Liste löschen",
+      "currentCount": "Es befinden sich {{count}} Filialen auf der Ausschlussliste.",
+      "importSuccess": "SHC-Ausschlussliste importiert. {{count}} Filialen geladen.",
+      "importError": "Fehler beim Import der SHC-Ausschlussliste.",
+      "clearSuccess": "SHC-Ausschlussliste wurde gelöscht.",
+      "clearConfirm": "Möchten Sie die gesamte SHC-Ausschlussliste wirklich löschen?"
+    },
     "watchlists": {
         "title": "Watchlists",
         "description": "Erstellen und verwalten Sie Produktlisten zur Überwachung. (Funktion in Entwicklung)"
@@ -450,6 +464,11 @@ export default {
       "title": "Abschnittskonfiguration",
       "description": "Wählen und ordnen Sie die Abschnitte an, die in die Analyse einbezogen werden sollen. Zum Ändern der Reihenfolge ziehen und ablegen.",
       "save": "Konfiguration speichern",
+      "import": "Importieren",
+      "export": "Exportieren",
+      "importSuccess": "Abschnittskonfiguration erfolgreich importiert.",
+      "exportSuccess": "Abschnittskonfiguration erfolgreich exportiert.",
+      "importError": "Fehler beim Importieren der Abschnittskonfiguration.",
       "saved": "Konfiguration gespeichert.",
       "unsaved": "Sie haben ungespeicherte Änderungen.",
       "addNew": "Alle neuen Abschnitte hinzufügen",
@@ -458,7 +477,8 @@ export default {
       "stale": "Veraltet",
       "selectAll": "Alle auswählen",
       "deselectAll": "Alle abwählen",
-      "activeSectionsSummary": "{{active}} aktiv von {{total}} verfügbar"
+      "activeSectionsSummary": "{{active}} aktiv von {{total}} verfügbar",
+      "refreshOrder": "Reihenfolge im Abschnitt aktualisieren"
     },
     "rdcSelector": {
       "label": "RDC auswählen",
@@ -477,7 +497,13 @@ export default {
       "storeShc": "Filial-SHC",
       "diff": "Differenz",
       "section": "Abschnitt",
-      "itemGroup": "Warengruppe"
+      "itemGroup": "Warengruppe",
+      "sectionWidth": "Einstellungsbreite",
+      "excluded": "(Von Summen ausgeschlossen)",
+      "tooltip": {
+        "toggleExclusion": "Ausschluss umschalten",
+        "exportPdf": "Filiale als PDF exportieren"
+      }
     }
   },
   "columns": {
