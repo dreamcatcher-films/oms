@@ -11,7 +11,7 @@ const ORG_STRUCTURE_STORE_NAME = 'orgStructure';
 const CATEGORY_RELATION_STORE_NAME = 'categoryRelation';
 const METADATA_STORE_NAME = 'importMetadata';
 const SETTINGS_STORE_NAME = 'settings';
-const DB_VERSION = 13; 
+const DB_VERSION = 14; 
 
 const RDC_LIST_KEY = 'rdcList';
 const EXCLUSION_LIST_KEY = 'exclusionList';
