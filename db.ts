@@ -14,7 +14,8 @@ const SETTINGS_STORE_NAME = 'settings';
 const DB_VERSION = 14; 
 
 const RDC_LIST_KEY = 'rdcList';
-const EXCLUSION_LIST_KEY = 'exclusionList';
+const EXCLUSION_LIST_KEY = 'exclusionList'; // For Status Report
+const SHC_EXCLUSION_LIST_KEY = 'shcExclusionList'; // For SHC Report
 const DEFAULT_RDC_LIST: RDC[] = [
     { id: '220', name: 'RUN' },
     { id: '250', name: 'BEL' },
@@ -1046,4 +1047,13 @@ export const getStoreCountsForShcReport = async (rdcId: string): Promise<{ shcSt
 };
 
 export const clearExclusionList = (): Promise<void> => deleteSetting(EXCLUSION_LIST_KEY);
+
+// --- SHC Exclusion List Functions ---
+export const saveShcExclusionList = (list: string[]): Promise<void> => saveSetting(SHC_EXCLUSION_LIST_KEY, list);
+export const loadShcExclusionList = async (): Promise<Set<string>> => {
+    const list = await loadSetting<string[]>(SHC_EXCLUSION_LIST_KEY);
+    return new Set(list || []);
+};
+export const clearShcExclusionList = (): Promise<void> => deleteSetting(SHC_EXCLUSION_LIST_KEY);
+
 export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest, ShcSectionConfig } from './utils/types';
