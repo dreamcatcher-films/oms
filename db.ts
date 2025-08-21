@@ -902,4 +902,4 @@ export const loadExclusionList = async (): Promise<ExclusionListData> => {
 };
 
 export const clearExclusionList = (): Promise<void> => deleteSetting(EXCLUSION_LIST_KEY);
-export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType } from './utils/types';
+export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest } from './utils/types';
