@@ -1,5 +1,6 @@
-import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { Product, GoodsReceipt, OpenOrder, Sale, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow } from '../db';
+import { ShcDataType } from './types';
 
 export const parseDateToObj = (dateStr: string | undefined): Date | null => {
     if (!dateStr) return null;
@@ -216,18 +217,16 @@ export const shcRowMapper = (row: string[]): ShcDataRow => ({
     shelfCapacityUnit: row[21]?.trim() || '',
 });
 
-export const parsePlanogramFileContents = (fileContent: string): PlanogramRow[] => {
-    const results = Papa.parse<string[]>(fileContent, { skipEmptyLines: true });
+export const parsePlanogramFileContents = (rows: any[][]): PlanogramRow[] => {
     const data: PlanogramRow[] = [];
     let lastSectionDescX23 = '';
     let lastSectionDescX24 = '';
     let lastSectionDescX25 = '';
 
-    // Skip header if it exists
-    const startIndex = results.data[0]?.[0]?.toLowerCase().includes('section') ? 1 : 0;
+    const startIndex = rows[0]?.[0]?.toString().toLowerCase().includes('section') ? 1 : 0;
 
-    for (let i = startIndex; i < results.data.length; i++) {
-        const row = results.data[i];
+    for (let i = startIndex; i < rows.length; i++) {
+        const row = rows[i].map(cell => String(cell ?? '')); // Ensure all cells are strings
         const currentSectionDescX23 = row[2]?.trim() || lastSectionDescX23;
         const currentSectionDescX24 = row[3]?.trim() || lastSectionDescX24;
         const currentSectionDescX25 = row[4]?.trim() || lastSectionDescX25;
@@ -271,4 +270,47 @@ export const categoryRelationRowMapper = (row: { [key: string]: string }): Categ
         settingWidth: row['CategoryHierarchy05']?.trim() || '',
         storeNumber,
     };
+};
+
+export const parseShcFile = async (dataType: ShcDataType, file: File): Promise<any[]> => {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    if (dataType === 'categoryRelation') {
+        const data = XLSX.utils.sheet_to_json(sheet) as { [key: string]: any }[];
+        const stringifiedData = data.map(rowObject => {
+            const newObj: { [key: string]: string } = {};
+            for (const key in rowObject) {
+                newObj[key] = String(rowObject[key] ?? '');
+            }
+            return newObj;
+        });
+        return stringifiedData.map(categoryRelationRowMapper).filter(Boolean);
+    }
+    
+    // For other types, parse as an array of arrays
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+    if (rows.length === 0) return [];
+    
+    // Ensure all cells are strings for consistent mapping
+    const stringRows = rows.map(row => row.map(cell => String(cell ?? '')));
+    
+    // Skip header row for non-planogram files
+    if (dataType !== 'planogram') {
+        stringRows.shift();
+    }
+
+    switch(dataType) {
+        case 'shc':
+            return stringRows.map(shcRowMapper).filter(Boolean);
+        case 'planogram':
+             // The original `parsePlanogramFileContents` function expects raw rows to handle header detection and fill-down logic
+            return parsePlanogramFileContents(rows);
+        case 'orgStructure':
+            return stringRows.map(orgStructureRowMapper).filter(Boolean);
+        default:
+            return [];
+    }
 };
