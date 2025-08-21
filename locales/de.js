@@ -49,7 +49,8 @@ export default {
         "clearError": "Fehler beim Löschen der Daten: {{dataTypeName}}.",
         "clearingAll": "Alle Daten werden gelöscht...",
         "clearedAll": "Alle Daten wurden gelöscht. Sie können jetzt neue Dateien laden.",
-        "clearAllError": "Fehler beim Löschen der Daten."
+        "clearAllError": "Fehler beim Löschen der Daten.",
+        "outdatedShcCleared": "Veraltete SHC vs. Planogramm-Daten vom Vortag wurden gelöscht. Bitte laden Sie die heutigen Dateien hoch."
     },
      "autoRefresh": {
         "starting": "Automatische Aktualisierung der verknüpften Dateien wird gestartet...",
@@ -100,6 +101,7 @@ export default {
     },
     "buttons": {
         "selectFile": "Datei wählen",
+        "addFile": "Datei hinzufügen",
         "change": "Ändern",
         "reload": "Neu laden",
         "clear": "Daten löschen"
@@ -428,12 +430,54 @@ export default {
       "readingFiles": "Dateien werden gelesen..."
     },
     "errors": {
-      "allFilesRequired": "Alle 4 Dateien müssen verknüpft sein, um die Analyse zu starten.",
+      "allFilesRequired": "Alle 4 Datensätze müssen importiert und ein RDC ausgewählt werden, um die Analyse zu starten.",
       "fileReadError": "Beim Lesen einer der verknüpften Dateien ist ein Fehler aufgetreten."
+    },
+    "validation": {
+      "title": "Datenkonsistenzprüfung",
+      "message": "{{count}} Filialen wurden in der Organisationsstruktur gefunden, fehlen aber in den heutigen SHC-Daten.",
+      "listHeader": "Fehlende Filialen:",
+      "continue": "Trotzdem fortfahren",
+      "cancel": "Abbrechen"
     },
     "results": {
       "title": "Analyseergebnisse",
-      "placeholder": "Führen Sie die Analyse aus, um die Ergebnisse hier anzuzeigen."
+      "placeholder": "Führen Sie die Analyse aus, um die Ergebnisse hier anzuzeigen.",
+      "mismatchesTitle": "Daten-Inkonsistenzen",
+      "storeCountSummary": "Verfügbare Filialen in SHC-Daten: {{shcStoreCount}} / Gesamtfilialen im RDC: {{orgStoreCount}}"
+    },
+    "config": {
+      "title": "Abschnittskonfiguration",
+      "description": "Wählen und ordnen Sie die Abschnitte an, die in die Analyse einbezogen werden sollen. Zum Ändern der Reihenfolge ziehen und ablegen.",
+      "save": "Konfiguration speichern",
+      "saved": "Konfiguration gespeichert.",
+      "unsaved": "Sie haben ungespeicherte Änderungen.",
+      "addNew": "Alle neuen Abschnitte hinzufügen",
+      "removeStale": "Alle veralteten Abschnitte entfernen",
+      "new": "Neu",
+      "stale": "Veraltet",
+      "selectAll": "Alle auswählen",
+      "deselectAll": "Alle abwählen",
+      "activeSectionsSummary": "{{active}} aktiv von {{total}} verfügbar"
+    },
+    "rdcSelector": {
+      "label": "RDC auswählen",
+      "placeholder": "Ein RDC auswählen..."
+    },
+    "table": {
+      "warehouse": "Lager",
+      "hos": "Verkaufsleiter",
+      "am": "Bereichsleiter",
+      "store": "Filiale",
+      "discrepancies": "Abweichungen",
+      "avgPerStore": "Ø pro Filiale",
+      "itemNumber": "Artikel-Nr.",
+      "itemName": "Artikelname",
+      "planShc": "Plan-SHC",
+      "storeShc": "Filial-SHC",
+      "diff": "Differenz",
+      "section": "Abschnitt",
+      "itemGroup": "Warengruppe"
     }
   },
   "columns": {
