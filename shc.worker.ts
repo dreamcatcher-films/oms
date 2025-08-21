@@ -10,7 +10,9 @@ import {
     ShcDataRow,
     PlanogramRow,
     OrgStructureRow,
-    CategoryRelationRow
+    CategoryRelationRow,
+    ShcMismatchItem,
+    ShcAnalysisResult
 } from './utils/types';
 
 const createLocatorKey = (s1: string, s2: string): string => {
@@ -21,7 +23,7 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
     const { sectionConfig } = e.data;
     
     try {
-        postMessage({ type: 'progress', payload: { message: 'Fetching data from database...', percentage: 10 } } as ShcWorkerMessage);
+        postMessage({ type: 'progress', payload: { message: 'Fetching data from database...', percentage: 5 } } as ShcWorkerMessage);
         
         const [
             shcData,
@@ -35,11 +37,10 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
             getAllCategoryRelationData(),
         ]);
         
-        postMessage({ type: 'progress', payload: { message: 'Filtering SHC data...', percentage: 25 } } as ShcWorkerMessage);
+        postMessage({ type: 'progress', payload: { message: 'Filtering & preparing data...', percentage: 15 } } as ShcWorkerMessage);
+        
         const filteredShcData = shcData.filter(row => row.itemStatus === '8' && row.shelfCapacityUnit === 'C');
-
-        postMessage({ type: 'progress', payload: { message: 'Preparing data for joining...', percentage: 40 } } as ShcWorkerMessage);
-
+        
         planogramData.forEach(row => {
             row.locatorKey = createLocatorKey(row.settingSpecificallyFor, row.settingWidth);
         });
@@ -47,73 +48,140 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
         categoryRelationData.forEach(row => {
             row.locatorKey = createLocatorKey(row.settingSpecificallyFor, row.settingWidth);
         });
-
-        const orgMap = new Map(orgStructureData.map(row => [row.storeNumber, row]));
         
-        const planogramMap = new Map<string, PlanogramRow[]>();
-        planogramData.forEach(row => {
-            const key = row.locatorKey!;
-            if (!planogramMap.has(key)) {
-                planogramMap.set(key, []);
-            }
-            planogramMap.get(key)!.push(row);
+        const orgMap = new Map(orgStructureData.map(row => [row.storeNumber, row]));
+        const categoryRelationMap = new Map<string, CategoryRelationRow[]>();
+        categoryRelationData.forEach(row => {
+            if (!categoryRelationMap.has(row.storeNumber)) categoryRelationMap.set(row.storeNumber, []);
+            categoryRelationMap.get(row.storeNumber)!.push(row);
         });
 
-        postMessage({ type: 'progress', payload: { message: 'Joining data and calculating differences...', percentage: 65 } } as ShcWorkerMessage);
+        const planogramMap = new Map<string, Map<string, PlanogramRow>>();
+        planogramData.forEach(row => {
+            const key = row.locatorKey!;
+            if (!planogramMap.has(key)) planogramMap.set(key, new Map());
+            planogramMap.get(key)!.set(row.itemNumber, row);
+        });
 
-        const mismatches: any[] = [];
-        const finalResults: any[] = [];
+        const shcByStoreMap = new Map<string, ShcDataRow[]>();
+        filteredShcData.forEach(row => {
+            if (!shcByStoreMap.has(row.storeNumber)) shcByStoreMap.set(row.storeNumber, []);
+            shcByStoreMap.get(row.storeNumber)!.push(row);
+        });
         
-        for (const shcRow of filteredShcData) {
-            const orgInfo = orgMap.get(shcRow.storeNumber);
-            if (!orgInfo) {
-                // Mismatch: Store from SHC not in Org Structure
-                continue;
-            }
+        postMessage({ type: 'progress', payload: { message: 'Grouping stores by hierarchy...', percentage: 25 } } as ShcWorkerMessage);
 
-            // Find all planograms assigned to this store
-            const assignedPlanogramLocators = categoryRelationData
-                .filter(cr => cr.storeNumber === shcRow.storeNumber)
-                .map(cr => cr.locatorKey);
+        const hierarchy = new Map<string, Map<string, Map<string, OrgStructureRow[]>>>();
+        orgStructureData.forEach(store => {
+            if (!hierarchy.has(store.warehouseId)) hierarchy.set(store.warehouseId, new Map());
+            const warehouse = hierarchy.get(store.warehouseId)!;
 
-            let itemFoundInAnyPlanogram = false;
-            for (const locatorKey of assignedPlanogramLocators) {
-                const planogramItems = planogramMap.get(locatorKey || '');
-                if (planogramItems) {
-                    const matchingPlanogramItem = planogramItems.find(p => p.itemNumber === shcRow.itemNumber);
-                    if (matchingPlanogramItem) {
-                        itemFoundInAnyPlanogram = true;
-                        const planShc = Math.floor(matchingPlanogramItem.targetShc);
-                        const storeShc = shcRow.shelfCapacity;
-                        const diff = storeShc - planShc;
+            if (!warehouse.has(store.headOfSales)) warehouse.set(store.headOfSales, new Map());
+            const hos = warehouse.get(store.headOfSales)!;
+
+            if (!hos.has(store.areaManager)) hos.set(store.areaManager, []);
+            const am = hos.get(store.areaManager)!;
+            am.push(store);
+        });
+        
+        const mismatches: ShcMismatchItem[] = [];
+        const flatResults: any[] = [];
+        let processedStores = 0;
+        const totalStoresToProcess = orgStructureData.length;
+        
+        for (const [warehouseId, hosMap] of hierarchy.entries()) {
+            for (const [hosName, amMap] of hosMap.entries()) {
+                for (const [amName, stores] of amMap.entries()) {
+                    for (const store of stores) {
+                        processedStores++;
+                        const progressPercentage = 25 + (processedStores / totalStoresToProcess) * 65;
+                        postMessage({ type: 'progress', payload: { message: `Analyzing Store ${processedStores}/${totalStoresToProcess}: ${store.storeNumber}`, percentage: progressPercentage } } as ShcWorkerMessage);
+
+                        const storeShcData = shcByStoreMap.get(store.storeNumber);
+                        if (!storeShcData) continue;
                         
-                        if (diff < 0) {
-                            finalResults.push({
-                                ...shcRow,
-                                ...orgInfo,
-                                ...matchingPlanogramItem,
-                                planShc,
-                                diff,
+                        const assignedPlanogramLocators = categoryRelationMap.get(store.storeNumber) || [];
+                        if (assignedPlanogramLocators.length === 0) {
+                             storeShcData.forEach(shcRow => {
+                                mismatches.push({ type: 'NO_LOCATION_MATCH', storeNumber: store.storeNumber, articleNumber: shcRow.itemNumber, details: 'No location found in Category-Store Relation file.' });
                             });
+                            continue;
+                        }
+
+                        for (const shcRow of storeShcData) {
+                            let itemFoundInAnyPlanogram = false;
+                            for (const locator of assignedPlanogramLocators) {
+                                const planogramItems = planogramMap.get(locator.locatorKey!);
+                                if (planogramItems) {
+                                    const matchingPlanogramItem = planogramItems.get(shcRow.itemNumber);
+                                    if (matchingPlanogramItem) {
+                                        itemFoundInAnyPlanogram = true;
+                                        const planShc = Math.floor(matchingPlanogramItem.targetShc);
+                                        const storeShc = shcRow.shelfCapacity;
+                                        const diff = storeShc - planShc;
+                                        
+                                        if (diff < 0) {
+                                            flatResults.push({
+                                                warehouseId, hosName, amName, storeNumber: store.storeNumber,
+                                                locator: locator.locatorKey,
+                                                articleNumber: shcRow.itemNumber,
+                                                articleName: shcRow.itemDescription,
+                                                planShc, storeShc, diff,
+                                                generalStoreArea: locator.generalStoreArea,
+                                                settingSpecificallyFor: locator.settingSpecificallyFor,
+                                                settingWidth: locator.settingWidth,
+                                            });
+                                        }
+                                        break; // Found it, no need to check other locators for this item
+                                    }
+                                }
+                            }
+                            if (!itemFoundInAnyPlanogram) {
+                                mismatches.push({ type: 'NO_PLANOGRAM_MATCH', storeNumber: store.storeNumber, articleNumber: shcRow.itemNumber, details: `Item not found in any of ${assignedPlanogramLocators.length} assigned planograms.` });
+                            }
                         }
                     }
                 }
             }
-             if (!itemFoundInAnyPlanogram) {
-                // Mismatch logic here if needed
-            }
         }
         
-        postMessage({ type: 'progress', payload: { message: 'Finalizing results...', percentage: 90 } } as ShcWorkerMessage);
+        postMessage({ type: 'progress', payload: { message: 'Building final report...', percentage: 95 } } as ShcWorkerMessage);
+        
+        const finalHierarchicalResult: ShcAnalysisResult = [];
+        const resultBuilder = new Map<string, any>();
 
-        // TODO: Build the hierarchical result object from finalResults
+        for(const item of flatResults) {
+            if (!resultBuilder.has(item.warehouseId)) resultBuilder.set(item.warehouseId, { warehouseName: item.warehouseId, hos: new Map() });
+            const warehouse = resultBuilder.get(item.warehouseId)!;
+
+            if (!warehouse.hos.has(item.hosName)) warehouse.hos.set(item.hosName, { hosName: item.hosName, managers: new Map() });
+            const hos = warehouse.hos.get(item.hosName)!;
+
+            if (!hos.managers.has(item.amName)) hos.managers.set(item.amName, { managerName: item.amName, stores: new Map() });
+            const am = hos.managers.get(item.amName)!;
+
+            if (!am.stores.has(item.storeNumber)) am.stores.set(item.storeNumber, { storeNumber: item.storeNumber, discrepancyCount: 0, items: [] });
+            const store = am.stores.get(item.storeNumber)!;
+            
+            store.items.push(item);
+            store.discrepancyCount++;
+        }
+
+        resultBuilder.forEach(wh => {
+            const hosList: any[] = [];
+            wh.hos.forEach((hos: any) => {
+                const amList: any[] = [];
+                hos.managers.forEach((am: any) => {
+                    amList.push({ ...am, stores: Array.from(am.stores.values()) });
+                });
+                hosList.push({ ...hos, managers: amList });
+            });
+            finalHierarchicalResult.push({ ...wh, hos: hosList });
+        });
 
         const finalMessage: ShcWorkerMessage = {
             type: 'complete',
-            payload: {
-                results: {}, // Hierarchical object goes here
-                mismatches: [], // Mismatches go here
-            },
+            payload: { results: finalHierarchicalResult, mismatches },
         };
         postMessage(finalMessage);
 
