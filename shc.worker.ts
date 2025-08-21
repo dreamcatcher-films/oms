@@ -21,12 +21,12 @@ const createLocatorKey = (s1: string, s2: string): string => {
 };
 
 onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
-    const { sectionConfig } = e.data;
+    const { sectionConfig, rdcId } = e.data;
     
     try {
         postMessage({ type: 'progress', payload: { message: 'Fetching data from database...', percentage: 5 } } as ShcWorkerMessage);
         
-        const [
+        let [
             shcData,
             planogramData,
             orgStructureData,
@@ -40,6 +40,13 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
         
         postMessage({ type: 'progress', payload: { message: 'Filtering & preparing data...', percentage: 15 } } as ShcWorkerMessage);
         
+        if (rdcId) {
+            const rdcStoreNumbers = new Set(orgStructureData.filter(r => r.warehouseId === rdcId).map(r => r.storeNumber));
+            orgStructureData = orgStructureData.filter(r => r.warehouseId === rdcId);
+            shcData = shcData.filter(r => rdcStoreNumbers.has(r.storeNumber));
+            categoryRelationData = categoryRelationData.filter(r => rdcStoreNumbers.has(r.storeNumber));
+        }
+
         const enabledSections = new Set(sectionConfig.filter(s => s.enabled).map(s => s.id));
         const sectionOrderMap = new Map(sectionConfig.map((s, i) => [s.id, i]));
         
