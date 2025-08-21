@@ -277,6 +277,45 @@
     color: var(--text-light-color);
 }
 
+/* Store Exclusion Styles */
+.nameCell {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rowActions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.rowLevel:hover .rowActions {
+    opacity: 1;
+}
+
+.actionButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.excludedStore > td {
+    background-color: #fffbe6 !important;
+    color: #d46b08 !important;
+}
+.excludedLabel {
+    font-size: 0.8em;
+    font-weight: normal;
+    font-style: italic;
+    margin-left: 1rem;
+}
+
 
 /* Validation Modal */
 .modal-overlay {
