@@ -41,7 +41,9 @@ export default {
         "starting": "Rozpoczynanie importu pliku: {{dataTypeName}}...",
         "processing": "Przetwarzanie pliku... Zapisano {{processedCount}} rekordów.",
         "complete": "Import zakończony. Zapisano {{processedCount}} rekordów ({{dataTypeName}}).",
-        "parseError": "Błąd krytyczny podczas parsowania pliku: {{dataTypeName}}."
+        "parseError": "Błąd krytyczny podczas parsowania pliku: {{dataTypeName}}.",
+        "readingFile": "Wczytywanie pliku {{dataTypeName}} do pamięci...",
+        "parsingExcel": "Przetwarzanie danych Excel..."
     },
     "clear": {
         "clearing": "Usuwanie danych: {{dataTypeName}}...",
@@ -285,6 +287,18 @@ export default {
       "clearSuccess": "Lista wykluczeń została wyczyszczona.",
       "clearConfirm": "Czy na pewno chcesz wyczyścić całą listę wykluczeń?"
     },
+    "shcExclusionList": {
+      "title": "Wykluczenia Sklepów w Raporcie SHC",
+      "description": "Importuj lub eksportuj listę numerów sklepów, aby tymczasowo wykluczyć je z obliczeń w raporcie SHC. Wykluczone sklepy będą podświetlone i nie będą wliczane do podsumowań.",
+      "importButton": "Importuj Listę (.txt)",
+      "exportButton": "Eksportuj Listę",
+      "clearButton": "Wyczyść Listę",
+      "currentCount": "Na liście wykluczeń znajduje się {{count}} sklepów.",
+      "importSuccess": "Lista wykluczeń SHC zaimportowana. Załadowano {{count}} sklepów.",
+      "importError": "Błąd podczas importu listy wykluczeń SHC.",
+      "clearSuccess": "Lista wykluczeń SHC została wyczyszczona.",
+      "clearConfirm": "Czy na pewno chcesz wyczyścić całą listę wykluczeń SHC?"
+    },
     "watchlists": {
         "title": "Listy Obserwowane",
         "description": "Twórz i zarządzaj listami produktów do monitorowania. (Funkcja w budowie)"
@@ -450,6 +464,11 @@ export default {
       "title": "Konfiguracja Sekcji",
       "description": "Wybierz i uporządkuj sekcje, które mają być uwzględnione w analizie. Przeciągnij i upuść, aby zmienić kolejność.",
       "save": "Zapisz Konfigurację",
+      "import": "Importuj",
+      "export": "Eksportuj",
+      "importSuccess": "Konfiguracja sekcji zaimportowana pomyślnie.",
+      "exportSuccess": "Konfiguracja sekcji wyeksportowana pomyślnie.",
+      "importError": "Błąd podczas importu konfiguracji sekcji.",
       "saved": "Konfiguracja zapisana.",
       "unsaved": "Masz niezapisane zmiany.",
       "addNew": "Dodaj wszystkie nowe sekcje",
@@ -458,7 +477,8 @@ export default {
       "stale": "Nieakt.",
       "selectAll": "Zaznacz wszystko",
       "deselectAll": "Odznacz wszystko",
-      "activeSectionsSummary": "{{active}} aktywne z {{total}} dostępnych"
+      "activeSectionsSummary": "{{active}} aktywne z {{total}} dostępnych",
+      "refreshOrder": "Odśwież kolejność w sekcji"
     },
     "rdcSelector": {
       "label": "Wybierz RDC",
@@ -477,7 +497,13 @@ export default {
       "storeShc": "SHC Sklep",
       "diff": "Różnica",
       "section": "Sekcja",
-      "itemGroup": "Grupa towarowa"
+      "itemGroup": "Grupa towarowa",
+      "sectionWidth": "Szerokość ustawienia",
+      "excluded": "(Wykluczony z podsumowań)",
+      "tooltip": {
+        "toggleExclusion": "Przełącz Wykluczenie",
+        "exportPdf": "Eksportuj Sklep do PDF"
+      }
     }
   },
   "columns": {
