@@ -6,12 +6,12 @@ import styles from './ShcReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
 type Props = {
-    files: Map<ShcDataType, FileSystemFileHandle>;
+    counts: { [key in ShcDataType]: number };
 };
 
 const SHC_CONFIG_KEY = 'shcSectionConfig';
 
-export const ShcReportView = ({ files }: Props) => {
+export const ShcReportView = ({ counts }: Props) => {
     const { t } = useTranslation();
     const workerRef = useRef<Worker | null>(null);
     const dragItem = useRef<number | null>(null);
@@ -31,7 +31,7 @@ export const ShcReportView = ({ files }: Props) => {
 
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-    const canRunAnalysis = files.size === 4 && config !== null;
+    const canRunAnalysis = counts.shc > 0 && counts.planogram > 0 && counts.orgStructure > 0 && counts.categoryRelation > 0 && config !== null;
 
     useEffect(() => {
         workerRef.current = new Worker(new URL('../shc.worker.ts', import.meta.url), { type: 'module' });
