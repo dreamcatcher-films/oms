@@ -18,6 +18,7 @@ export const ShcReportView = ({ files }: Props) => {
     const [mismatches, setMismatches] = useState<ShcMismatchItem[]>([]);
     const [error, setError] = useState<string | null>(null);
 
+    // TODO: This should check counts from DB instead of just linked files
     const canRunAnalysis = files.size === 4;
 
     useEffect(() => {
@@ -41,17 +42,10 @@ export const ShcReportView = ({ files }: Props) => {
         setProgress({ message: t('shcReport.status.readingFiles'), percentage: 0 });
 
         try {
-            const fileContents: { [key in ShcDataType]?: string } = {};
-            for (const [type, handle] of files.entries()) {
-                const file = await handle.getFile();
-                fileContents[type] = await file.text();
-            }
-
             // TODO: Load section config from DB
             const sectionConfig: ShcSectionConfig = { sections: [], order: [] }; 
 
             workerRef.current.postMessage({
-                files: fileContents,
                 sectionConfig,
             });
 
