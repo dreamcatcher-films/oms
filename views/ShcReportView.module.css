@@ -103,6 +103,14 @@
     font-size: 0.9rem;
     padding: 0;
 }
+
+.section-list-container {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 1rem;
+}
+
 .section-list {
     list-style: none;
     padding: 0;
@@ -214,11 +222,11 @@
     color: var(--text-light-color);
 }
 
-.rowLevel {
+.row-level {
     cursor: pointer;
     transition: background-color 0.1s;
 }
-.rowLevel:hover {
+.row-level:hover {
     background-color: #f8f9fa;
 }
 .level-0 > td { font-weight: bold; background-color: #f1f3f5; }
@@ -243,13 +251,13 @@
     transform: rotate(90deg);
 }
 
-.detailHeader > td {
+.detail-header > td {
     background-color: #f8f9fa;
     font-weight: bold;
     font-size: 0.85em;
     color: var(--text-light-color);
 }
-.detailRow > td {
+.detail-row > td {
     font-size: 0.9em;
 }
 .subtext {
@@ -274,7 +282,7 @@
     color: var(--border-color);
 }
 
-.dividerRow > td {
+.divider-row > td {
     background-color: #f8f9fa;
     padding: 0.5rem 1rem;
     border-top: 2px solid #e9ecef;
@@ -282,11 +290,11 @@
     cursor: default;
 }
 
-.dividerRow:hover {
+.divider-row:hover {
     background-color: #f8f9fa;
 }
 
-.dividerContent {
+.divider-content {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -296,13 +304,13 @@
 }
 
 /* Store Exclusion Styles */
-.nameCell {
+.name-cell {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-.rowActions {
+.row-actions {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -310,11 +318,11 @@
     transition: opacity 0.2s;
 }
 
-.rowLevel:hover .rowActions {
+.row-level:hover .row-actions {
     opacity: 1;
 }
 
-.actionButton {
+.action-button {
     background: none;
     border: none;
     cursor: pointer;
@@ -323,11 +331,11 @@
     line-height: 1;
 }
 
-.excludedStore > td {
+.excluded-store > td {
     background-color: #fffbe6 !important;
     color: #d46b08 !important;
 }
-.excludedLabel {
+.excluded-label {
     font-size: 0.8em;
     font-weight: normal;
     font-style: italic;
@@ -387,13 +395,13 @@
 }
 
 /* Hierarchical Data Mismatches */
-.mismatchContainer {
+.mismatch-container {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
     background-color: white;
 }
-.mismatchRow {
+.mismatch-row {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 3fr; /* Type, Store, Article, Details */
     gap: 1rem;
@@ -401,46 +409,46 @@
     align-items: center;
     border-bottom: 1px solid var(--border-color);
 }
-.mismatchContainer > div:last-child {
+.mismatch-container > div:last-child {
     border-bottom: none;
 }
-.mismatchHeader {
+.mismatch-header {
     font-weight: bold;
     background-color: #f8f9fa;
     padding: 0.75rem 1rem;
 }
-.mismatchTypeHeader {
+.mismatch-type-header {
     background-color: #e9ecef;
     font-weight: bold;
     cursor: pointer;
 }
-.mismatchTypeTitle {
+.mismatch-type-title {
     grid-column: 1 / -1; /* Span all columns */
     display: flex;
     align-items: center;
 }
-.mismatchStoreHeader {
+.mismatch-store-header {
     background-color: #f8f9fa;
     font-weight: 500;
     cursor: pointer;
 }
-.mismatchStoreTitle {
+.mismatch-store-title {
     display: flex;
     align-items: center;
 }
-.mismatchItemRow {
+.mismatch-item-row {
     font-size: 0.9em;
 }
-.mismatchToggle {
+.mismatch-toggle {
     display: inline-block;
     transition: transform 0.2s;
     margin-right: 0.5rem;
     width: 1em;
 }
-.mismatchToggle.expanded {
+.mismatch-toggle.expanded {
     transform: rotate(90deg);
 }
-.mismatchCount {
+.mismatch-count {
     color: var(--text-light-color);
     font-weight: normal;
     margin-left: 0.5rem;
