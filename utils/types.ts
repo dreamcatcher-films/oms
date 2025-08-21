@@ -309,3 +309,25 @@ export type ShcWorkerMessage =
     | { type: 'progress', payload: ShcWorkerProgressPayload }
     | { type: 'complete', payload: { results: ShcAnalysisResult; mismatches: ShcMismatchItem[]; } }
     | { type: 'error', payload: string };
+
+// --- SHC Parsing Worker Types ---
+export type ShcParsingWorkerRequest = {
+    dataType: ShcDataType;
+    file: File;
+};
+
+export type ShcParsingWorkerProgressPayload = {
+    message: string;
+};
+
+export type ShcParsingWorkerDataPayload = any[];
+
+export type ShcParsingWorkerCompletePayload = {
+    totalRows: number;
+};
+
+export type ShcParsingWorkerMessage =
+    | { type: 'progress', payload: ShcParsingWorkerProgressPayload }
+    | { type: 'data', payload: ShcParsingWorkerDataPayload }
+    | { type: 'complete', payload: ShcParsingWorkerCompletePayload }
+    | { type: 'error', payload: string };
