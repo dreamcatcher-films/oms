@@ -391,7 +391,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         }, [] as any[][]);
     
         autoTable(doc, {
-            head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Diff', '✓', 'Comments']],
+            head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Diff', 'Conf.', 'Comments']],
             body: mainTableBody,
             theme: 'grid',
             startY: 110,
@@ -410,47 +410,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 addPageHeaderAndFooter(doc, data.pageNumber, (doc as any).internal.getNumberOfPages());
             }
         });
-    
-        // --- Summary Page ---
-        const summary: { [key: string]: { planShc: number, storeShc: number, diffCount: number, itemCount: number, generalStoreArea: string, settingWidth: string, settingSpecificallyFor: string } } = {};
-        store.items.forEach(item => {
-            const key = `${item.generalStoreArea}|${item.settingSpecificallyFor}|${item.settingWidth}`;
-            if (!summary[key]) {
-                summary[key] = { planShc: 0, storeShc: 0, diffCount: 0, itemCount: 0, generalStoreArea: item.generalStoreArea, settingWidth: item.settingWidth, settingSpecificallyFor: item.settingSpecificallyFor };
-            }
-            summary[key].planShc += item.planShc;
-            summary[key].storeShc += item.storeShc;
-            if (item.diff < 0) {
-                summary[key].diffCount++;
-            }
-            summary[key].itemCount++;
-        });
-    
-        const summaryBody = Object.values(summary).map(data => [
-            data.generalStoreArea,
-            data.settingSpecificallyFor,
-            data.settingWidth,
-            data.planShc,
-            data.storeShc,
-            '', // Checkbox placeholder
-            data.diffCount,
-            data.itemCount
-        ]);
-    
-        if (summaryBody.length > 0) {
-            doc.addPage();
-            autoTable(doc, {
-                head: [['General Store Area', 'Setting specifically for', 'Setting width', 'Plan SHC', 'Store SHC', '✓', 'No. of Differences (Unders)', 'No. of items in section checked']],
-                body: summaryBody,
-                theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
-                headStyles: { fillColor: '#e0e0e0', textColor: '#333', fontStyle: 'bold', minCellHeight: 20, valign: 'middle' },
-                didDrawPage: (data) => {
-                    addPageHeaderAndFooter(doc, data.pageNumber, (doc as any).internal.getNumberOfPages());
-                }
-            });
-        }
-    
+        
         // Final pass to ensure all pages have headers/footers
         const totalPages = (doc as any).internal.getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) {
