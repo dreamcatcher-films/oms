@@ -327,69 +327,92 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const year = now.getFullYear().toString().slice(-2);
         const week = getWeekNumber(now);
         const filename = `SHC_${selectedRdc}_${store.storeNumber}_SHC_vs_Planogram_Report_${year}&W${week}.pdf`;
-        
+    
         const rdc = rdcList.find(r => r.id === selectedRdc);
-
-        const addPageHeader = (docInstance: jsPDF) => {
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 40;
+    
+        const addPageHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
+            // Header
             docInstance.setFontSize(14);
             docInstance.setFont('helvetica', 'bold');
-            docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', docInstance.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
-            
+            docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', pageWidth / 2, 40, { align: 'center' });
+    
             docInstance.setFontSize(8);
             docInstance.setFont('helvetica', 'normal');
-            docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', 14, 50);
-
+            docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', margin, 60);
+    
             docInstance.setFontSize(10);
-            docInstance.text('Target score less than 100', docInstance.internal.pageSize.getWidth() / 2 - 60, 65);
-            docInstance.rect(docInstance.internal.pageSize.getWidth() / 2 - 5, 55, 60, 20); // Score box
-            docInstance.text(`Current score:`, docInstance.internal.pageSize.getWidth() / 2 + 65, 65);
+            docInstance.text('Target score', 220, 80);
+            docInstance.rect(270, 70, 80, 20);
+            docInstance.text('less than 100', 275, 82);
+    
+            docInstance.text(`Current score:`, 360, 80);
             docInstance.setFont('helvetica', 'bold');
-            docInstance.text(`${store.discrepancyCount}`, docInstance.internal.pageSize.getWidth() / 2 + 125, 65);
-
-
+            docInstance.text(`${store.discrepancyCount}`, 425, 80);
+    
             docInstance.setFont('helvetica', 'bold');
-            docInstance.text(`RDC: ${rdc?.id || ''} ${rdc?.name || ''}`, docInstance.internal.pageSize.getWidth() - 14, 50, { align: 'right' });
-            docInstance.text(`Store: ${store.storeNumber}`, docInstance.internal.pageSize.getWidth() - 14, 65, { align: 'right' });
-        };
-        
-        const addPageFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
+            docInstance.text(`RDC: ${rdc?.id || ''} ${rdc?.name || ''}`, pageWidth - margin, 60, { align: 'right' });
+            docInstance.text(`Store: ${store.storeNumber}`, pageWidth - margin, 80, { align: 'right' });
+    
+            // Footer
             docInstance.setFontSize(8);
-            docInstance.text(`Page ${pageNumber} of ${totalPages}`, docInstance.internal.pageSize.getWidth() / 2, docInstance.internal.pageSize.getHeight() - 10, { align: 'center' });
+            docInstance.setFont('helvetica', 'normal');
+            docInstance.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, pageHeight - 20, { align: 'center' });
         };
-
-        const mainTableBody: any[] = [];
-        let lastGeneralArea = '';
+    
+        const mainTableBody: any[][] = [];
+        const groupedItems: Record<string, ShcResultItem[]> = {};
+    
         store.items.forEach(item => {
-            if (item.generalStoreArea !== lastGeneralArea) {
-                mainTableBody.push([
-                    { content: `General Store Area: ${item.generalStoreArea}`, colSpan: 4, styles: { fontStyle: 'bold', fillColor: '#f0f0f0' } },
-                    { content: `Setting specifically for: ${item.settingSpecificallyFor}`, colSpan: 2 },
-                    { content: `Setting width: ${item.settingWidth}`, colSpan: 2 },
-                ]);
-                lastGeneralArea = item.generalStoreArea;
+            const key = `${item.generalStoreArea}|${item.settingSpecificallyFor}|${item.settingWidth}`;
+            if (!groupedItems[key]) {
+                groupedItems[key] = [];
             }
-            mainTableBody.push([
-                item.articleNumber,
-                item.articleName,
-                item.planShc,
-                item.storeShc,
-                { content: item.diff, styles: { textColor: '#ff0000' } },
-                '', // Checkbox
-                ''  // Comments
-            ]);
+            groupedItems[key].push(item);
         });
-        
+    
+        Object.values(groupedItems).forEach(group => {
+            const firstItem = group[0];
+            mainTableBody.push([
+                {
+                    content: `General Store Area: ${firstItem.generalStoreArea}`,
+                    colSpan: 2,
+                    styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left' },
+                },
+                {
+                    content: `Setting specifically for: ${firstItem.settingSpecificallyFor}`,
+                    colSpan: 3,
+                    styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left' },
+                },
+                 {
+                    content: `Setting width: ${firstItem.settingWidth}`,
+                    colSpan: 2,
+                    styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333', halign: 'left' },
+                },
+            ]);
+    
+            group.forEach(item => {
+                mainTableBody.push([
+                    item.articleNumber,
+                    item.articleName,
+                    item.planShc,
+                    item.storeShc,
+                    { content: item.diff, styles: { textColor: '#e74c3c' } },
+                    '', // Checkbox placeholder
+                    ''  // Comments placeholder
+                ]);
+            });
+        });
+    
         autoTable(doc, {
-            startY: 80,
             head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Difference', '✓', 'Comments']],
             body: mainTableBody,
             theme: 'grid',
-            styles: { fontSize: 8, cellPadding: 3 },
-            headStyles: { fillColor: '#e0e0e0', textColor: '#333' },
-            didDrawPage: (data) => {
-                addPageHeader(doc);
-                addPageFooter(doc, data.pageNumber, (doc as any).internal.getNumberOfPages());
-            },
+            startY: 100,
+            styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#ccc' },
+            headStyles: { fillColor: '#e0e0e0', textColor: '#333', fontStyle: 'bold', minCellHeight: 20, valign: 'middle' },
             columnStyles: {
                 0: { cellWidth: 55 },
                 1: { cellWidth: 'auto' },
@@ -397,50 +420,60 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 3: { cellWidth: 40, halign: 'center' },
                 4: { cellWidth: 40, halign: 'center' },
                 5: { cellWidth: 20, halign: 'center' },
-                6: { cellWidth: 'auto' },
+                6: { cellWidth: 100 },
+            },
+            didDrawPage: (data) => {
+                addPageHeaderAndFooter(doc, data.pageNumber, (doc as any).internal.getNumberOfPages());
             }
         });
-
+    
         // --- Summary Page ---
-        const summary: { [key: string]: { planShc: number, storeShc: number, diffCount: number, itemCount: number, settingWidth: string, settingSpecificallyFor: string } } = {};
+        const summary: { [key: string]: { planShc: number, storeShc: number, diffCount: number, itemCount: number, generalStoreArea: string, settingWidth: string, settingSpecificallyFor: string } } = {};
         store.items.forEach(item => {
-            const key = item.generalStoreArea;
+            const key = `${item.generalStoreArea}|${item.settingSpecificallyFor}|${item.settingWidth}`;
             if (!summary[key]) {
-                summary[key] = { planShc: 0, storeShc: 0, diffCount: 0, itemCount: 0, settingWidth: item.settingWidth, settingSpecificallyFor: item.settingSpecificallyFor };
+                summary[key] = { planShc: 0, storeShc: 0, diffCount: 0, itemCount: 0, generalStoreArea: item.generalStoreArea, settingWidth: item.settingWidth, settingSpecificallyFor: item.settingSpecificallyFor };
             }
             summary[key].planShc += item.planShc;
             summary[key].storeShc += item.storeShc;
-            summary[key].diffCount++;
+            if (item.diff < 0) {
+                summary[key].diffCount++;
+            }
             summary[key].itemCount++;
         });
-
-        const summaryBody = Object.entries(summary).map(([area, data]) => [
-            area,
+    
+        const summaryBody = Object.values(summary).map(data => [
+            data.generalStoreArea,
             data.settingSpecificallyFor,
             data.settingWidth,
             data.planShc,
             data.storeShc,
-            '', // Checkbox
+            '', // Checkbox placeholder
             data.diffCount,
             data.itemCount
         ]);
-        
+    
         if (summaryBody.length > 0) {
             doc.addPage();
             autoTable(doc, {
-                startY: 80,
                 head: [['General Store Area', 'Setting specifically for', 'Setting width', 'Plan SHC', 'Store SHC', '✓', 'No. of Differences (Unders)', 'No. of items in section checked']],
                 body: summaryBody,
                 theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 3 },
-                headStyles: { fillColor: '#e0e0e0', textColor: '#333' },
+                styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#ccc' },
+                headStyles: { fillColor: '#e0e0e0', textColor: '#333', fontStyle: 'bold', minCellHeight: 20, valign: 'middle' },
                 didDrawPage: (data) => {
-                    addPageHeader(doc);
-                    addPageFooter(doc, data.pageNumber, (doc as any).internal.getNumberOfPages());
-                },
+                    addPageHeaderAndFooter(doc, data.pageNumber, (doc as any).internal.getNumberOfPages());
+                }
             });
         }
-        
+    
+        // Final pass to ensure all pages have headers/footers
+        const totalPages = (doc as any).internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            addPageHeaderAndFooter(doc, i, totalPages);
+        }
+    
         doc.save(filename);
     };
 
@@ -499,273 +532,235 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 </div>
             )}
 
-            {error && <div class={`${sharedStyles['status-container']} ${sharedStyles.error}`}><p>{error}</p></div>}
-            
-            <div class={styles['results-container']}>
-                {processedResults && (
-                    <div class={styles['results-section']}>
-                        <div class={styles['results-header']}>
-                            <h3>{t('shcReport.results.title')}</h3>
-                             {storeCounts && <span class={styles['store-count-summary']}>{t('shcReport.results.storeCountSummary', storeCounts)}</span>}
-                        </div>
-                        <div class={sharedStyles['table-container']}>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th style={{width: '60%'}}>{t('shcReport.table.warehouse')} / {t('shcReport.table.hos')} / {t('shcReport.table.am')} / {t('shcReport.table.store')}</th>
-                                        <th>{t('shcReport.table.discrepancies')}</th>
-                                        <th>{t('shcReport.table.avgPerStore')}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {processedResults.map(warehouse => (
-                                        <>
-                                            <tr class={`${styles['row-level']} ${styles['level-0']}`} onClick={() => toggleRow(`wh-${warehouse.warehouseName}`)}>
-                                                <td><span class={`${styles.toggle} ${expandedRows.has(`wh-${warehouse.warehouseName}`) ? styles.expanded : ''}`}>▶</span>{warehouse.warehouseName}</td>
-                                                <td>{warehouse.discrepancyCount}</td>
-                                                <td class={styles['avg-per-store-cell']}>
-                                                    {warehouse.activeStoreCount && warehouse.activeStoreCount > 0
-                                                        ? (warehouse.discrepancyCount / warehouse.activeStoreCount).toFixed(1)
-                                                        : '0.0'
-                                                    }
-                                                </td>
-                                            </tr>
-                                            {expandedRows.has(`wh-${warehouse.warehouseName}`) && warehouse.hos.map(hos => (
-                                                <>
-                                                    <tr class={`${styles['row-level']} ${styles['level-1']}`} onClick={() => toggleRow(`hos-${hos.hosName}`)}>
-                                                        <td style={{paddingLeft: '2rem'}}><span class={`${styles.toggle} ${expandedRows.has(`hos-${hos.hosName}`) ? styles.expanded : ''}`}>▶</span>{hos.hosName}</td>
-                                                        <td>{hos.discrepancyCount}</td>
-                                                        <td class={styles['avg-per-store-cell']}>
-                                                            {hos.activeStoreCount && hos.activeStoreCount > 0
-                                                                ? (hos.discrepancyCount / hos.activeStoreCount).toFixed(1)
-                                                                : '0.0'
-                                                            }
-                                                        </td>
-                                                    </tr>
-                                                    {expandedRows.has(`hos-${hos.hosName}`) && hos.managers.map(am => (
-                                                        <>
-                                                            <tr class={`${styles['row-level']} ${styles['level-2']}`} onClick={() => toggleRow(`am-${am.managerName}`)}>
-                                                                <td style={{paddingLeft: '4rem'}}><span class={`${styles.toggle} ${expandedRows.has(`am-${am.managerName}`) ? styles.expanded : ''}`}>▶</span>{am.managerName}</td>
-                                                                <td>{am.discrepancyCount}</td>
-                                                                <td class={styles['avg-per-store-cell']}>
-                                                                    {am.activeStoreCount && am.activeStoreCount > 0
-                                                                        ? (am.discrepancyCount / am.activeStoreCount).toFixed(1)
-                                                                        : '0.0'
-                                                                    }
-                                                                </td>
-                                                            </tr>
-                                                            {expandedRows.has(`am-${am.managerName}`) && am.stores.map(store => {
-                                                                const rowKey = `store-${store.storeNumber}`;
-                                                                const isExpanded = expandedRows.has(rowKey);
-                                                                const storeDetailRows = store.items.reduce((acc, item, index) => {
-                                                                    const prevItem = index > 0 ? store.items[index - 1] : null;
-                                                                    if (!prevItem || prevItem.settingSpecificallyFor !== item.settingSpecificallyFor) {
-                                                                        acc.push(
-                                                                            <tr class={styles['divider-row']}>
-                                                                                <td colSpan={3}>
-                                                                                    <div class={styles['divider-content']}>
-                                                                                        <span>{t('shcReport.table.section')}: {item.settingSpecificallyFor}</span>
-                                                                                        <span>{t('shcReport.table.sectionWidth')}: {item.settingWidth}</span>
-                                                                                    </div>
-                                                                                </td>
-                                                                            </tr>
-                                                                        );
-                                                                    }
-                                                                    acc.push(
-                                                                        <tr class={styles['detail-row']}>
-                                                                            <td>
-                                                                                <div>{item.articleNumber}</div>
-                                                                                <div class={styles.subtext}>{item.articleName}</div>
-                                                                            </td>
-                                                                            <td>
-                                                                                <div class={styles['item-details-extra']}>
-                                                                                    <span>{item.itemGroup}</span>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td>
-                                                                                <div>{item.planShc} / {item.storeShc}</div>
-                                                                                <div class={`${styles.subtext} ${styles.diff}`}>{item.diff}</div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                    return acc;
-                                                                }, [] as VNode[]);
-
-                                                                return (
-                                                                    <>
-                                                                        <tr class={`${styles['row-level']} ${styles['level-3']} ${store.isExcluded ? styles['excluded-store'] : ''}`} onClick={() => toggleRow(rowKey)}>
-                                                                            <td style={{paddingLeft: '6rem'}}>
-                                                                                <div class={styles['name-cell']}>
-                                                                                    <div>
-                                                                                        <span class={`${styles.toggle} ${isExpanded ? styles.expanded : ''}`}>▶</span>
-                                                                                        {store.storeNumber}
-                                                                                        {store.isExcluded && <span class={styles['excluded-label']}>{t('shcReport.table.excluded')}</span>}
-                                                                                    </div>
-                                                                                    <div class={styles['row-actions']}>
-                                                                                        <button class={styles['action-button']} title={t('shcReport.table.tooltip.toggleExclusion')} onClick={(e) => { e.stopPropagation(); handleToggleExclusion(store.storeNumber); }}>
-                                                                                            {store.isExcluded ? '👁️' : '👁️‍🗨️'}
-                                                                                        </button>
-                                                                                        <button class={styles['action-button']} title={t('shcReport.table.tooltip.exportPdf')} onClick={(e) => { e.stopPropagation(); handleExportStorePdf(store); }}>
-                                                                                            📄
-                                                                                        </button>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td>{store.discrepancyCount}</td>
-                                                                            <td></td>
-                                                                        </tr>
-                                                                        {isExpanded && (
-                                                                            <>
-                                                                                <tr class={styles['detail-header']}>
-                                                                                    <td style={{paddingLeft: '8rem'}}>{t('shcReport.table.itemNumber')} / {t('shcReport.table.itemName')}</td>
-                                                                                    <td>{t('shcReport.table.itemGroup')}</td>
-                                                                                    <td>{t('shcReport.table.planShc')} / {t('shcReport.table.storeShc')} / {t('shcReport.table.diff')}</td>
-                                                                                </tr>
-                                                                                {storeDetailRows}
-                                                                            </>
-                                                                        )}
-                                                                    </>
-                                                                );
-                                                            })}
-                                                        </>
-                                                    ))}
-                                                </>
-                                            ))}
-                                        </>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
-                
-                 {mismatches.length > 0 && (
-                    <div class={styles['results-section']}>
-                        <h3>{t('shcReport.results.mismatchesTitle')} ({mismatches.length})</h3>
-                        <div class={styles['mismatch-container']}>
-                            <div class={`${styles['mismatch-row']} ${styles['mismatch-header']}`}>
-                                <span>Type</span>
-                                <span>Store</span>
-                                <span>Article</span>
-                                <span>Details</span>
-                            </div>
-                            {Object.entries(groupedMismatches).map(([type, stores]) => {
-                                const typeKey = `mismatch-${type}`;
-                                const isTypeExpanded = expandedMismatches.has(typeKey);
-                                const typeCount = Object.values(stores).reduce((sum, items) => sum + items.length, 0);
-                                return (
-                                    <div key={typeKey}>
-                                        <div class={`${styles['mismatch-row']} ${styles['mismatch-type-header']}`} onClick={() => toggleMismatchGroup(typeKey)}>
-                                            <div class={styles['mismatch-type-title']}>
-                                                <span class={`${styles['mismatch-toggle']} ${isTypeExpanded ? styles.expanded : ''}`}>▶</span>
-                                                {type}
-                                                <span class={styles['mismatch-count']}>({typeCount})</span>
-                                            </div>
-                                        </div>
-                                        {isTypeExpanded && Object.entries(stores).map(([storeNum, items]) => {
-                                            const storeKey = `${typeKey}-${storeNum}`;
-                                            const isStoreExpanded = expandedMismatches.has(storeKey);
-                                            return (
-                                                <div key={storeKey}>
-                                                    <div class={`${styles['mismatch-row']} ${styles['mismatch-store-header']}`} onClick={() => toggleMismatchGroup(storeKey)} style={{ paddingLeft: '2rem' }}>
-                                                        <div class={styles['mismatch-store-title']}>
-                                                             <span class={`${styles['mismatch-toggle']} ${isStoreExpanded ? styles.expanded : ''}`}>▶</span>
-                                                            Store: {storeNum}
-                                                            <span class={styles['mismatch-count']}>({items.length})</span>
-                                                        </div>
-                                                    </div>
-                                                    {isStoreExpanded && items.map((item, index) => (
-                                                        <div class={`${styles['mismatch-row']} ${styles['mismatch-item-row']}`} key={index} style={{ paddingLeft: '4rem' }}>
-                                                            <span></span>
-                                                            <span></span>
-                                                            <span>{item.articleNumber}</span>
-                                                            <span>{item.details}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {!isLoading && !results && !error && (
-                    <div class={styles['results-section']}>
-                        <div class={sharedStyles['placeholder-view']}>
-                            <p>{t('shcReport.results.placeholder')}</p>
-                        </div>
-                    </div>
-                )}
-            </div>
+            {error && (
+                <div class={`${sharedStyles['status-container']} ${sharedStyles.error}`}>
+                    <p class={sharedStyles['status-text']}>{error}</p>
+                </div>
+            )}
 
             <div class={styles['config-panel']}>
                 <div class={styles['config-header']}>
                     <h3>{t('shcReport.config.title')}</h3>
                     <div class={styles['config-actions']}>
-                         <button class={sharedStyles['button-secondary']} onClick={handleImportConfig} disabled={isLoadingConfig}>{t('shcReport.config.import')}</button>
-                         <button class={sharedStyles['button-secondary']} onClick={handleExportConfig} disabled={!config}>{t('shcReport.config.export')}</button>
-                         <button class={sharedStyles['button-primary']} onClick={handleSaveConfig} disabled={!isConfigDirty || isLoadingConfig}>{t('shcReport.config.save')}</button>
+                        <button class={sharedStyles['button-secondary']} onClick={handleImportConfig} style={{backgroundColor: 'var(--info-color)'}}>{t('shcReport.config.import')}</button>
+                        <button class={sharedStyles['button-secondary']} onClick={handleExportConfig} style={{backgroundColor: 'var(--success-color)'}}>{t('shcReport.config.export')}</button>
+                        <button class={sharedStyles['button-primary']} onClick={handleSaveConfig} disabled={!isConfigDirty}>{t('shcReport.config.save')}</button>
                     </div>
                 </div>
-                 <p>{t('shcReport.config.description')}</p>
+                <p>{t('shcReport.config.description')}</p>
+                
                  {isLoadingConfig ? <div class={sharedStyles.spinner}></div> : (
-                    config && (
                     <>
-                        <div class={styles['section-actions']}>
-                            <button class={styles['action-button']} onClick={() => handleSelectAll()}>{t('shcReport.config.selectAll')}</button>
-                            <button class={styles['action-button']} onClick={() => handleDeselectAll()}>{t('shcReport.config.deselectAll')}</button>
-                        </div>
-                        <div class={styles['section-list-container']}>
-                            {sectionGroups.map(group => {
-                                const sectionsInGroup = config.filter(c => group.sections.includes(c.id));
-                                const activeCount = sectionsInGroup.filter(s => s.enabled).length;
-                                const isGroupExpanded = expandedGroups.has(group.groupName);
-                                return (
-                                    <div class={styles['section-group']} key={group.groupName}>
-                                        <div class={styles['section-group-header']} onClick={() => toggleGroup(group.groupName)}>
-                                            <span class={styles['section-group-title']}>{group.groupName}</span>
-                                            <div class={styles['section-group-summary']}>
-                                                <span class={styles['section-group-counts']}>{t('shcReport.config.activeSectionsSummary', { active: activeCount, total: sectionsInGroup.length })}</span>
-                                                <button class={styles['refresh-order-button']} onClick={(e) => { e.stopPropagation(); handleRefreshOrder(group.groupName); }}>{t('shcReport.config.refreshOrder')}</button>
-                                                <span class={`${styles['section-group-toggle']} ${isGroupExpanded ? styles.expanded : ''}`}>▶</span>
-                                            </div>
-                                        </div>
-                                        <div class={`${styles['section-group-content']} ${isGroupExpanded ? styles.expanded : ''}`}>
-                                            <ul class={styles['section-list']}>
-                                                {sectionsInGroup.map(section => (
-                                                    <li class={styles['section-item']} key={section.id}>
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={section.enabled}
-                                                            onChange={e => {
-                                                                const newConfig = config.map(s => s.id === section.id ? { ...s, enabled: (e.target as HTMLInputElement).checked } : s);
-                                                                handleConfigChange(newConfig);
-                                                            }}
-                                                        />
-                                                        <input 
-                                                            type="number" 
-                                                            value={section.order} 
-                                                            class={styles['section-order-input']}
-                                                            onInput={e => handleOrderChange(section.id, parseInt((e.target as HTMLInputElement).value, 10) || 0)}
-                                                        />
-                                                        <span class={styles['section-name']}>{section.id}</span>
-                                                        {newSections.includes(section.id) && <span class={`${styles.tag} ${styles.new}`}>{t('shcReport.config.new')}</span>}
-                                                        {staleSections.includes(section.id) && <span class={`${styles.tag} ${styles.stale}`}>{t('shcReport.config.stale')}</span>}
-                                                    </li>
-                                                ))}
-                                            </ul>
+                    <div class={styles['section-actions']}>
+                       <button onClick={() => handleSelectAll()} class={styles['action-button']}>{t('shcReport.config.selectAll')}</button>
+                       <button onClick={() => handleDeselectAll()} class={styles['action-button']}>{t('shcReport.config.deselectAll')}</button>
+                    </div>
+                     <div class={styles['section-list-container']}>
+                        {sectionGroups.map(group => {
+                            const groupSections = config?.filter(c => group.sections.includes(c.id)) || [];
+                            const activeCount = groupSections.filter(s => s.enabled).length;
+                            const isExpanded = expandedGroups.has(group.groupName);
+                            return (
+                                <div class={styles['section-group']} key={group.groupName}>
+                                    <div class={styles['section-group-header']} onClick={() => toggleGroup(group.groupName)}>
+                                        <span class={styles['section-group-title']}>{group.groupName}</span>
+                                        <div class={styles['section-group-summary']}>
+                                            <span class={styles['section-group-counts']}>{t('shcReport.config.activeSectionsSummary', { active: activeCount, total: groupSections.length })}</span>
+                                            <button class={styles['refresh-order-button']} onClick={(e) => { e.stopPropagation(); handleRefreshOrder(group.groupName); }}>{t('shcReport.config.refreshOrder')}</button>
+                                            <span class={`${styles['section-group-toggle']} ${isExpanded ? styles.expanded : ''}`}>▶</span>
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    <div class={`${styles['section-group-content']} ${isExpanded ? styles.expanded : ''}`}>
+                                        <ul class={styles['section-list']}>
+                                            {groupSections.map(section => (
+                                                <li class={styles['section-item']} key={section.id}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={section.enabled}
+                                                        onChange={(e) => {
+                                                            const newConfig = config!.map(s => s.id === section.id ? { ...s, enabled: (e.target as HTMLInputElement).checked } : s);
+                                                            handleConfigChange(newConfig);
+                                                        }}
+                                                    />
+                                                     <input
+                                                        type="number"
+                                                        value={section.order}
+                                                        onInput={(e) => handleOrderChange(section.id, parseInt((e.target as HTMLInputElement).value, 10) || 0)}
+                                                        class={styles['section-order-input']}
+                                                    />
+                                                    <span class={styles['section-name']}>{section.id}</span>
+                                                    {newSections.includes(section.id) && <span class={`${styles.tag} ${styles.new}`}>{t('shcReport.config.new')}</span>}
+                                                    {staleSections.includes(section.id) && <span class={`${styles.tag} ${styles.stale}`}>{t('shcReport.config.stale')}</span>}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                     </div>
                     </>
-                    )
                  )}
             </div>
+
+            {processedResults && (
+                <div class={styles['results-section']}>
+                    <div class={styles['results-header']}>
+                        <h3>{t('shcReport.results.title')}</h3>
+                        {storeCounts && <span class={styles['store-count-summary']}>{t('shcReport.results.storeCountSummary', storeCounts)}</span>}
+                    </div>
+                    <div class={sharedStyles['table-container']}>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style={{ width: '50%' }}>{t('shcReport.table.warehouse')} / {t('shcReport.table.hos')} / {t('shcReport.table.am')} / {t('shcReport.table.store')}</th>
+                                    <th>{t('shcReport.table.discrepancies')}</th>
+                                    <th>{t('shcReport.table.avgPerStore')}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {processedResults.map(warehouse => (<>
+                                    <tr key={warehouse.warehouseName} onClick={() => toggleRow(`wh-${warehouse.warehouseName}`)} class={`${styles['row-level']} ${styles['level-0']}`}>
+                                        <td><span class={`${styles.toggle} ${expandedRows.has(`wh-${warehouse.warehouseName}`) ? styles.expanded : ''}`}>▶</span> {warehouse.warehouseName}</td>
+                                        <td>{warehouse.discrepancyCount}</td>
+                                        <td class={styles['avg-per-store-cell']}>{(warehouse.discrepancyCount / (warehouse.activeStoreCount || 1)).toFixed(2)}</td>
+                                    </tr>
+                                    {expandedRows.has(`wh-${warehouse.warehouseName}`) && warehouse.hos.map(hos => (<>
+                                        <tr key={hos.hosName} onClick={() => toggleRow(`hos-${hos.hosName}`)} class={`${styles['row-level']} ${styles['level-1']}`}>
+                                            <td style={{ paddingLeft: '2rem' }}><span class={`${styles.toggle} ${expandedRows.has(`hos-${hos.hosName}`) ? styles.expanded : ''}`}>▶</span> {hos.hosName}</td>
+                                            <td>{hos.discrepancyCount}</td>
+                                            <td class={styles['avg-per-store-cell']}>{(hos.discrepancyCount / (hos.activeStoreCount || 1)).toFixed(2)}</td>
+                                        </tr>
+                                        {expandedRows.has(`hos-${hos.hosName}`) && hos.managers.map(manager => (<>
+                                            <tr key={manager.managerName} onClick={() => toggleRow(`am-${manager.managerName}`)} class={`${styles['row-level']} ${styles['level-2']}`}>
+                                                <td style={{ paddingLeft: '4rem' }}><span class={`${styles.toggle} ${expandedRows.has(`am-${manager.managerName}`) ? styles.expanded : ''}`}>▶</span> {manager.managerName}</td>
+                                                <td>{manager.discrepancyCount}</td>
+                                                <td class={styles['avg-per-store-cell']}>{(manager.discrepancyCount / (manager.activeStoreCount || 1)).toFixed(2)}</td>
+                                            </tr>
+                                            {expandedRows.has(`am-${manager.managerName}`) && manager.stores.map(store => {
+                                                const isExpanded = expandedRows.has(`st-${store.storeNumber}`);
+                                                return (<>
+                                                    <tr key={store.storeNumber} class={`${styles['row-level']} ${styles['level-3']} ${store.isExcluded ? styles['excluded-store'] : ''}`}>
+                                                        <td style={{ paddingLeft: '6rem' }} onClick={() => toggleRow(`st-${store.storeNumber}`)}>
+                                                           <div class={styles['name-cell']}>
+                                                                <span><span class={`${styles.toggle} ${isExpanded ? styles.expanded : ''}`}>▶</span> {store.storeNumber} {store.isExcluded && <span class={styles['excluded-label']}>{t('shcReport.table.excluded')}</span>}</span>
+                                                                <div class={styles['row-actions']}>
+                                                                    <button class={styles['action-button']} title={t('shcReport.table.tooltip.toggleExclusion')} onClick={(e) => { e.stopPropagation(); handleToggleExclusion(store.storeNumber); }}>
+                                                                        {store.isExcluded ? '👁️‍🗨️' : '👁️'}
+                                                                    </button>
+                                                                     <button class={styles['action-button']} title={t('shcReport.table.tooltip.exportPdf')} onClick={(e) => { e.stopPropagation(); handleExportStorePdf(store); }}>
+                                                                        📄
+                                                                    </button>
+                                                                </div>
+                                                           </div>
+                                                        </td>
+                                                        <td onClick={() => toggleRow(`st-${store.storeNumber}`)}>{store.discrepancyCount}</td>
+                                                        <td onClick={() => toggleRow(`st-${store.storeNumber}`)}></td>
+                                                    </tr>
+                                                    {isExpanded && store.items.length > 0 && (<>
+                                                        <tr class={styles['detail-header']}>
+                                                            <td style={{ paddingLeft: '8rem' }}>{t('shcReport.table.itemNumber')} / {t('shcReport.table.itemName')}</td>
+                                                            <td>{t('shcReport.table.section')} / {t('shcReport.table.itemGroup')}</td>
+                                                            <td>{t('shcReport.table.planShc')} / {t('shcReport.table.storeShc')} / {t('shcReport.table.diff')}</td>
+                                                        </tr>
+                                                        {store.items.reduce((acc, item, index) => {
+                                                            const prevItem = index > 0 ? store.items[index - 1] : null;
+                                                            if (!prevItem || prevItem.settingSpecificallyFor !== item.settingSpecificallyFor) {
+                                                                acc.push(
+                                                                    <tr key={`div-${item.locator}-${item.articleNumber}`} class={styles['divider-row']}>
+                                                                        <td colSpan={3}>
+                                                                            <div class={styles['divider-content']}>
+                                                                                <span>{item.settingSpecificallyFor}</span>
+                                                                                <span>{t('shcReport.table.sectionWidth')}: {item.settingWidth}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            }
+                                                            acc.push(
+                                                                <tr key={`${item.locator}-${item.articleNumber}`} class={styles['detail-row']}>
+                                                                    <td style={{ paddingLeft: '8rem' }}>
+                                                                        <div>{item.articleNumber}</div>
+                                                                        <div class={styles.subtext}>{item.articleName}</div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <div>{item.settingSpecificallyFor}</div>
+                                                                        <div class={`${styles.subtext} ${styles['item-details-extra']}`}>
+                                                                            <span>{item.settingWidth}</span>
+                                                                            <span>{item.itemGroup}</span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <div>{item.planShc} / {item.storeShc}</div>
+                                                                        <div class={`${styles.subtext} ${styles.diff}`}>{item.diff}</div>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                            return acc;
+                                                        }, [] as VNode[])}
+                                                    </>)}
+                                                </>);
+                                            })}
+                                        </>))}
+                                    </>))}
+                                </>))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+            
+            {mismatches.length > 0 && (
+                <div class={styles['results-section']}>
+                    <h3>{t('shcReport.results.mismatchesTitle')} ({mismatches.length})</h3>
+                    <div class={styles['mismatch-container']}>
+                        <div class={`${styles['mismatch-row']} ${styles['mismatch-header']}`}>
+                           <span>Type</span><span>Store</span><span>Article</span><span>Details</span>
+                        </div>
+                        {Object.entries(groupedMismatches).map(([type, stores]) => {
+                           const typeKey = `mismatch-type-${type}`;
+                           const isTypeExpanded = expandedMismatches.has(typeKey);
+                           const typeCount = Object.values(stores).reduce((sum, items) => sum + items.length, 0);
+                           return (<>
+                                <div class={`${styles['mismatch-row']} ${styles['mismatch-type-header']}`} onClick={() => toggleMismatchGroup(typeKey)}>
+                                    <div class={styles['mismatch-type-title']}>
+                                        <span class={`${styles['mismatch-toggle']} ${isTypeExpanded ? styles.expanded : ''}`}>▶</span>
+                                        {type}
+                                        <span class={styles['mismatch-count']}>({typeCount})</span>
+                                    </div>
+                                </div>
+                                {isTypeExpanded && Object.entries(stores).map(([storeNumber, items]) => {
+                                    const storeKey = `${typeKey}-${storeNumber}`;
+                                    const isStoreExpanded = expandedMismatches.has(storeKey);
+                                    return (<>
+                                        <div class={`${styles['mismatch-row']} ${styles['mismatch-store-header']}`} onClick={() => toggleMismatchGroup(storeKey)}>
+                                            <div class={styles['mismatch-store-title']} style={{ paddingLeft: '2rem' }}>
+                                                <span class={`${styles['mismatch-toggle']} ${isStoreExpanded ? styles.expanded : ''}`}>▶</span>
+                                                Store {storeNumber}
+                                                <span class={styles['mismatch-count']}>({items.length})</span>
+                                            </div>
+                                        </div>
+                                        {isStoreExpanded && items.map(item => (
+                                            <div class={`${styles['mismatch-row']} ${styles['mismatch-item-row']}`} style={{ paddingLeft: '4rem' }}>
+                                                <span></span>
+                                                <span></span>
+                                                <span>{item.articleNumber}</span>
+                                                <span>{item.details}</span>
+                                            </div>
+                                        ))}
+                                    </>);
+                                })}
+                           </>);
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {!isLoading && !results && !error && (
+                <div class={sharedStyles['placeholder-view']}>
+                    <p>{t('shcReport.results.placeholder')}</p>
+                </div>
+            )}
         </div>
     );
 };
