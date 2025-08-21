@@ -242,6 +242,7 @@ export type ShcResultItem = {
     locator: string;
     articleNumber: string;
     articleName: string;
+    itemGroup: string;
     planShc: number;
     storeShc: number;
     diff: number;
@@ -258,18 +259,21 @@ export type ShcStoreResult = {
 
 export type ShcManagerResult = {
     managerName: string;
+    storeCount: number;
     discrepancyCount: number;
     stores: ShcStoreResult[];
 };
 
 export type ShcHeadOfSalesResult = {
     hosName: string;
+    storeCount: number;
     discrepancyCount: number;
     managers: ShcManagerResult[];
 };
 
 export type ShcWarehouseResult = {
     warehouseName: string;
+    storeCount: number;
     discrepancyCount: number;
     hos: ShcHeadOfSalesResult[];
 };
@@ -291,6 +295,11 @@ export type ShcWorkerProgressPayload = {
 export type ShcSectionConfigItem = {
     id: string;
     enabled: boolean;
+};
+
+export type ShcSectionGroup = {
+    groupName: string;
+    sections: string[];
 };
 
 export type ShcSectionConfig = ShcSectionConfigItem[];
