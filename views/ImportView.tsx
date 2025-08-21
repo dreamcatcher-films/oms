@@ -18,15 +18,12 @@ type ImportViewProps = {
     onFileSelect: (type: DataType, event: Event) => void;
     onClear: (type: DataType) => void;
     onClearShcFile: (type: ShcDataType) => void;
+    onShcFileSelect: (type: ShcDataType, event: Event) => void;
     linkedFiles: Map<DataType, FileSystemFileHandle>;
-    shcFiles: Map<ShcDataType, FileSystemFileHandle>;
     onReload: (type: DataType) => void;
-    onReloadShcFile: (type: ShcDataType) => void;
     userSession: UserSession | null;
     onLinkFile: (dataType: DataType) => void;
     onClearLink: (dataType: DataType) => void;
-    onLinkShcFile: (dataType: ShcDataType) => void;
-    onClearShcLink: (dataType: ShcDataType) => void;
     onClearAll: () => void;
 };
 
@@ -35,9 +32,8 @@ export const ImportView = (props: ImportViewProps) => {
     const isApiSupported = 'showOpenFilePicker' in window;
     
     const {
-        isLoading, importMetadata, counts, onFileSelect, onClear, onClearShcFile,
-        linkedFiles, shcFiles, onReload, onReloadShcFile, userSession, onLinkFile, onClearLink,
-        onLinkShcFile, onClearShcLink, onClearAll
+        isLoading, importMetadata, counts, onFileSelect, onClear, onClearShcFile, onShcFileSelect,
+        linkedFiles, onReload, userSession, onLinkFile, onClearLink, onClearAll
     } = props;
 
     const formatStatusDate = (date: Date): string => {
@@ -62,11 +58,12 @@ export const ImportView = (props: ImportViewProps) => {
     const shcDataTypes: {
         key: ShcDataType;
         titleKey: string;
+        accept: string;
     }[] = [
-        { key: 'shc', titleKey: 'import.shc.shc.title' },
-        { key: 'planogram', titleKey: 'import.shc.planogram.title' },
-        { key: 'orgStructure', titleKey: 'import.shc.orgStructure.title' },
-        { key: 'categoryRelation', titleKey: 'import.shc.categoryRelation.title' },
+        { key: 'shc', titleKey: 'import.shc.shc.title', accept: '.csv' },
+        { key: 'planogram', titleKey: 'import.shc.planogram.title', accept: '.xls' },
+        { key: 'orgStructure', titleKey: 'import.shc.orgStructure.title', accept: '.xlsx' },
+        { key: 'categoryRelation', titleKey: 'import.shc.categoryRelation.title', accept: '.xls' },
     ];
 
     const renderStatusAndCount = (type: DataType | ShcDataType) => {
@@ -156,8 +153,7 @@ export const ImportView = (props: ImportViewProps) => {
                   <h2>{t('import.shc.title')}</h2>
                 </div>
                 <div class={styles['import-container']}>
-                {shcDataTypes.map(({ key, titleKey }) => {
-                    const isLinked = shcFiles.has(key);
+                {shcDataTypes.map(({ key, titleKey, accept }) => {
                     const count = counts[key] || 0;
                     return (
                         <div class={`${styles['import-section']} ${styles['shc-import-section']}`} key={key}>
@@ -166,25 +162,13 @@ export const ImportView = (props: ImportViewProps) => {
                                 {renderStatusAndCount(key)}
                             </div>
                             <div class={styles['import-section-footer']}>
-                                <div class={styles['import-link-status']}>
-                                    {isLinked
-                                        ? <><strong>{t('import.status.linkedTo')}:</strong> {shcFiles.get(key)?.name}</>
-                                        : <span>{t('import.status.noLinkedFile')}</span>
-                                    }
-                                </div>
                                 <div class={styles['import-actions']}>
-                                    {isApiSupported ? (
-                                        isLinked ? (
-                                            <>
-                                                <button onClick={() => onReloadShcFile(key)} class={`${sharedStyles.buttonPrimary} ${sharedStyles.reload}`} disabled={isLoading}>{t('import.buttons.reload')}</button>
-                                                <button onClick={() => onClearShcLink(key)} class={sharedStyles.buttonClear} disabled={isLoading}>{t('settings.dataSources.clearLink')}</button>
-                                                {count > 0 && <button onClick={() => onClearShcFile(key)} class={sharedStyles.buttonSecondary} disabled={isLoading}>{t('import.buttons.clear')}</button>}
-                                            </>
-                                        ) : (
-                                            <button onClick={() => onLinkShcFile(key)} class={sharedStyles.buttonLink} disabled={isLoading}>{t('settings.dataSources.linkFile')}</button>
-                                        )
-                                    ) : (
-                                       <span>{t('import.shc.apiNotSupported')}</span>
+                                    <input id={`${key}-file-input`} type="file" style={{ display: 'none' }} accept={accept} onChange={(e) => onShcFileSelect(key, e)} disabled={isLoading} />
+                                    <label htmlFor={`${key}-file-input`} class={`${sharedStyles.buttonPrimary} ${isLoading ? sharedStyles.disabled : ''}`}>
+                                        {count > 0 ? t('import.buttons.change') : t('import.buttons.selectFile')}
+                                    </label>
+                                    {count > 0 && (
+                                        <button onClick={() => onClearShcFile(key)} class={sharedStyles.buttonSecondary} disabled={isLoading}>{t('import.buttons.clear')}</button>
                                     )}
                                 </div>
                             </div>
