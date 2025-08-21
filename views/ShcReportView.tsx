@@ -520,7 +520,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                 <tbody>
                                     {processedResults.map(warehouse => (
                                         <>
-                                            <tr class={`${styles.rowLevel} ${styles['level-0']}`} onClick={() => toggleRow(`wh-${warehouse.warehouseName}`)}>
+                                            <tr class={`${styles['row-level']} ${styles['level-0']}`} onClick={() => toggleRow(`wh-${warehouse.warehouseName}`)}>
                                                 <td><span class={`${styles.toggle} ${expandedRows.has(`wh-${warehouse.warehouseName}`) ? styles.expanded : ''}`}>▶</span>{warehouse.warehouseName}</td>
                                                 <td>{warehouse.discrepancyCount}</td>
                                                 <td class={styles['avg-per-store-cell']}>
@@ -532,7 +532,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                             </tr>
                                             {expandedRows.has(`wh-${warehouse.warehouseName}`) && warehouse.hos.map(hos => (
                                                 <>
-                                                    <tr class={`${styles.rowLevel} ${styles['level-1']}`} onClick={() => toggleRow(`hos-${hos.hosName}`)}>
+                                                    <tr class={`${styles['row-level']} ${styles['level-1']}`} onClick={() => toggleRow(`hos-${hos.hosName}`)}>
                                                         <td style={{paddingLeft: '2rem'}}><span class={`${styles.toggle} ${expandedRows.has(`hos-${hos.hosName}`) ? styles.expanded : ''}`}>▶</span>{hos.hosName}</td>
                                                         <td>{hos.discrepancyCount}</td>
                                                         <td class={styles['avg-per-store-cell']}>
@@ -544,7 +544,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                                     </tr>
                                                     {expandedRows.has(`hos-${hos.hosName}`) && hos.managers.map(am => (
                                                         <>
-                                                            <tr class={`${styles.rowLevel} ${styles['level-2']}`} onClick={() => toggleRow(`am-${am.managerName}`)}>
+                                                            <tr class={`${styles['row-level']} ${styles['level-2']}`} onClick={() => toggleRow(`am-${am.managerName}`)}>
                                                                 <td style={{paddingLeft: '4rem'}}><span class={`${styles.toggle} ${expandedRows.has(`am-${am.managerName}`) ? styles.expanded : ''}`}>▶</span>{am.managerName}</td>
                                                                 <td>{am.discrepancyCount}</td>
                                                                 <td class={styles['avg-per-store-cell']}>
@@ -561,9 +561,9 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                                                     const prevItem = index > 0 ? store.items[index - 1] : null;
                                                                     if (!prevItem || prevItem.settingSpecificallyFor !== item.settingSpecificallyFor) {
                                                                         acc.push(
-                                                                            <tr class={`${styles.dividerRow}`}>
+                                                                            <tr class={styles['divider-row']}>
                                                                                 <td colSpan={3}>
-                                                                                    <div class={styles.dividerContent}>
+                                                                                    <div class={styles['divider-content']}>
                                                                                         <span>{t('shcReport.table.section')}: {item.settingSpecificallyFor}</span>
                                                                                         <span>{t('shcReport.table.sectionWidth')}: {item.settingWidth}</span>
                                                                                     </div>
@@ -572,7 +572,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                                                         );
                                                                     }
                                                                     acc.push(
-                                                                        <tr class={styles.detailRow}>
+                                                                        <tr class={styles['detail-row']}>
                                                                             <td>
                                                                                 <div>{item.articleNumber}</div>
                                                                                 <div class={styles.subtext}>{item.articleName}</div>
@@ -593,19 +593,19 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
 
                                                                 return (
                                                                     <>
-                                                                        <tr class={`${styles.rowLevel} ${styles['level-3']} ${store.isExcluded ? styles.excludedStore : ''}`} onClick={() => toggleRow(rowKey)}>
+                                                                        <tr class={`${styles['row-level']} ${styles['level-3']} ${store.isExcluded ? styles['excluded-store'] : ''}`} onClick={() => toggleRow(rowKey)}>
                                                                             <td style={{paddingLeft: '6rem'}}>
-                                                                                <div class={styles.nameCell}>
+                                                                                <div class={styles['name-cell']}>
                                                                                     <div>
                                                                                         <span class={`${styles.toggle} ${isExpanded ? styles.expanded : ''}`}>▶</span>
                                                                                         {store.storeNumber}
-                                                                                        {store.isExcluded && <span class={styles.excludedLabel}>{t('shcReport.table.excluded')}</span>}
+                                                                                        {store.isExcluded && <span class={styles['excluded-label']}>{t('shcReport.table.excluded')}</span>}
                                                                                     </div>
-                                                                                    <div class={styles.rowActions}>
-                                                                                        <button class={styles.actionButton} title={t('shcReport.table.tooltip.toggleExclusion')} onClick={(e) => { e.stopPropagation(); handleToggleExclusion(store.storeNumber); }}>
+                                                                                    <div class={styles['row-actions']}>
+                                                                                        <button class={styles['action-button']} title={t('shcReport.table.tooltip.toggleExclusion')} onClick={(e) => { e.stopPropagation(); handleToggleExclusion(store.storeNumber); }}>
                                                                                             {store.isExcluded ? '👁️' : '👁️‍🗨️'}
                                                                                         </button>
-                                                                                        <button class={styles.actionButton} title={t('shcReport.table.tooltip.exportPdf')} onClick={(e) => { e.stopPropagation(); handleExportStorePdf(store); }}>
+                                                                                        <button class={styles['action-button']} title={t('shcReport.table.tooltip.exportPdf')} onClick={(e) => { e.stopPropagation(); handleExportStorePdf(store); }}>
                                                                                             📄
                                                                                         </button>
                                                                                     </div>
@@ -616,7 +616,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                                                         </tr>
                                                                         {isExpanded && (
                                                                             <>
-                                                                                <tr class={styles.detailHeader}>
+                                                                                <tr class={styles['detail-header']}>
                                                                                     <td style={{paddingLeft: '8rem'}}>{t('shcReport.table.itemNumber')} / {t('shcReport.table.itemName')}</td>
                                                                                     <td>{t('shcReport.table.itemGroup')}</td>
                                                                                     <td>{t('shcReport.table.planShc')} / {t('shcReport.table.storeShc')} / {t('shcReport.table.diff')}</td>
@@ -642,8 +642,8 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                  {mismatches.length > 0 && (
                     <div class={styles['results-section']}>
                         <h3>{t('shcReport.results.mismatchesTitle')} ({mismatches.length})</h3>
-                        <div class={styles.mismatchContainer}>
-                            <div class={`${styles.mismatchRow} ${styles.mismatchHeader}`}>
+                        <div class={styles['mismatch-container']}>
+                            <div class={`${styles['mismatch-row']} ${styles['mismatch-header']}`}>
                                 <span>Type</span>
                                 <span>Store</span>
                                 <span>Article</span>
@@ -655,11 +655,11 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                 const typeCount = Object.values(stores).reduce((sum, items) => sum + items.length, 0);
                                 return (
                                     <div key={typeKey}>
-                                        <div class={`${styles.mismatchRow} ${styles.mismatchTypeHeader}`} onClick={() => toggleMismatchGroup(typeKey)}>
-                                            <div class={styles.mismatchTypeTitle}>
-                                                <span class={`${styles.mismatchToggle} ${isTypeExpanded ? styles.expanded : ''}`}>▶</span>
+                                        <div class={`${styles['mismatch-row']} ${styles['mismatch-type-header']}`} onClick={() => toggleMismatchGroup(typeKey)}>
+                                            <div class={styles['mismatch-type-title']}>
+                                                <span class={`${styles['mismatch-toggle']} ${isTypeExpanded ? styles.expanded : ''}`}>▶</span>
                                                 {type}
-                                                <span class={styles.mismatchCount}>({typeCount})</span>
+                                                <span class={styles['mismatch-count']}>({typeCount})</span>
                                             </div>
                                         </div>
                                         {isTypeExpanded && Object.entries(stores).map(([storeNum, items]) => {
@@ -667,15 +667,15 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                             const isStoreExpanded = expandedMismatches.has(storeKey);
                                             return (
                                                 <div key={storeKey}>
-                                                    <div class={`${styles.mismatchRow} ${styles.mismatchStoreHeader}`} onClick={() => toggleMismatchGroup(storeKey)} style={{ paddingLeft: '2rem' }}>
-                                                        <div class={styles.mismatchStoreTitle}>
-                                                             <span class={`${styles.mismatchToggle} ${isStoreExpanded ? styles.expanded : ''}`}>▶</span>
+                                                    <div class={`${styles['mismatch-row']} ${styles['mismatch-store-header']}`} onClick={() => toggleMismatchGroup(storeKey)} style={{ paddingLeft: '2rem' }}>
+                                                        <div class={styles['mismatch-store-title']}>
+                                                             <span class={`${styles['mismatch-toggle']} ${isStoreExpanded ? styles.expanded : ''}`}>▶</span>
                                                             Store: {storeNum}
-                                                            <span class={styles.mismatchCount}>({items.length})</span>
+                                                            <span class={styles['mismatch-count']}>({items.length})</span>
                                                         </div>
                                                     </div>
                                                     {isStoreExpanded && items.map((item, index) => (
-                                                        <div class={`${styles.mismatchRow} ${styles.mismatchItemRow}`} key={index} style={{ paddingLeft: '4rem' }}>
+                                                        <div class={`${styles['mismatch-row']} ${styles['mismatch-item-row']}`} key={index} style={{ paddingLeft: '4rem' }}>
                                                             <span></span>
                                                             <span></span>
                                                             <span>{item.articleNumber}</span>
@@ -715,28 +715,28 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                     config && (
                     <>
                         <div class={styles['section-actions']}>
-                            <button class={styles.actionButton} onClick={() => handleSelectAll()}>{t('shcReport.config.selectAll')}</button>
-                            <button class={styles.actionButton} onClick={() => handleDeselectAll()}>{t('shcReport.config.deselectAll')}</button>
+                            <button class={styles['action-button']} onClick={() => handleSelectAll()}>{t('shcReport.config.selectAll')}</button>
+                            <button class={styles['action-button']} onClick={() => handleDeselectAll()}>{t('shcReport.config.deselectAll')}</button>
                         </div>
-                        <div class={styles.sectionListContainer}>
+                        <div class={styles['section-list-container']}>
                             {sectionGroups.map(group => {
                                 const sectionsInGroup = config.filter(c => group.sections.includes(c.id));
                                 const activeCount = sectionsInGroup.filter(s => s.enabled).length;
                                 const isGroupExpanded = expandedGroups.has(group.groupName);
                                 return (
-                                    <div class={styles.sectionGroup} key={group.groupName}>
-                                        <div class={styles.sectionGroupHeader} onClick={() => toggleGroup(group.groupName)}>
-                                            <span class={styles.sectionGroupTitle}>{group.groupName}</span>
-                                            <div class={styles.sectionGroupSummary}>
-                                                <span class={styles.sectionGroupCounts}>{t('shcReport.config.activeSectionsSummary', { active: activeCount, total: sectionsInGroup.length })}</span>
-                                                <button class={styles.refreshOrderButton} onClick={(e) => { e.stopPropagation(); handleRefreshOrder(group.groupName); }}>{t('shcReport.config.refreshOrder')}</button>
-                                                <span class={`${styles.sectionGroupToggle} ${isGroupExpanded ? styles.expanded : ''}`}>▶</span>
+                                    <div class={styles['section-group']} key={group.groupName}>
+                                        <div class={styles['section-group-header']} onClick={() => toggleGroup(group.groupName)}>
+                                            <span class={styles['section-group-title']}>{group.groupName}</span>
+                                            <div class={styles['section-group-summary']}>
+                                                <span class={styles['section-group-counts']}>{t('shcReport.config.activeSectionsSummary', { active: activeCount, total: sectionsInGroup.length })}</span>
+                                                <button class={styles['refresh-order-button']} onClick={(e) => { e.stopPropagation(); handleRefreshOrder(group.groupName); }}>{t('shcReport.config.refreshOrder')}</button>
+                                                <span class={`${styles['section-group-toggle']} ${isGroupExpanded ? styles.expanded : ''}`}>▶</span>
                                             </div>
                                         </div>
-                                        <div class={`${styles.sectionGroupContent} ${isGroupExpanded ? styles.expanded : ''}`}>
-                                            <ul class={styles.sectionList}>
+                                        <div class={`${styles['section-group-content']} ${isGroupExpanded ? styles.expanded : ''}`}>
+                                            <ul class={styles['section-list']}>
                                                 {sectionsInGroup.map(section => (
-                                                    <li class={styles.sectionItem} key={section.id}>
+                                                    <li class={styles['section-item']} key={section.id}>
                                                         <input 
                                                             type="checkbox" 
                                                             checked={section.enabled}
@@ -748,10 +748,10 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                                         <input 
                                                             type="number" 
                                                             value={section.order} 
-                                                            class={styles.sectionOrderInput}
+                                                            class={styles['section-order-input']}
                                                             onInput={e => handleOrderChange(section.id, parseInt((e.target as HTMLInputElement).value, 10) || 0)}
                                                         />
-                                                        <span class={styles.sectionName}>{section.id}</span>
+                                                        <span class={styles['section-name']}>{section.id}</span>
                                                         {newSections.includes(section.id) && <span class={`${styles.tag} ${styles.new}`}>{t('shcReport.config.new')}</span>}
                                                         {staleSections.includes(section.id) && <span class={`${styles.tag} ${styles.stale}`}>{t('shcReport.config.stale')}</span>}
                                                     </li>
