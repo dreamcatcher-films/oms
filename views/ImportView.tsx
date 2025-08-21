@@ -14,12 +14,14 @@ const isDateToday = (someDate: Date) => {
 type ImportViewProps = {
     isLoading: boolean;
     importMetadata: ImportMetadata;
-    counts: { products: number; goodsReceipts: number; openOrders: number; sales: number };
+    counts: { [key in DataType | ShcDataType]: number };
     onFileSelect: (type: DataType, event: Event) => void;
     onClear: (type: DataType) => void;
+    onClearShcFile: (type: ShcDataType) => void;
     linkedFiles: Map<DataType, FileSystemFileHandle>;
     shcFiles: Map<ShcDataType, FileSystemFileHandle>;
     onReload: (type: DataType) => void;
+    onReloadShcFile: (type: ShcDataType) => void;
     userSession: UserSession | null;
     onLinkFile: (dataType: DataType) => void;
     onClearLink: (dataType: DataType) => void;
@@ -33,8 +35,8 @@ export const ImportView = (props: ImportViewProps) => {
     const isApiSupported = 'showOpenFilePicker' in window;
     
     const {
-        isLoading, importMetadata, counts, onFileSelect, onClear,
-        linkedFiles, shcFiles, onReload, userSession, onLinkFile, onClearLink,
+        isLoading, importMetadata, counts, onFileSelect, onClear, onClearShcFile,
+        linkedFiles, shcFiles, onReload, onReloadShcFile, userSession, onLinkFile, onClearLink,
         onLinkShcFile, onClearShcLink, onClearAll
     } = props;
 
@@ -67,6 +69,26 @@ export const ImportView = (props: ImportViewProps) => {
         { key: 'categoryRelation', titleKey: 'import.shc.categoryRelation.title' },
     ];
 
+    const renderStatusAndCount = (type: DataType | ShcDataType) => {
+        const meta = importMetadata[type];
+        const count = counts[type] || 0;
+        const statusIcon = count > 0 ? '✓' : '✗';
+        const statusClass = count > 0 ? styles.success : styles.error;
+        let statusText = t('import.status.noData');
+        if (meta && meta.lastImported) {
+            statusText = `${t('import.status.updated')} ${formatStatusDate(new Date(meta.lastImported))}`;
+        }
+        return (
+            <div class={styles['import-status-details']}>
+                <span class={`${styles['status-icon']} ${statusClass}`}>{statusIcon}</span>
+                <div>
+                    <p class={styles['status-main-text']}>{statusText}</p>
+                    <p class={styles['status-sub-text']}>{count.toLocaleString(language)} {t('import.status.records')}</p>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div class={styles['import-view']}>
             <div class={styles['import-view-header']}>
@@ -81,27 +103,13 @@ export const ImportView = (props: ImportViewProps) => {
             </div>
             <div class={styles['import-container']}>
                 {dataTypes.map(({ key, titleKey, descriptionKey, accept }) => {
-                    const meta = importMetadata[key];
-                    const count = counts[key];
-                    const statusIcon = count > 0 ? '✓' : '✗';
-                    const statusClass = count > 0 ? styles.success : styles.error;
-                    let statusText = t('import.status.noData');
-                    if (meta && meta.lastImported) {
-                        statusText = `${t('import.status.updated')} ${formatStatusDate(new Date(meta.lastImported))}`;
-                    }
                     const isLinked = linkedFiles.has(key);
-
+                    const count = counts[key] || 0;
                     return (
                         <div class={styles['import-section']} key={key}>
                             <div class={styles['import-section-header']}>
                                 <h2>{t(titleKey)}</h2>
-                                <div class={styles['import-status-details']}>
-                                    <span class={`${styles['status-icon']} ${statusClass}`}>{statusIcon}</span>
-                                    <div>
-                                        <p class={styles['status-main-text']}>{statusText}</p>
-                                        <p class={styles['status-sub-text']}>{count.toLocaleString(language)} {t('import.status.records')}</p>
-                                    </div>
-                                </div>
+                                {renderStatusAndCount(key)}
                             </div>
                             <div class={styles['import-section-description']}>
                                 <p>{t(descriptionKey)}</p>
@@ -150,10 +158,12 @@ export const ImportView = (props: ImportViewProps) => {
                 <div class={styles['import-container']}>
                 {shcDataTypes.map(({ key, titleKey }) => {
                     const isLinked = shcFiles.has(key);
+                    const count = counts[key] || 0;
                     return (
                         <div class={`${styles['import-section']} ${styles['shc-import-section']}`} key={key}>
                             <div class={styles['import-section-header']}>
                                 <h2>{t(titleKey)}</h2>
+                                {renderStatusAndCount(key)}
                             </div>
                             <div class={styles['import-section-footer']}>
                                 <div class={styles['import-link-status']}>
@@ -166,8 +176,9 @@ export const ImportView = (props: ImportViewProps) => {
                                     {isApiSupported ? (
                                         isLinked ? (
                                             <>
-                                                <button onClick={() => onLinkShcFile(key)} class={`${sharedStyles.buttonPrimary}`} disabled={isLoading}>{t('import.buttons.change')}</button>
+                                                <button onClick={() => onReloadShcFile(key)} class={`${sharedStyles.buttonPrimary} ${sharedStyles.reload}`} disabled={isLoading}>{t('import.buttons.reload')}</button>
                                                 <button onClick={() => onClearShcLink(key)} class={sharedStyles.buttonClear} disabled={isLoading}>{t('settings.dataSources.clearLink')}</button>
+                                                {count > 0 && <button onClick={() => onClearShcFile(key)} class={sharedStyles.buttonSecondary} disabled={isLoading}>{t('import.buttons.clear')}</button>}
                                             </>
                                         ) : (
                                             <button onClick={() => onLinkShcFile(key)} class={sharedStyles.buttonLink} disabled={isLoading}>{t('settings.dataSources.linkFile')}</button>
