@@ -3,7 +3,6 @@ import { VNode } from 'preact';
 import { useTranslation } from '../i18n';
 import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup, RDC, ShcStoreResult } from '../utils/types';
 import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport } from '../db';
-import * as fonts from '../utils/fonts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import styles from './ShcReportView.module.css';
@@ -322,20 +321,45 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         });
     }, [results, exclusionList]);
 
-    const handleExportStorePdf = (store: ShcStoreResult) => {
+    const handleExportStorePdf = async (store: ShcStoreResult) => {
         const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-
-        // Add fonts to VFS
-        doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', fonts.alumniSansSCSemiBold);
-        doc.addFileToVFS('ZillaSlabHighlight-Bold.ttf', fonts.zillaSlabHighlightBold);
-        doc.addFileToVFS('SourceCodePro-Light.ttf', fonts.sourceCodeProLight);
-        doc.addFileToVFS('Oswald-Bold.ttf', fonts.oswaldBold);
-        
-        // Add fonts to jsPDF
-        doc.addFont('AlumniSansSC-SemiBold.ttf', 'AlumniSansSC-SemiBold', 'normal');
-        doc.addFont('ZillaSlabHighlight-Bold.ttf', 'ZillaSlabHighlight-Bold', 'normal');
-        doc.addFont('SourceCodePro-Light.ttf', 'SourceCodePro-Light', 'normal');
-        doc.addFont('Oswald-Bold.ttf', 'Oswald-Bold', 'normal');
+    
+        try {
+            // Helper to fetch font and convert to a binary string for VFS
+            const fetchFont = async (url: string) => {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Failed to fetch font: ${url}`);
+                const fontBuffer = await response.arrayBuffer();
+                return new Uint8Array(fontBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '');
+            };
+    
+            // Fetch and register all fonts concurrently
+            const [
+                alumniSansData,
+                zillaSlabData,
+                sourceCodeProData,
+                oswaldData,
+            ] = await Promise.all([
+                fetchFont('/fonts/AlumniSansSC-SemiBold.ttf'),
+                fetchFont('/fonts/ZillaSlabHighlight-Bold.ttf'),
+                fetchFont('/fonts/SourceCodePro-Light.ttf'),
+                fetchFont('/fonts/Oswald-Bold.ttf'),
+            ]);
+    
+            doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', alumniSansData);
+            doc.addFileToVFS('ZillaSlabHighlight-Bold.ttf', zillaSlabData);
+            doc.addFileToVFS('SourceCodePro-Light.ttf', sourceCodeProData);
+            doc.addFileToVFS('Oswald-Bold.ttf', oswaldData);
+    
+            doc.addFont('AlumniSansSC-SemiBold.ttf', 'AlumniSansSC-SemiBold', 'normal');
+            doc.addFont('ZillaSlabHighlight-Bold.ttf', 'ZillaSlabHighlight-Bold', 'normal');
+            doc.addFont('SourceCodePro-Light.ttf', 'SourceCodePro-Light', 'normal');
+            doc.addFont('Oswald-Bold.ttf', 'Oswald-Bold', 'normal');
+    
+        } catch (error) {
+            console.error("Font loading failed, falling back to standard fonts.", error);
+            // In case of error, the PDF will be generated with jsPDF default fonts.
+        }
 
         const now = new Date();
         const year = now.getFullYear().toString().slice(-2);
