@@ -926,7 +926,103 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                             </button>
                         </div>
                     </div>
-                    {/* ... (rest of the results table remains the same) */}
+                     <div class={sharedStyles['table-container']}>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style={{ width: '40%' }}>{t('shcReport.table.warehouse')} / {t('shcReport.table.hos')} / {t('shcReport.table.am')} / {t('shcReport.table.store')}</th>
+                                    <th>{t('shcReport.table.discrepancies')}</th>
+                                    <th>{t('shcReport.table.avgPerStore')}</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {processedResults.map(warehouse => (
+                                    <>
+                                        <tr class={`${styles['row-level']} ${styles['level-0']}`} onClick={() => toggleRow(`wh-${warehouse.warehouseName}`)}>
+                                            <td><span class={`${styles.toggle} ${expandedRows.has(`wh-${warehouse.warehouseName}`) ? styles.expanded : ''}`}>▶</span> {warehouse.warehouseName}</td>
+                                            <td>{warehouse.discrepancyCount}</td>
+                                            <td class={styles['avg-per-store-cell']}>{warehouse.activeStoreCount > 0 ? (warehouse.discrepancyCount / warehouse.activeStoreCount).toFixed(2) : '-'}</td>
+                                            <td></td>
+                                        </tr>
+                                        {expandedRows.has(`wh-${warehouse.warehouseName}`) && warehouse.hos.map(hos => (
+                                            <>
+                                                <tr class={`${styles['row-level']} ${styles['level-1']}`} onClick={() => toggleRow(`hos-${hos.hosName}`)}>
+                                                    <td style={{ paddingLeft: '2rem' }}><span class={`${styles.toggle} ${expandedRows.has(`hos-${hos.hosName}`) ? styles.expanded : ''}`}>▶</span> {hos.hosName}</td>
+                                                    <td>{hos.discrepancyCount}</td>
+                                                    <td class={styles['avg-per-store-cell']}>{hos.activeStoreCount > 0 ? (hos.discrepancyCount / hos.activeStoreCount).toFixed(2) : '-'}</td>
+                                                    <td></td>
+                                                </tr>
+                                                {expandedRows.has(`hos-${hos.hosName}`) && hos.managers.map(manager => (
+                                                    <>
+                                                        <tr class={`${styles['row-level']} ${styles['level-2']}`} onClick={() => toggleRow(`am-${manager.managerName}`)}>
+                                                            <td style={{ paddingLeft: '4rem' }}><span class={`${styles.toggle} ${expandedRows.has(`am-${manager.managerName}`) ? styles.expanded : ''}`}>▶</span> {manager.managerName}</td>
+                                                            <td>{manager.discrepancyCount}</td>
+                                                            <td class={styles['avg-per-store-cell']}>{manager.activeStoreCount > 0 ? (manager.discrepancyCount / manager.activeStoreCount).toFixed(2) : '-'}</td>
+                                                            <td></td>
+                                                        </tr>
+                                                        {expandedRows.has(`am-${manager.managerName}`) && manager.stores.map(store => (
+                                                            <>
+                                                                <tr class={`${styles['row-level']} ${styles['level-3']} ${store.isExcluded ? styles['excluded-store'] : ''}`} onClick={() => toggleRow(`st-${store.storeNumber}`)}>
+                                                                    <td style={{ paddingLeft: '6rem' }}>
+                                                                        <div class={styles['name-cell']}>
+                                                                            <span>
+                                                                                <span class={`${styles.toggle} ${expandedRows.has(`st-${store.storeNumber}`) ? styles.expanded : ''}`}>▶</span> {store.storeNumber}
+                                                                                {store.isExcluded && <span class={styles['excluded-label']}>{t('shcReport.table.excluded')}</span>}
+                                                                            </span>
+                                                                            <div class={styles['row-actions']}>
+                                                                                <button title={t('shcReport.table.tooltip.toggleExclusion')} class={styles['action-button']} onClick={(e) => { e.stopPropagation(); handleToggleExclusion(store.storeNumber); }}>🚫</button>
+                                                                                <button title={t('shcReport.table.tooltip.exportPdf')} class={styles['action-button']} onClick={(e) => { e.stopPropagation(); handleExportStorePdf(store); }}>📄</button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>{store.discrepancyCount}</td>
+                                                                    <td>-</td>
+                                                                    <td></td>
+                                                                </tr>
+                                                                {expandedRows.has(`st-${store.storeNumber}`) && (
+                                                                    <>
+                                                                        <tr class={`${styles['divider-row']} ${store.isExcluded ? styles['excluded-store'] : ''}`}>
+                                                                            <td colSpan={4}>
+                                                                                <div class={styles['divider-content']}>
+                                                                                    <span>{store.items.length} discrepancies found</span>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class={`${styles['detail-header']} ${store.isExcluded ? styles['excluded-store'] : ''}`}>
+                                                                            <td style={{ paddingLeft: '8rem' }}>{t('shcReport.table.itemNumber')}</td>
+                                                                            <td>{t('shcReport.table.planShc')}</td>
+                                                                            <td>{t('shcReport.table.storeShc')}</td>
+                                                                            <td>{t('shcReport.table.diff')}</td>
+                                                                        </tr>
+                                                                        {store.items.map((item, index) => (
+                                                                            <tr key={index} class={`${styles['detail-row']} ${store.isExcluded ? styles['excluded-store'] : ''}`}>
+                                                                                <td style={{ paddingLeft: '8rem' }}>
+                                                                                    <div>{item.articleNumber} - {item.articleName}</div>
+                                                                                    <div class={`${styles.subtext} ${styles['item-details-extra']}`}>
+                                                                                        <span>{t('shcReport.table.section')}: {item.settingSpecificallyFor}</span>
+                                                                                        <span>{t('shcReport.table.itemGroup')}: {item.itemGroup}</span>
+                                                                                        <span>{t('shcReport.table.sectionWidth')}: {item.settingWidth}</span>
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td>{item.planShc}</td>
+                                                                                <td>{item.storeShc}</td>
+                                                                                <td class={styles.diff}>{item.diff}</td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </>
+                                                                )}
+                                                            </>
+                                                        ))}
+                                                    </>
+                                                ))}
+                                            </>
+                                        ))}
+                                    </>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
             
@@ -1005,7 +1101,53 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             {mismatches.length > 0 && (
                 <div class={styles['results-section']}>
                     <h3>{t('shcReport.results.mismatchesTitle')} ({mismatches.length})</h3>
-                    {/* ... (mismatches rendering remains the same) */}
+                    <div class={styles['mismatch-container']}>
+                        <div class={`${styles['mismatch-row']} ${styles['mismatch-header']}`}>
+                            <span>Mismatch Type</span>
+                            <span>Store Number</span>
+                            <span>Article Number</span>
+                            <span>Details</span>
+                        </div>
+                        {Object.entries(groupedMismatches).map(([type, stores]) => {
+                            const typeKey = `mismatch-type-${type}`;
+                            const isTypeExpanded = expandedMismatches.has(typeKey);
+                            const totalMismatchesForType = Object.values(stores).reduce((sum, items) => sum + items.length, 0);
+                            return (
+                                <div key={typeKey}>
+                                    <div class={`${styles['mismatch-row']} ${styles['mismatch-type-header']}`} onClick={() => toggleMismatchGroup(typeKey)}>
+                                        <div class={styles['mismatch-type-title']}>
+                                            <span class={`${styles['mismatch-toggle']} ${isTypeExpanded ? styles.expanded : ''}`}>▶</span>
+                                            {type}
+                                            <span class={styles['mismatch-count']}>({totalMismatchesForType})</span>
+                                        </div>
+                                    </div>
+                                    {isTypeExpanded && Object.entries(stores).map(([storeNumber, items]) => {
+                                        const storeKey = `mismatch-store-${type}-${storeNumber}`;
+                                        const isStoreExpanded = expandedMismatches.has(storeKey);
+                                        return (
+                                            <div key={storeKey}>
+                                                <div class={`${styles['mismatch-row']} ${styles['mismatch-store-header']}`} onClick={() => toggleMismatchGroup(storeKey)}>
+                                                    <div class={styles['mismatch-store-title']} style={{ paddingLeft: '2rem' }}>
+                                                        <span class={`${styles['mismatch-toggle']} ${isStoreExpanded ? styles.expanded : ''}`}>▶</span>
+                                                        Store: {storeNumber}
+                                                        <span class={styles['mismatch-count']}>({items.length})</span>
+                                                    </div>
+                                                </div>
+                                                {isStoreExpanded && items.map((item, index) => (
+                                                    <div class={`${styles['mismatch-row']} ${styles['mismatch-item-row']}`} key={index} style={{ paddingLeft: '4rem' }}>
+                                                        <span></span> {/* Empty cell for alignment */}
+                                                        <span>{item.storeNumber}</span>
+                                                        <span>{item.articleNumber}</span>
+                                                        <span>{item.details}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )
+                        })}
+                    </div>
                 </div>
             )}
 
