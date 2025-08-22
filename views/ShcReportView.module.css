@@ -510,6 +510,17 @@
     position: relative;
     z-index: 1;
 }
+.compliance-table .level-0 > td {
+    background-color: #6c757d;
+    color: white;
+    font-weight: bold;
+}
+.compliance-table .level-1 > td {
+    background-color: #adb5bd; /* Medium Gray for HoS */
+}
+.compliance-table .level-2 > td {
+    background-color: #dee2e6; /* Lighter Gray for AM */
+}
 
 .change-positive {
     background-color: #4CAF50; /* Green */
@@ -567,6 +578,14 @@
         padding: 20px !important;
         border: none !important;
         box-shadow: none !important;
+    }
+    
+    .printable-area h3 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        page-break-after: avoid;
+        border-bottom: 1px solid var(--border-color);
     }
 
     .results-header-actions {
