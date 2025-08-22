@@ -325,15 +325,11 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
     
         try {
-            // Helper to fetch font and convert to base64
-            const fetchAndEncodeFont = async (url: string) => {
+            // Helper to fetch font as an ArrayBuffer
+            const fetchFont = async (url: string) => {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`Failed to fetch font: ${url}`);
-                const fontBuffer = await response.arrayBuffer();
-                const uint8Array = new Uint8Array(fontBuffer);
-                // Convert Uint8Array to binary string, then to base64
-                const binaryString = Array.from(uint8Array).map(byte => String.fromCharCode(byte)).join('');
-                return btoa(binaryString);
+                return response.arrayBuffer();
             };
     
             // Fetch and register all fonts concurrently
@@ -343,16 +339,17 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 sourceCodeProData,
                 oswaldData,
             ] = await Promise.all([
-                fetchAndEncodeFont('/fonts/AlumniSansSC-SemiBold.ttf'),
-                fetchAndEncodeFont('/fonts/ZillaSlabHighlight-Bold.ttf'),
-                fetchAndEncodeFont('/fonts/SourceCodePro-Light.ttf'),
-                fetchAndEncodeFont('/fonts/Oswald-Bold.ttf'),
+                fetchFont('/fonts/AlumniSansSC-SemiBold.ttf'),
+                fetchFont('/fonts/ZillaSlabHighlight-Bold.ttf'),
+                fetchFont('/fonts/SourceCodePro-Light.ttf'),
+                fetchFont('/fonts/Oswald-Bold.ttf'),
             ]);
     
-            doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', alumniSansData);
-            doc.addFileToVFS('ZillaSlabHighlight-Bold.ttf', zillaSlabData);
-            doc.addFileToVFS('SourceCodePro-Light.ttf', sourceCodeProData);
-            doc.addFileToVFS('Oswald-Bold.ttf', oswaldData);
+            // Register fonts with jsPDF using their binary data (as Uint8Array)
+            doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', new Uint8Array(alumniSansData) as any);
+            doc.addFileToVFS('ZillaSlabHighlight-Bold.ttf', new Uint8Array(zillaSlabData) as any);
+            doc.addFileToVFS('SourceCodePro-Light.ttf', new Uint8Array(sourceCodeProData) as any);
+            doc.addFileToVFS('Oswald-Bold.ttf', new Uint8Array(oswaldData) as any);
     
             doc.addFont('AlumniSansSC-SemiBold.ttf', 'AlumniSansSC-SemiBold', 'normal');
             doc.addFont('ZillaSlabHighlight-Bold.ttf', 'ZillaSlabHighlight-Bold', 'normal');
