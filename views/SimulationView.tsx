@@ -183,8 +183,8 @@ const SimulationView = ({ userSession, initialParams, onSimulationStart, watchli
         (async () => {
             const ids = await getUniqueWarehouseIds();
             setWarehouseIds(ids);
-            if (isRdcMode && !initialParams) {
-                setWarehouseId(userSession.rdc!.id);
+            if (isRdcMode && !initialParams && userSession?.rdc?.id) {
+                setWarehouseId(userSession.rdc.id);
             }
         })();
     }, [isRdcMode, userSession, initialParams]);
