@@ -370,6 +370,17 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             console.error("Font loading failed, falling back to standard fonts.", error);
         }
 
+        let logoData: string | null = null;
+        try {
+            const response = await fetch('/logo/logo.png');
+            if (response.ok) {
+                const buffer = await response.arrayBuffer();
+                logoData = `data:image/png;base64,${arrayBufferToBase64(buffer)}`;
+            }
+        } catch (e) {
+            console.error("Could not load logo.", e);
+        }
+
         const now = new Date();
         const year = now.getFullYear().toString().slice(-2);
         const week = getWeekNumber(now);
@@ -382,6 +393,13 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
     
         const addPageHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
             if (pageNumber === 1) {
+                if (logoData) {
+                    docInstance.addImage(logoData, 'PNG', margin, 30, 50, 50);
+                } else {
+                    docInstance.setFillColor(211, 211, 211); // Light gray placeholder
+                    docInstance.rect(margin, 30, 50, 50, 'F');
+                }
+
                 docInstance.setFont('AlumniSansSC-SemiBold', 'normal');
                 docInstance.setFontSize(20);
                 docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', pageWidth / 2, 40, { align: 'center' });
@@ -390,11 +408,32 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 docInstance.setFontSize(6);
                 docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
         
+                const rdcText = `RDC STORE`;
+                const rdcNameText = `${rdc?.name || ''} ${store.storeNumber}`;
+                const rdcTextWidth = docInstance.getTextWidth(rdcText);
+                const rdcNameTextWidth = docInstance.getTextWidth(rdcNameText);
+                const boxWidth = Math.max(rdcTextWidth, rdcNameTextWidth) + 20;
+                const boxHeight = 35;
+                const boxX = (pageWidth - boxWidth) / 2;
+                const boxY = 75;
+                docInstance.setDrawColor(0);
+                docInstance.rect(boxX, boxY, boxWidth, boxHeight);
+                docInstance.setFont('SourceCodePro-Light', 'normal');
+                docInstance.setFontSize(10);
+                docInstance.text(rdcText, pageWidth / 2, boxY + 14, { align: 'center' });
+                docInstance.text(rdcNameText, pageWidth / 2, boxY + 28, { align: 'center' });
+
                 docInstance.setFontSize(8);
                 docInstance.text(`Target score: > 100`, pageWidth - margin, 80, { align: 'right' });
 
                 docInstance.setFont('ZillaSlabHighlight-Bold', 'normal');
-                docInstance.text(`Current_score:_${store.discrepancyCount}`, pageWidth - margin, 95, { align: 'right' });
+                const scoreText = `Current score: ${store.discrepancyCount}`;
+                const scoreTextWidth = docInstance.getTextWidth(scoreText);
+                docInstance.setFillColor(0, 0, 0);
+                docInstance.rect(pageWidth - margin - scoreTextWidth - 4, 85, scoreTextWidth + 8, 12, 'F');
+                docInstance.setTextColor(255, 255, 255);
+                docInstance.text(scoreText, pageWidth - margin, 95, { align: 'right' });
+                docInstance.setTextColor(0, 0, 0);
             }
 
             docInstance.setFont('SourceCodePro-Light', 'normal');
@@ -416,7 +455,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                             font: 'Oswald-Bold',
                             fontStyle: 'normal',
                             textColor: [255, 255, 255], 
-                            fillColor: [64, 64, 64],
+                            fillColor: [0, 0, 0],
                             halign: 'left', 
                             fontSize: 7, 
                             cellPadding: 2 
@@ -439,10 +478,10 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         }, [] as any[][]);
     
         autoTable(doc, {
-            head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Diff', 'V', 'Comments']],
+            head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Diff', ' V', 'Comments']],
             body: mainTableBody,
             theme: 'grid',
-            startY: 110,
+            startY: 120,
             styles: { font: 'SourceCodePro-Light', fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
             headStyles: { font: 'SourceCodePro-Light', fontStyle: 'bold', fillColor: '#e0e0e0', textColor: '#333', minCellHeight: 20, valign: 'middle' },
             columnStyles: {
@@ -459,12 +498,6 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             }
         });
         
-        const totalPages = (doc as any).internal.getNumberOfPages();
-        for (let i = 1; i <= totalPages; i++) {
-            doc.setPage(i);
-            addPageHeaderAndFooter(doc, i, totalPages);
-        }
-    
         doc.save(filename);
     };
 
