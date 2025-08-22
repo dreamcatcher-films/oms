@@ -1058,7 +1058,45 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                                             <td class={styles['avg-per-store-cell']}>{manager.activeStoreCount > 0 ? (manager.discrepancyCount / manager.activeStoreCount).toFixed(2) : '-'}</td>
                                                             <td></td>
                                                         </tr>
-                                                        {expandedRows.has(`am-${manager.managerName}`) && manager.stores.map(store => (
+                                                        {expandedRows.has(`am-${manager.managerName}`) && manager.stores.map(store => {
+                                                            
+                                                            const storeItems = (() => {
+                                                                let lastSectionId: string | null = null;
+                                                                const elements: VNode[] = [];
+                                                                
+                                                                store.items.forEach((item, index) => {
+                                                                    const currentSectionId = `${item.settingSpecificallyFor}-${item.settingWidth}`;
+                                                                    const isNewSection = currentSectionId !== lastSectionId;
+                                                                    if (isNewSection) {
+                                                                        lastSectionId = currentSectionId;
+                                                                        elements.push(
+                                                                            <tr key={`sep-${currentSectionId}`} class={`${styles['section-separator-row']} ${store.isExcluded ? styles['excluded-store'] : ''}`}>
+                                                                                <td colSpan={4} style={{ paddingLeft: '7rem' }}>
+                                                                                    {item.settingSpecificallyFor} - {item.settingWidth}
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    }
+                                                                    
+                                                                    elements.push(
+                                                                        <tr key={`${item.articleNumber}-${index}`} class={`${styles['detail-row']} ${store.isExcluded ? styles['excluded-store'] : ''}`}>
+                                                                            <td style={{ paddingLeft: '8rem' }}>
+                                                                                <div>{item.articleNumber} - {item.articleName}</div>
+                                                                                <div class={`${styles.subtext} ${styles['item-details-extra']}`}>
+                                                                                    <span>{t('shcReport.table.itemGroup')}: {item.itemGroup}</span>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td>{item.planShc}</td>
+                                                                            <td>{item.storeShc}</td>
+                                                                            <td class={styles.diff}>{item.diff}</td>
+                                                                        </tr>
+                                                                    );
+                                                                });
+
+                                                                return elements;
+                                                            })();
+
+                                                            return (
                                                             <>
                                                                 <tr class={`${styles['row-level']} ${styles['level-3']} ${store.isExcluded ? styles['excluded-store'] : ''}`} onClick={() => toggleRow(`st-${store.storeNumber}`)}>
                                                                     <td style={{ paddingLeft: '6rem' }}>
@@ -1092,25 +1130,12 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                                                             <td>{t('shcReport.table.storeShc')}</td>
                                                                             <td>{t('shcReport.table.diff')}</td>
                                                                         </tr>
-                                                                        {store.items.map((item, index) => (
-                                                                            <tr key={index} class={`${styles['detail-row']} ${store.isExcluded ? styles['excluded-store'] : ''}`}>
-                                                                                <td style={{ paddingLeft: '8rem' }}>
-                                                                                    <div>{item.articleNumber} - {item.articleName}</div>
-                                                                                    <div class={`${styles.subtext} ${styles['item-details-extra']}`}>
-                                                                                        <span>{t('shcReport.table.section')}: {item.settingSpecificallyFor}</span>
-                                                                                        <span>{t('shcReport.table.itemGroup')}: {item.itemGroup}</span>
-                                                                                        <span>{t('shcReport.table.sectionWidth')}: {item.settingWidth}</span>
-                                                                                    </div>
-                                                                                </td>
-                                                                                <td>{item.planShc}</td>
-                                                                                <td>{item.storeShc}</td>
-                                                                                <td class={styles.diff}>{item.diff}</td>
-                                                                            </tr>
-                                                                        ))}
+                                                                        {storeItems}
                                                                     </>
                                                                 )}
                                                             </>
-                                                        ))}
+                                                            );
+                                                        })}
                                                     </>
                                                 ))}
                                             </>
