@@ -37,6 +37,7 @@ import {
   DBStatus,
   saveShcBaselineData,
   saveShcPreviousWeekData,
+  Product
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
@@ -91,9 +92,14 @@ const App = () => {
 
   const importFileInputRef = useRef<HTMLInputElement>(null);
   const exclusionFileInputRef = useRef<HTMLInputElement>(null);
+  const shcExclusionFileInputRef = useRef<HTMLInputElement>(null);
+  const configImportInputRef = useRef<HTMLInputElement>(null);
+  const shcBaselineInputRef = useRef<HTMLInputElement>(null);
+  const shcPreviousWeekInputRef = useRef<HTMLInputElement>(null);
   const idleTimerRef = useRef<number | null>(null);
   const refreshIntervalRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
+  const shcParsingWorkerRef = useRef<Worker | null>(null);
 
   // Refs to get latest state inside interval without resetting it
   const isLoadingRef = useRef(isLoading);
@@ -173,35 +179,222 @@ const App = () => {
     }
   }, [t]);
 
-    const clearOutdatedShcData = useCallback(async () => {
-        const metadata = await getImportMetadata();
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        let clearedCount = 0;
+  const clearOutdatedShcData = useCallback(async () => {
+    const metadata = await getImportMetadata();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let clearedCount = 0;
 
-        const checkAndClear = async (type: ShcDataType, clearFn: () => Promise<void>) => {
-            const meta = metadata[type];
-            if (meta?.lastImported) {
-                const importDate = new Date(meta.lastImported);
-                importDate.setHours(0, 0, 0, 0);
-                if (importDate.getTime() < today.getTime()) {
-                    await clearFn();
-                    clearedCount++;
-                }
+    const checkAndClear = async (type: ShcDataType, clearFn: () => Promise<void>) => {
+        const meta = metadata[type];
+        if (meta?.lastImported) {
+            const importDate = new Date(meta.lastImported);
+            importDate.setHours(0, 0, 0, 0);
+            if (importDate.getTime() < today.getTime()) {
+                await clearFn();
+                clearedCount++;
             }
-        };
-
-        await Promise.all([
-            checkAndClear('shc', clearShcData),
-            checkAndClear('planogram', clearPlanogramData),
-            checkAndClear('orgStructure', clearOrgStructureData),
-            checkAndClear('categoryRelation', clearCategoryRelationData)
-        ]);
-        
-        if (clearedCount > 0) {
-            setStatusMessage({ text: t('status.clear.outdatedShcCleared'), type: 'info' });
         }
-    }, [t]);
+    };
+
+    await Promise.all([
+        checkAndClear('shc', clearShcData),
+        checkAndClear('planogram', clearPlanogramData),
+        checkAndClear('orgStructure', clearOrgStructureData),
+        checkAndClear('categoryRelation', clearCategoryRelationData)
+    ]);
+    
+    if (clearedCount > 0) {
+        setStatusMessage({ text: t('status.clear.outdatedShcCleared'), type: 'info' });
+    }
+  }, [t]);
+
+  // --- File Processing Logic ---
+  const processFile = useCallback(async <T extends Product | Sale>(
+    file: File,
+    dataType: DataType,
+    rowMapper: (row: any) => T | null,
+    addFunction: (data: T[]) => Promise<void>,
+    clearFunction: () => Promise<void>,
+    options: { hasHeader: boolean }
+  ) => {
+    setIsLoading(true);
+    const dataTypeName = t(`dataType.${dataType}`);
+    setStatusMessage({ text: t('status.import.preparing', { dataTypeName }), type: 'info' });
+
+    try {
+      await clearFunction();
+    } catch (error) {
+      console.error("Failed to clear old data", error);
+      setStatusMessage({ text: t('status.clear.clearError', { dataTypeName }), type: 'error' });
+      setIsLoading(false);
+      return;
+    }
+    
+    setStatusMessage({ text: t('status.import.starting', { dataTypeName }), type: 'info' });
+
+    let processedCount = 0;
+    const batch: T[] = [];
+
+    const processBatch = async () => {
+      if (batch.length > 0) {
+        await addFunction(batch);
+        processedCount += batch.length;
+        batch.length = 0; 
+        setStatusMessage({
+          text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }),
+          type: 'info',
+        });
+      }
+    };
+
+    return new Promise<void>((resolve, reject) => {
+        Papa.parse(file, {
+            header: options.hasHeader,
+            skipEmptyLines: true,
+            worker: true,
+            chunk: async (results: Papa.ParseResult<any>) => {
+                const mappedBatch = results.data.map(rowMapper).filter((item): item is T => item !== null);
+                if (mappedBatch.length > 0) {
+                  await addFunction(mappedBatch);
+                  processedCount += mappedBatch.length;
+                  setStatusMessage({ text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }), type: 'info' });
+                }
+            },
+            complete: async () => {
+                await updateImportMetadata(dataType);
+                setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
+                await performInitialCheck();
+                resolve();
+            },
+            error: (error) => {
+                console.error("Parsing error:", error);
+                setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
+                setIsLoading(false);
+                reject(error);
+            }
+        });
+    });
+  }, [t, language, performInitialCheck]);
+
+  const handleFileSelect = useCallback(async (dataType: DataType, event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    try {
+        switch (dataType) {
+            case 'products':
+                await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true });
+                break;
+            case 'goodsReceipts':
+                await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true });
+                break;
+            case 'openOrders':
+                await processFile(file, 'openOrders', openOrderRowMapper, addOpenOrders, clearOpenOrders, { hasHeader: true });
+                break;
+            case 'sales':
+                await processFile(file, 'sales', saleRowMapper, addSales, clearSales, { hasHeader: false });
+                break;
+        }
+    } finally {
+        if (importFileInputRef.current) {
+            importFileInputRef.current.value = '';
+        }
+    }
+  }, [processFile]);
+
+  const handleShcFileSelect = useCallback(async (dataType: ShcDataType, event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file || !shcParsingWorkerRef.current) return;
+
+    setIsLoading(true);
+    const dataTypeName = t(`dataType.${dataType}`);
+    setStatusMessage({ text: t('status.import.preparing', { dataTypeName }), type: 'info' });
+
+    try {
+        const clearFunction = {
+            'shc': clearShcData, 'planogram': clearPlanogramData,
+            'orgStructure': clearOrgStructureData, 'categoryRelation': clearCategoryRelationData,
+        }[dataType];
+        await clearFunction();
+    } catch (error) {
+        console.error("Failed to clear old data", error);
+        setStatusMessage({ text: t('status.clear.clearError', { dataTypeName }), type: 'error' });
+        setIsLoading(false);
+        return;
+    }
+    
+    let totalRows = 0;
+    const worker = shcParsingWorkerRef.current;
+    
+    const onWorkerMessage = async (e: MessageEvent<ShcParsingWorkerMessage>) => {
+      const { type, payload } = e.data;
+      const addFunction = {
+        'shc': addShcData, 'planogram': addPlanogramData,
+        'orgStructure': addOrgStructureData, 'categoryRelation': addCategoryRelationData
+      }[dataType];
+
+      switch(type) {
+        case 'progress':
+          setStatusMessage({ text: t(payload.message, { dataTypeName }), type: 'info', progress: payload.percentage });
+          break;
+        case 'data':
+          await addFunction(payload as any);
+          break;
+        case 'complete':
+          totalRows = payload.totalRows;
+          await updateImportMetadata(dataType);
+          setStatusMessage({ text: t('status.import.complete', { processedCount: totalRows.toLocaleString(language), dataTypeName }), type: 'success' });
+          await performInitialCheck();
+          setIsLoading(false);
+          worker.removeEventListener('message', onWorkerMessage);
+          break;
+        case 'error':
+          setStatusMessage({ text: payload, type: 'error' });
+          setIsLoading(false);
+          worker.removeEventListener('message', onWorkerMessage);
+          break;
+      }
+    };
+    
+    worker.addEventListener('message', onWorkerMessage);
+    worker.postMessage({ dataType, file });
+    
+    const input = document.getElementById(`${dataType}-file-input`) as HTMLInputElement;
+    if (input) input.value = '';
+  }, [t, language, performInitialCheck]);
+
+  const handleReloadFile = useCallback(async (dataType: DataType, isAutoRefresh = false) => {
+    const handle = linkedFiles.get(dataType);
+    if (!handle) {
+        if (!isAutoRefresh) setStatusMessage({ text: t('settings.reloadError'), type: 'error' });
+        throw new Error("File handle not found");
+    }
+    try {
+        const file = await handle.getFile();
+        switch (dataType) {
+            case 'products':
+                await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true });
+                break;
+            case 'goodsReceipts':
+                await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true });
+                break;
+            case 'openOrders':
+                await processFile(file, 'openOrders', openOrderRowMapper, addOpenOrders, clearOpenOrders, { hasHeader: true });
+                break;
+            case 'sales':
+                await processFile(file, 'sales', saleRowMapper, addSales, clearSales, { hasHeader: false });
+                break;
+        }
+    } catch (e) {
+        if (e instanceof DOMException && e.name === 'NotAllowedError') {
+            if (!isAutoRefresh) setStatusMessage({ text: t('settings.permissionDenied'), type: 'error' });
+        } else {
+            if (!isAutoRefresh) setStatusMessage({ text: t('settings.reloadError'), type: 'error' });
+        }
+        throw e;
+    }
+  }, [linkedFiles, t, processFile]);
 
   // --- Idle Timeout Logic ---
   const resetIdleTimer = useCallback(() => {
@@ -250,7 +443,7 @@ const App = () => {
         setStatusMessage({ text: t('status.autoRefresh.complete'), type: 'success' });
     }
     setTimeToNextRefresh(autoRefreshConfig.interval * 60);
-  }, [linkedFiles, autoRefreshConfig.interval, t]);
+  }, [linkedFiles, autoRefreshConfig.interval, t, handleReloadFile]);
 
   useEffect(() => {
     const clearTimer = () => {
@@ -316,552 +509,96 @@ const App = () => {
 
 
   useEffect(() => {
+    shcParsingWorkerRef.current = new Worker(new URL('./shc-parsing.worker.ts', import.meta.url), { type: 'module' });
     const savedSession = localStorage.getItem('oms-session');
     if(savedSession) {
         setUserSession(JSON.parse(savedSession));
     }
-    clearOutdatedShcData().then(performInitialCheck).then(loadSettings);
-  }, [performInitialCheck, loadSettings, clearOutdatedShcData]);
+    loadSettings();
+    performInitialCheck();
+    clearOutdatedShcData();
+    
+    return () => {
+        shcParsingWorkerRef.current?.terminate();
+    };
+  }, [loadSettings, performInitialCheck, clearOutdatedShcData]);
   
-  const processFile = (dataType: DataType, file: File) => {
-    switch (dataType) {
-      case 'products':
-          handleComplexFileParse(file, 'products', t('dataType.products'), clearProducts, addProducts, productRowMapper);
-          break;
-      case 'goodsReceipts':
-          handleComplexFileParse(file, 'goodsReceipts', t('dataType.goodsReceipts'), clearGoodsReceipts, addGoodsReceipts, goodsReceiptRowMapper);
-          break;
-      case 'openOrders':
-          handleComplexFileParse(file, 'openOrders', t('dataType.openOrders'), clearOpenOrders, addOpenOrders, openOrderRowMapper);
-          break;
-      case 'sales':
-          handleSalesFileParse(file);
-          break;
-    }
-  };
-  
-  const handleComplexFileParse = (
-    file: File,
-    dataType: 'products' | 'goodsReceipts' | 'openOrders',
-    dataTypeName: string,
-    clearDbFn: () => Promise<void>,
-    addDbFn: (batch: any[]) => Promise<void>,
-    rowMapperFn: (row: { [key: string]: string }) => any
-  ) => {
-      setIsLoading(true);
-      setStatusMessage({ text: t('status.import.preparing', { dataTypeName }), type: 'info', progress: 0 });
-
-      (async () => {
-        try {
-          await clearDbFn();
-          setCounts(prev => ({ ...prev, [dataType]: 0 }));
-          setImportMetadata(prev => ({ ...prev, [dataType]: null }));
-        } catch (error) {
-          console.error(`Error clearing database for ${dataTypeName}.`, error);
-          setStatusMessage({ text: t('status.import.clearError'), type: 'error' });
-          setIsLoading(false);
-          return;
-        }
-
-        setStatusMessage({ text: t('status.import.starting', { dataTypeName }), type: 'info', progress: 0 });
-        
-        let header1: string[] = [];
-        let header2: string[] = [];
-        let combinedHeader: string[] = [];
-        let batch: any[] = [];
-        let processedCount = 0;
-        let rowIndex = 0;
-
-        const processBatch = async () => {
-          if (batch.length > 0) {
-            await addDbFn(batch);
-            processedCount += batch.length;
-            setCounts(prev => ({ ...prev, [dataType]: (prev[dataType] || 0) + batch.length }));
-            batch = [];
-          }
-        };
-
-        Papa.parse(file, {
-          header: false,
-          worker: false,
-          skipEmptyLines: true,
-          chunk: (results, parser) => {
-              parser.pause();
-              (async () => {
-                  for (let i = 0; i < results.data.length; i++) {
-                      const row = results.data[i] as string[];
-                      if (rowIndex === 0) {
-                          header1 = row;
-                      } else if (rowIndex === 1) {
-                          header2 = row;
-                          let lastH1 = '';
-                          combinedHeader = header1.map((h1, j) => {
-                              const currentH1 = (h1 || '').trim();
-                              if (currentH1 !== '') { lastH1 = currentH1; }
-                              const currentH2 = (header2[j] || '').trim();
-                              return `${lastH1} ${currentH2}`.trim();
-                          });
-                      } else {
-                          const rowObject: { [key: string]: string } = {};
-                          combinedHeader.forEach((header, k) => {
-                              rowObject[header] = row[k];
-                          });
-                          const mappedRow = rowMapperFn(rowObject);
-                          batch.push(mappedRow);
-                          if (batch.length >= BATCH_SIZE) {
-                              await processBatch();
-                          }
-                      }
-                      rowIndex++;
-                  }
-                  const progress = file ? (results.meta.cursor / file.size) * 100 : 0;
-                  setStatusMessage({
-                    text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }),
-                    type: 'info',
-                    progress: progress,
-                  });
-                  parser.resume();
-              })();
-          },
-          complete: async () => {
-            await processBatch();
-            await updateImportMetadata(dataType);
-            const metadata = await getImportMetadata();
-            setImportMetadata(metadata);
-            setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
-            setIsLoading(false);
-          },
-          error: (error) => {
-            console.error("PapaParse error:", error);
-            setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
-            setIsLoading(false);
-          }
-        });
-      })();
-  };
-
-  const handleSalesFileParse = (file: File) => {
-      const dataTypeName = t('dataType.sales');
-      setIsLoading(true);
-      setStatusMessage({ text: t('status.import.preparing', { dataTypeName }), type: 'info', progress: 0 });
-
-      (async () => {
-          try {
-              await clearSales();
-              setCounts(prev => ({ ...prev, sales: 0 }));
-              setImportMetadata(prev => ({ ...prev, sales: null }));
-          } catch (error) {
-              console.error(`Error clearing database for ${dataTypeName}.`, error);
-              setStatusMessage({ text: t('status.import.clearError'), type: 'error' });
-              setIsLoading(false);
-              return;
-          }
-
-          let batch: Sale[] = [];
-          let processedCount = 0;
-          let isFirstChunk = true;
-
-          const processBatch = async () => {
-              if (batch.length > 0) {
-                  await addSales(batch);
-                  processedCount += batch.length;
-                  setCounts(prev => ({ ...prev, sales: (prev.sales || 0) + batch.length }));
-                  batch = [];
-              }
-          };
-
-          Papa.parse(file, {
-              worker: false,
-              skipEmptyLines: true,
-              delimiter: ';',
-              chunk: async (results, parser) => {
-                  parser.pause();
-                  
-                  let rows = results.data as string[][];
-                  if (isFirstChunk) {
-                      rows.shift(); // Skip header row
-                      isFirstChunk = false;
-                  }
-
-                  for (const row of rows) {
-                      const mappedRow = saleRowMapper(row as string[]);
-                      if (mappedRow) {
-                          batch.push(mappedRow);
-                      }
-                      if (batch.length >= BATCH_SIZE) {
-                          await processBatch();
-                      }
-                  }
-
-                  const progress = file ? (results.meta.cursor / file.size) * 100 : 0;
-                  setStatusMessage({
-                      text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }),
-                      type: 'info',
-                      progress: progress,
-                  });
-
-                  parser.resume();
-              },
-              complete: async () => {
-                  await processBatch();
-                  await updateImportMetadata('sales');
-                  const metadata = await getImportMetadata();
-                  setImportMetadata(metadata);
-                  setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
-                  setIsLoading(false);
-              },
-              error: (error) => {
-                  console.error("PapaParse error:", error);
-                  setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
-                  setIsLoading(false);
-              }
-          });
-      })();
-  };
-  
-  const handleFileSelect = (dataType: DataType, event: Event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    processFile(dataType, file);
-    (event.target as HTMLInputElement).value = ''; 
-  };
-  
-  const handleLinkFile = async (dataType: DataType) => {
-      if (!('showOpenFilePicker' in window)) {
-          alert("Your browser does not support this feature.");
-          return;
-      }
-      try {
-          const [handle] = await (window as any).showOpenFilePicker();
-          await saveSetting(`linkedFile:${dataType}`, handle);
-          setLinkedFiles(prev => new Map(prev).set(dataType, handle as FileSystemFileHandle));
-          setStatusMessage({ text: t('settings.dataSources.linkSuccess'), type: 'success' });
-          const file = await (handle as any).getFile();
-          processFile(dataType, file);
-      } catch (err) {
-          if ((err as Error).name !== 'AbortError') {
-            console.error('Error linking file:', err);
-            setStatusMessage({ text: t('settings.dataSources.linkError'), type: 'error' });
-          }
-      }
-  };
-
-  const handleReloadFile = async (dataType: DataType, isAuto: boolean = false) => {
-      const handle = linkedFiles.get(dataType);
-      if (!handle) return Promise.reject();
-      
-      if (!isAuto) setIsLoading(true);
-
-      try {
-          const permission = await (handle as any).queryPermission({ mode: 'read' });
-          if (permission === 'denied') {
-              setStatusMessage({ text: t('settings.dataSources.permissionDenied'), type: 'error' });
-              if (!isAuto) setIsLoading(false);
-              return Promise.reject();
-          }
-          if (permission === 'prompt') {
-              if ((await (handle as any).requestPermission({ mode: 'read' })) !== 'granted') {
-                  setStatusMessage({ text: t('settings.dataSources.permissionNeeded'), type: 'error' });
-                  if (!isAuto) setIsLoading(false);
-                  return Promise.reject();
-              }
-          }
-          const file = await (handle as any).getFile();
-          processFile(dataType, file);
-          return Promise.resolve();
-      } catch (e) {
-          console.error(`Could not read file for ${dataType}`, e);
-          setStatusMessage({ text: t('settings.dataSources.reloadError'), type: 'error' });
-          if (!isAuto) setIsLoading(false);
-          return Promise.reject();
-      }
-  };
-
-  const handleClearFile = async (dataType: DataType) => {
-      // It's good practice to add a confirmation step for destructive actions.
-      // Assuming a simple confirm for now.
-      if (!confirm(`Are you sure you want to clear all ${t(`dataType.${dataType}`)} data? This cannot be undone.`)) return;
-
-      setIsLoading(true);
-      setStatusMessage({ text: t('status.clear.clearing', { dataTypeName: t(`dataType.${dataType}`) }), type: 'info' });
-      try {
-          switch (dataType) {
-              case 'products': await clearProducts(); break;
-              case 'goodsReceipts': await clearGoodsReceipts(); break;
-              case 'openOrders': await clearOpenOrders(); break;
-              case 'sales': await clearSales(); break;
-          }
-          // After clearing, re-check the DB status to update counts
-          await performInitialCheck();
-          setStatusMessage({ text: t('status.clear.cleared', { dataTypeName: t(`dataType.${dataType}`) }), type: 'success' });
-      } catch (error) {
-          console.error(`Error clearing ${dataType}`, error);
-          setStatusMessage({ text: t('status.clear.clearError', { dataTypeName: t(`dataType.${dataType}`) }), type: 'error' });
-      } finally {
-          setIsLoading(false);
-      }
-  };
-
-  const handleClearLink = async (dataType: DataType) => {
-    if (!confirm(t('settings.dataSources.clearLinkConfirm'))) return;
+  const handleClearData = useCallback(async (type: DataType) => {
+    const clearFn = {
+        'products': clearProducts,
+        'goodsReceipts': clearGoodsReceipts,
+        'openOrders': clearOpenOrders,
+        'sales': clearSales
+    }[type];
+    const dataTypeName = t(`dataType.${type}`);
+    setStatusMessage({ text: t('status.clear.clearing', { dataTypeName }), type: 'info' });
     try {
-        await deleteSetting(`linkedFile:${dataType}`);
-        setLinkedFiles(prev => {
-            const newMap = new Map(prev);
-            newMap.delete(dataType);
-            return newMap;
-        });
-        setStatusMessage({ text: t('settings.dataSources.linkClearedSuccess'), type: 'success' });
-    } catch (err) {
-        console.error('Error clearing link:', err);
-        setStatusMessage({ text: t('settings.dataSources.linkClearedError'), type: 'error' });
+        await clearFn();
+        setStatusMessage({ text: t('status.clear.cleared', { dataTypeName }), type: 'success' });
+        await performInitialCheck();
+    } catch(e) {
+        setStatusMessage({ text: t('status.clear.clearError', { dataTypeName }), type: 'error' });
     }
-  };
+  }, [t, performInitialCheck]);
   
+  const handleClearShcFile = useCallback(async (type: ShcDataType) => {
+    const clearFn = {
+        'shc': clearShcData,
+        'planogram': clearPlanogramData,
+        'orgStructure': clearOrgStructureData,
+        'categoryRelation': clearCategoryRelationData
+    }[type];
+     const dataTypeName = t(`dataType.${type}`);
+     setStatusMessage({ text: t('status.clear.clearing', { dataTypeName }), type: 'info' });
+     try {
+        await clearFn();
+        setStatusMessage({ text: t('status.clear.cleared', { dataTypeName }), type: 'success' });
+        await performInitialCheck();
+    } catch(e) {
+        setStatusMessage({ text: t('status.clear.clearError', { dataTypeName }), type: 'error' });
+    }
+  }, [t, performInitialCheck]);
+
   const handleClearAll = async () => {
-    if (!confirm("Are you sure you want to clear ALL data? This will remove products, receipts, orders, and sales data permanently.")) return;
-    setIsLoading(true);
-    setStatusMessage({ text: t('status.clear.clearingAll'), type: 'info' });
-    try {
-      await clearAllData();
-      await performInitialCheck();
-      setLinkedFiles(new Map());
-      setStatusMessage({ text: t('status.clear.clearedAll'), type: 'success' });
-    } catch (error) {
-      console.error("Error clearing all data", error);
-      setStatusMessage({ text: t('status.clear.clearAllError'), type: 'error' });
-    } finally {
-      setIsLoading(false);
+    if (confirm("Are you sure you want to delete all data? This cannot be undone.")) {
+      setIsLoading(true);
+      setStatusMessage({ text: t('status.clear.clearingAll'), type: 'info' });
+      try {
+        await clearAllData();
+        setLinkedFiles(new Map());
+        setStatusMessage({ text: t('status.clear.clearedAll'), type: 'success' });
+        await performInitialCheck();
+      } catch (e) {
+        setStatusMessage({ text: t('status.clear.clearAllError'), type: 'error' });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
-  
-  const complexShcFileParse = (dataType: ShcDataType, file: File) => {
-    setIsLoading(true);
-    const dataTypeName = t(`dataType.${dataType}`);
-    setStatusMessage({ text: t('status.import.starting', { dataTypeName: file.name }), type: 'info', progress: 0 });
 
-    const worker = new Worker(new URL('./shc-parsing.worker.ts', import.meta.url), { type: 'module' });
-    
-    let processedCount = 0;
-    let totalRowsToImport = 0;
-    const initialCountForDisplay = counts[dataType] || 0;
-
-    worker.onmessage = async (e: MessageEvent<ShcParsingWorkerMessage>) => {
-      const { type, payload } = e.data;
-
-      switch (type) {
-        case 'progress':
-          setStatusMessage(prev => ({ 
-            ...prev!, 
-            text: t(payload.message, { dataTypeName: file.name }), 
-            type: 'info',
-            progress: typeof payload.percentage === 'number' ? payload.percentage : prev?.progress,
-          }));
-          break;
-        
-        case 'data':
-          const batch = payload;
-          const addDbFn = {
-            'shc': addShcData,
-            'planogram': addPlanogramData,
-            'orgStructure': addOrgStructureData,
-            'categoryRelation': addCategoryRelationData,
-          }[dataType];
-
-          await addDbFn(batch);
-          processedCount += batch.length;
-
-          if (totalRowsToImport > 0 && processedCount >= totalRowsToImport) {
-            // This is the final batch, finalize the import.
-            await updateImportMetadata(dataType);
-            const finalDbStatus = await checkDBStatus();
-            const finalMetadata = await getImportMetadata();
-            const finalCounts = {
-                products: finalDbStatus.productsCount,
-                goodsReceipts: finalDbStatus.goodsReceiptsCount,
-                openOrders: finalDbStatus.openOrdersCount,
-                sales: finalDbStatus.salesCount,
-                shc: finalDbStatus.shcCount,
-                planogram: finalDbStatus.planogramCount,
-                orgStructure: finalDbStatus.orgStructureCount,
-                categoryRelation: finalDbStatus.categoryRelationCount
-            };
-            setCounts(finalCounts);
-            setImportMetadata(finalMetadata);
-            setStatusMessage({ 
-                text: t('status.import.complete', { processedCount: finalCounts[dataType].toLocaleString(language), dataTypeName }), 
-                type: 'success',
-                progress: 100
-            });
-            setIsLoading(false);
-            worker.terminate();
-            break; 
-          }
-          
-          const runningTotal = (dataType === 'shc' ? initialCountForDisplay : 0) + processedCount;
-          const savingProgress = totalRowsToImport > 0 ? (processedCount / totalRowsToImport) * 100 : 0;
-          
-          setStatusMessage(prev => ({
-            ...prev!,
-            text: t('status.import.processing', { processedCount: runningTotal.toLocaleString(language) }),
-            type: 'info',
-            progress: savingProgress,
-          }));
-          break;
-
-        case 'complete':
-          totalRowsToImport = payload.totalRows;
-          if (totalRowsToImport === 0) {
-            // This handles the case where parsing is done but no data was sent (e.g., all filtered out)
-            await updateImportMetadata(dataType);
-            const finalDbStatus = await checkDBStatus();
-            const finalMetadata = await getImportMetadata();
-            const finalCounts = { ...counts, [dataType]: (dataType === 'shc' ? initialCountForDisplay : 0) + totalRowsToImport };
-            
-            setCounts(finalCounts);
-            setImportMetadata(finalMetadata);
-            setStatusMessage({ 
-                text: t('status.import.complete', { processedCount: finalCounts[dataType].toLocaleString(language), dataTypeName }), 
-                type: 'success',
-                progress: 100
-            });
-            setIsLoading(false);
-            worker.terminate();
-          }
-          // The saving process will continue via 'data' messages. The final 'complete' comes after the last 'data' message.
-          break;
-        
-        case 'save_complete': // This case is primarily for non-CSV (Excel) files now
-          await updateImportMetadata(dataType);
-          
-          const finalDbStatus = await checkDBStatus();
-          const finalMetadata = await getImportMetadata();
-          const finalCounts = {
-            products: finalDbStatus.productsCount,
-            goodsReceipts: finalDbStatus.goodsReceiptsCount,
-            openOrders: finalDbStatus.openOrdersCount,
-            sales: finalDbStatus.salesCount,
-            shc: finalDbStatus.shcCount,
-            planogram: finalDbStatus.planogramCount,
-            orgStructure: finalDbStatus.orgStructureCount,
-            categoryRelation: finalDbStatus.categoryRelationCount
-          };
-          setCounts(finalCounts);
-          setImportMetadata(finalMetadata);
-          
-          setStatusMessage({ 
-              text: t('status.import.complete', { processedCount: finalCounts[dataType].toLocaleString(language), dataTypeName }), 
-              type: 'success',
-              progress: 100
-          });
-          setIsLoading(false);
-          worker.terminate();
-          break;
-
-
-        case 'error':
-          console.error(`Error from SHC parsing worker for ${dataTypeName}`, payload);
-          setStatusMessage({ text: `${t('status.import.parseError', { dataTypeName })}: ${payload}`, type: 'error' });
-          setIsLoading(false);
-          worker.terminate();
-          break;
-      }
-    };
-    
-    worker.onerror = (err) => {
-        console.error(`Unhandled error in SHC parsing worker for ${dataTypeName}`, err);
-        setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
-        setIsLoading(false);
-        worker.terminate();
-    };
-
-    (async () => {
-        try {
-            if (dataType !== 'shc') {
-                const clearDbFn = {
-                    'planogram': clearPlanogramData,
-                    'orgStructure': clearOrgStructureData,
-                    'categoryRelation': clearCategoryRelationData,
-                }[dataType];
-                await clearDbFn();
-                setCounts(prev => ({ ...prev, [dataType]: 0 }));
-            }
-            
-            worker.postMessage({ dataType, file });
-
-        } catch (err) {
-            console.error(`Error preparing for SHC file import for ${dataTypeName}`, err);
-            setStatusMessage({ text: t('status.import.clearError'), type: 'error' });
-            setIsLoading(false);
-            worker.terminate();
-        }
-    })();
-  };
-  
-  const handleShcFileSelect = (dataType: ShcDataType, event: Event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    complexShcFileParse(dataType, file);
-    (event.target as HTMLInputElement).value = ''; 
-  };
-
-  const handleClearShcFile = async (dataType: ShcDataType) => {
-      if (!confirm(`Are you sure you want to clear all ${t(`dataType.${dataType}`)} data? This cannot be undone.`)) return;
-
-      setIsLoading(true);
-      setStatusMessage({ text: t('status.clear.clearing', { dataTypeName: t(`dataType.${dataType}`) }), type: 'info' });
-      try {
-          switch (dataType) {
-              case 'shc': await clearShcData(); break;
-              case 'planogram': await clearPlanogramData(); break;
-              case 'orgStructure': await clearOrgStructureData(); break;
-              case 'categoryRelation': await clearCategoryRelationData(); break;
-          }
-          await performInitialCheck();
-          setStatusMessage({ text: t('status.clear.cleared', { dataTypeName: t(`dataType.${dataType}`) }), type: 'success' });
-      } catch (error) {
-          console.error(`Error clearing ${dataType}`, error);
-          setStatusMessage({ text: t('status.clear.clearError', { dataTypeName: t(`dataType.${dataType}`) }), type: 'error' });
-      } finally {
-          setIsLoading(false);
-      }
-  };
-
-  const handleUpdateShcExclusionList = async (newList: Set<string>) => {
-    await saveShcExclusionList(Array.from(newList));
-    setShcExclusionList(newList);
-  };
-  
   const handleLogin = (session: UserSession) => {
-    localStorage.setItem('oms-session', JSON.stringify(session));
     setUserSession(session);
+    localStorage.setItem('oms-session', JSON.stringify(session));
   };
   
   const handleLogout = () => {
-    localStorage.removeItem('oms-session');
     setUserSession(null);
     setCurrentView('import');
-  };
-
-  const handleNavigate = (view: View) => {
-      setSimulationContext(null); // Clear context when navigating manually
-      setCurrentView(view);
+    localStorage.removeItem('oms-session');
   };
 
   const handleNavigateToSimulation = (warehouseId: string, fullProductId: string) => {
-      setSimulationContext({ warehouseId, fullProductId });
-      setCurrentView('simulations');
+    setSimulationContext({ warehouseId, fullProductId });
+    setCurrentView('simulations');
   };
   
   const handleStartWatchlist = (items: ReportResultItem[]) => {
       setWatchlist(items);
       setWatchlistIndex(0);
-      if (items.length > 0) {
-          const firstItem = items[0];
-          handleNavigateToSimulation(firstItem.warehouseId, firstItem.fullProductId);
-      }
+      const firstItem = items[0];
+      handleNavigateToSimulation(firstItem.warehouseId, firstItem.fullProductId);
   };
-
+  
   const handleNavigateWatchlist = (direction: 1 | -1) => {
       if (watchlistIndex === null) return;
       const newIndex = watchlistIndex + direction;
@@ -872,40 +609,130 @@ const App = () => {
       }
   };
 
-  const handleClearWatchlist = () => {
-      setWatchlist([]);
-      setWatchlistIndex(null);
+  // --- Settings Handlers ---
+
+  const handleLinkFile = async (dataType: DataType) => {
+      try {
+          const [handle] = await window.showOpenFilePicker({
+              types: [{ description: 'Data Files', accept: { 'text/csv': ['.csv', '.txt'] } }],
+              multiple: false,
+          });
+          await saveSetting(`linkedFile:${dataType}`, handle);
+          setLinkedFiles(prev => new Map(prev).set(dataType, handle));
+          setStatusMessage({ text: t('settings.linkSuccess'), type: 'success' });
+          await handleReloadFile(dataType);
+      } catch(e) {
+          if ((e as DOMException).name !== 'AbortError') {
+              console.error("Error linking file:", e);
+              setStatusMessage({ text: t('settings.linkError'), type: 'error' });
+          }
+      }
+  };
+  
+  const handleClearLink = async (dataType: DataType) => {
+      if (confirm(t('settings.dataSources.clearLinkConfirm'))) {
+          try {
+              await deleteSetting(`linkedFile:${dataType}`);
+              setLinkedFiles(prev => {
+                  const newMap = new Map(prev);
+                  newMap.delete(dataType);
+                  return newMap;
+              });
+              setStatusMessage({ text: t('settings.linkClearedSuccess'), type: 'success' });
+          } catch (e) {
+              console.error("Error clearing link:", e);
+              setStatusMessage({ text: t('settings.linkClearedError'), type: 'error' });
+          }
+      }
   };
 
-  const handleImportShcExclusionList = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.txt';
-    input.onchange = async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-            const text = await file.text();
-            const storeNumbers = text.split(/[\s,;\t\n]+/).filter(Boolean);
-            await handleUpdateShcExclusionList(new Set(storeNumbers));
-            setStatusMessage({ text: t('settings.shcExclusionList.importSuccess', { count: storeNumbers.length }), type: 'success' });
+  const handleAddRdc = async (rdc: RDC) => {
+      const newList = [...rdcList, rdc].sort((a,b) => a.id.localeCompare(b.id));
+      await saveRdcList(newList);
+      setRdcList(newList);
+      setStatusMessage({ text: t('settings.rdcManagement.addSuccess'), type: 'success' });
+  };
+  
+  const handleDeleteRdc = async (rdcId: string) => {
+      const newList = rdcList.filter(r => r.id !== rdcId);
+      await saveRdcList(newList);
+      setRdcList(newList);
+      setStatusMessage({ text: t('settings.rdcManagement.deleteSuccess'), type: 'success' });
+  };
+  
+  const handleExportConfig = async () => {
+    const config = { rdcList };
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `oms_config_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatusMessage({ text: t('settings.configManagement.exportSuccess'), type: 'success' });
+  };
+
+  const handleImportConfig = async (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) {
+        const text = await file.text();
+        try {
+            const config = JSON.parse(text);
+            if (config.rdcList) {
+                await saveRdcList(config.rdcList);
+                setRdcList(config.rdcList);
+                setStatusMessage({ text: t('settings.configManagement.importSuccess'), type: 'success' });
+            }
+        } catch(e) {
+            console.error("Error importing config", e);
+            setStatusMessage({ text: t('settings.configManagement.importError'), type: 'error' });
         }
-    };
-    input.click();
+    }
   };
-
+  
+  const handleImportExclusionList = async (event: Event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if(file) {
+        const text = await file.text();
+        const items = text.split(/[\s,;\t\n]+/).map(s => s.trim()).filter(Boolean);
+        await saveExclusionList(items);
+        const newList = await loadExclusionList();
+        setExclusionList(newList);
+        setStatusMessage({ text: t('settings.exclusionList.importSuccess', {count: items.length}), type: 'success' });
+      }
+  };
+  
+  const handleClearExclusionList = async () => {
+      if(confirm(t('settings.exclusionList.clearConfirm'))) {
+          await clearExclusionList();
+          setExclusionList({ list: new Set(), lastUpdated: null });
+          setStatusMessage({ text: t('settings.exclusionList.clearSuccess'), type: 'success' });
+      }
+  };
+  
+  const handleImportShcExclusionList = async (event: Event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (file) {
+          const text = await file.text();
+          const items = text.split(/[\s,;\t\n]+/).map(s => s.trim()).filter(Boolean);
+          await saveShcExclusionList(items);
+          const newList = await loadShcExclusionListDb();
+          setShcExclusionList(newList);
+          setStatusMessage({ text: t('settings.shcExclusionList.importSuccess', { count: items.length }), type: 'success' });
+      }
+  };
+  
   const handleExportShcExclusionList = () => {
-      const content = Array.from(shcExclusionList).join('\n');
-      const blob = new Blob([content], { type: 'text/plain' });
+      const list = Array.from(shcExclusionList).join('\n');
+      const blob = new Blob([list], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'shc_exclusion_list.txt';
-      document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
   };
-
+  
   const handleClearShcExclusionList = async () => {
       if (confirm(t('settings.shcExclusionList.clearConfirm'))) {
           await clearShcExclusionListDb();
@@ -914,178 +741,134 @@ const App = () => {
       }
   };
 
-  const handleImportJsonFile = async (saveFn: (data: ShcSnapshot) => Promise<void>, dataTypeForMessage: string) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-            try {
-                const text = await file.text();
-                const data = JSON.parse(text) as ShcSnapshot;
-                // Basic validation
-                if (data && typeof data.scores === 'object' && data.scores !== null && typeof data.weekNumber === 'number') {
-                    await saveFn(data);
-                    setStatusMessage({ text: t('settings.shcCompliance.importSuccess', { type: dataTypeForMessage }), type: 'success' });
-                } else {
-                    throw new Error("Invalid file structure.");
-                }
-            } catch (err) {
-                 setStatusMessage({ text: t('settings.shcCompliance.importError'), type: 'error' });
-                 console.error("Error importing compliance data:", err);
-            }
-        }
-    };
-    input.click();
-  };
-
-  const handleImportShcBaselineData = () => handleImportJsonFile(saveShcBaselineData, t('settings.shcCompliance.baseline.title'));
-  const handleImportShcPreviousWeekData = () => handleImportJsonFile(saveShcPreviousWeekData, t('settings.shcCompliance.previousWeek.title'));
-
-  
-  // Render logic
-  const renderView = () => {
-      switch (currentView) {
-          case 'import':
-              return <ImportView
-                isLoading={isLoading}
-                importMetadata={importMetadata}
-                counts={counts}
-                onFileSelect={handleFileSelect}
-                onClear={handleClearFile}
-                onClearShcFile={handleClearShcFile}
-                onShcFileSelect={handleShcFileSelect}
-                linkedFiles={linkedFiles}
-                onReload={handleReloadFile}
-                userSession={userSession}
-                onLinkFile={handleLinkFile}
-                onClearLink={handleClearLink}
-                onClearAll={handleClearAll}
-              />;
-          case 'data-preview':
-              return <DataPreview userSession={userSession} />;
-          case 'threat-report':
-              return userSession?.mode === 'hq' ? 
-                <ThreatReportView 
-                    userSession={userSession} 
-                    onNavigateToSimulation={handleNavigateToSimulation}
-                    onStartWatchlist={handleStartWatchlist}
-                /> : 
-                <div class={sharedStyles['placeholder-view']}><h2>{t('placeholders.report.title')}</h2><p>{t('placeholders.report.accessDenied')}</p></div>;
-          case 'status-report':
-                return <StatusReportView rdcList={rdcList} exclusionList={exclusionList} onUpdateExclusionList={() => {}} />;
-          case 'shc-report':
-                return <ShcReportView 
-                    counts={counts} 
-                    rdcList={rdcList}
-                    exclusionList={shcExclusionList}
-                    onUpdateExclusionList={handleUpdateShcExclusionList}
-                />;
-          case 'simulations':
-              return <SimulationView 
-                userSession={userSession} 
-                initialParams={simulationContext} 
-                onSimulationStart={() => setSimulationContext(null)}
-                watchlist={watchlist}
-                watchlistIndex={watchlistIndex}
-                onNavigateWatchlist={handleNavigateWatchlist}
-                onClearWatchlist={handleClearWatchlist}
-              />;
-          case 'settings':
-              return <SettingsView 
-                linkedFiles={linkedFiles} 
-                onLinkFile={handleLinkFile}
-                onReloadFile={handleReloadFile}
-                onClearLink={handleClearLink}
-                isLoading={isLoading}
-                userSession={userSession}
-                rdcList={rdcList}
-                onAddRdc={() => {}}
-                onDeleteRdc={() => {}}
-                onExportConfig={() => {}}
-                onImportClick={() => {}}
-                exclusionList={exclusionList} // This is for the Status Report
-                onImportExclusionListClick={() => {}}
-                onClearExclusionList={() => {}}
-                shcExclusionList={shcExclusionList}
-                onImportShcExclusionList={handleImportShcExclusionList}
-                onExportShcExclusionList={handleExportShcExclusionList}
-                onClearShcExclusionList={handleClearShcExclusionList}
-                onImportShcBaselineData={handleImportShcBaselineData}
-                onImportShcPreviousWeekData={handleImportShcPreviousWeekData}
-              />;
-          default:
-              return <div class={sharedStyles['placeholder-view']}><h2>{t('placeholders.dashboard.title')}</h2><p>{t('placeholders.dashboard.description')}</p></div>;
+  const handleImportShcSnapshot = async (event: Event, type: 'baseline' | 'previousWeek') => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (file) {
+          try {
+              const text = await file.text();
+              const data: ShcSnapshot = JSON.parse(text);
+              if (data.weekNumber && data.year && data.scores) {
+                  const saveFn = type === 'baseline' ? saveShcBaselineData : saveShcPreviousWeekData;
+                  await saveFn(data);
+                  setStatusMessage({ text: t('settings.shcCompliance.importSuccess', { type }), type: 'success' });
+              } else {
+                  throw new Error("Invalid format");
+              }
+          } catch (e) {
+              console.error(`Error importing ${type} data`, e);
+              setStatusMessage({ text: t('settings.shcCompliance.importError'), type: 'error' });
+          }
       }
   };
+  
+  const renderView = () => {
+    switch (currentView) {
+        case 'import':
+            return <ImportView isLoading={isLoading} importMetadata={importMetadata} counts={counts} onFileSelect={handleFileSelect} onClear={handleClearData} onClearShcFile={handleClearShcFile} onShcFileSelect={handleShcFileSelect} linkedFiles={linkedFiles} onReload={handleReloadFile} userSession={userSession} onLinkFile={handleLinkFile} onClearLink={handleClearLink} onClearAll={handleClearAll} />;
+        case 'data-preview':
+            return <DataPreview userSession={userSession} />;
+        case 'threat-report':
+             if (userSession?.mode !== 'hq') return <div class={sharedStyles['placeholder-view']}><h3>{t('placeholders.report.title')}</h3><p>{t('placeholders.report.accessDenied')}</p></div>;
+            return <ThreatReportView userSession={userSession} onNavigateToSimulation={handleNavigateToSimulation} onStartWatchlist={handleStartWatchlist} />;
+        case 'status-report':
+             return <StatusReportView rdcList={rdcList} exclusionList={exclusionList} onUpdateExclusionList={() => { if(exclusionFileInputRef.current) exclusionFileInputRef.current.click() }}/>;
+        case 'shc-report':
+            return <ShcReportView counts={counts} rdcList={rdcList} exclusionList={shcExclusionList} onUpdateExclusionList={(newList) => { saveShcExclusionList(Array.from(newList)); setShcExclusionList(newList); }} />;
+        case 'simulations':
+            return <SimulationView userSession={userSession} initialParams={simulationContext} onSimulationStart={() => setSimulationContext(null)} watchlist={watchlist} watchlistIndex={watchlistIndex} onNavigateWatchlist={handleNavigateWatchlist} onClearWatchlist={() => { setWatchlist([]); setWatchlistIndex(null); }} />;
+        case 'settings':
+            return <SettingsView linkedFiles={linkedFiles} onLinkFile={handleLinkFile} onReloadFile={handleReloadFile} onClearLink={handleClearLink} isLoading={isLoading} userSession={userSession} rdcList={rdcList} onAddRdc={handleAddRdc} onDeleteRdc={handleDeleteRdc} onExportConfig={handleExportConfig} onImportClick={() => configImportInputRef.current?.click()} exclusionList={exclusionList} onImportExclusionListClick={() => exclusionFileInputRef.current?.click()} onClearExclusionList={handleClearExclusionList} shcExclusionList={shcExclusionList} onImportShcExclusionList={() => shcExclusionFileInputRef.current?.click()} onExportShcExclusionList={handleExportShcExclusionList} onClearShcExclusionList={handleClearShcExclusionList} onImportShcBaselineData={() => shcBaselineInputRef.current?.click()} onImportShcPreviousWeekData={() => shcPreviousWeekInputRef.current?.click()} />;
+        case 'dashboard':
+        default:
+            return <div class={sharedStyles['placeholder-view']}><h3>{t('placeholders.dashboard.title')}</h3><p>{t('placeholders.dashboard.description')}</p></div>;
+    }
+  };
+
+  const navItems: { view: View; labelKey: string; hqOnly?: boolean; }[] = [
+    { view: 'import', labelKey: 'sidebar.import' },
+    { view: 'data-preview', labelKey: 'sidebar.dataPreview' },
+    { view: 'simulations', labelKey: 'sidebar.simulations' },
+    { view: 'threat-report', labelKey: 'sidebar.threatReport', hqOnly: true },
+    { view: 'status-report', labelKey: 'sidebar.statusReport' },
+    { view: 'shc-report', labelKey: 'sidebar.shcReport' },
+    { view: 'settings', labelKey: 'sidebar.settings' },
+  ];
 
   return (
     <>
-      {isIdle && <IdleSplashScreen onContinue={handleContinueFromIdle} />}
-      {!userSession ? (
-        <LoginModal onLogin={handleLogin} rdcList={rdcList} />
-      ) : (
-        <>
-          {showCountdownModal && <RefreshCountdownModal countdown={countdown} onCancel={handleCancelRefresh} />}
-          <div class={`app-container ${isLoading ? sharedStyles['app-loading-blur'] : ''}`}>
-            <header class="top-header">
-                <h1>{t('header.title')}</h1>
-                <div class="header-controls">
-                    <AutoRefreshControl 
-                        config={autoRefreshConfig}
-                        onConfigChange={handleAutoRefreshConfigChange}
-                        timeToNextRefresh={timeToNextRefresh}
-                    />
-                    <div class="header-session-info">
-                        <span>{t('header.session.mode')}: <strong>{userSession.mode.toUpperCase()} {userSession.rdc ? `(${userSession.rdc.name})` : ''}</strong></span>
-                        <button class="button-logout" onClick={handleLogout}>{t('header.session.logout')}</button>
+        <div style={{display: 'none'}}>
+            <input type="file" ref={exclusionFileInputRef} onChange={handleImportExclusionList} accept=".txt" />
+            <input type="file" ref={shcExclusionFileInputRef} onChange={handleImportShcExclusionList} accept=".txt" />
+            <input type="file" ref={configImportInputRef} onChange={handleImportConfig} accept=".json" />
+            <input type="file" ref={shcBaselineInputRef} onChange={(e) => handleImportShcSnapshot(e, 'baseline')} accept=".json" />
+            <input type="file" ref={shcPreviousWeekInputRef} onChange={(e) => handleImportShcSnapshot(e, 'previousWeek')} accept=".json" />
+        </div>
+        {!userSession && <LoginModal onLogin={handleLogin} rdcList={rdcList} />}
+        {isIdle && <IdleSplashScreen onContinue={handleContinueFromIdle} />}
+        {showCountdownModal && <RefreshCountdownModal countdown={countdown} onCancel={handleCancelRefresh} />}
+        
+        {userSession && (
+            <div class={sharedStyles['app-container']}>
+                <header class={sharedStyles.header}>
+                    <div class={sharedStyles['header-left']}>
+                        <h1>{t('header.title')}</h1>
+                        {userSession && (
+                            <div class={sharedStyles['session-info']}>
+                                <span>{t('header.session.mode')}: <strong>{userSession.mode.toUpperCase()}</strong></span>
+                                {userSession.rdc && <span>RDC: <strong>{userSession.rdc.id}</strong></span>}
+                            </div>
+                        )}
                     </div>
-                    <LanguageSelector />
-                </div>
-            </header>
-            <div class="app-layout">
-                <nav class="sidebar">
-                    <ul>
-                        <li><a href="#" class={currentView === 'import' ? 'active' : ''} onClick={() => handleNavigate('import')}>{t('sidebar.import')}</a></li>
-                        <li><a href="#" class={currentView === 'data-preview' ? 'active' : ''} onClick={() => handleNavigate('data-preview')}>{t('sidebar.dataPreview')}</a></li>
-                        <li><a href="#" class={currentView === 'threat-report' ? 'active' : ''} onClick={() => handleNavigate('threat-report')}>{t('sidebar.threatReport')}</a></li>
-                        <li><a href="#" class={currentView === 'status-report' ? 'active' : ''} onClick={() => handleNavigate('status-report')}>{t('sidebar.statusReport')}</a></li>
-                        <li><a href="#" class={currentView === 'shc-report' ? 'active' : ''} onClick={() => handleNavigate('shc-report')}>{t('sidebar.shcReport')}</a></li>
-                        <li><a href="#" class={currentView === 'simulations' ? 'active' : ''} onClick={() => handleNavigate('simulations')}>{t('sidebar.simulations')}</a></li>
-                        <li><a href="#" class={currentView === 'settings' ? 'active' : ''} onClick={() => handleNavigate('settings')}>{t('sidebar.settings')}</a></li>
-                    </ul>
-                    <div class="sidebar-footer">
-                        <p><strong>OMS</strong></p>
-                        <p>{t('sidebar.footer.version', { version: '0.3.0' })}</p>
+                    <div class={sharedStyles['header-right']}>
+                        <AutoRefreshControl config={autoRefreshConfig} onConfigChange={handleAutoRefreshConfigChange} timeToNextRefresh={timeToNextRefresh} />
+                        <LanguageSelector />
+                        <button class={sharedStyles['button-secondary']} onClick={handleLogout}>{t('header.session.logout')}</button>
                     </div>
-                </nav>
-                <main class="main-content">
-                  <div class="content-wrapper">
+                </header>
+                <aside class={sharedStyles.sidebar}>
+                    <nav>
+                        <ul>
+                            {navItems.map(item => {
+                                if (item.hqOnly && userSession.mode !== 'hq') return null;
+                                return (
+                                    <li key={item.view}>
+                                        <button 
+                                            class={`${sharedStyles['nav-button']} ${currentView === item.view ? sharedStyles.active : ''}`}
+                                            onClick={() => setCurrentView(item.view)}
+                                        >
+                                            {t(item.labelKey)}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </nav>
+                    <footer class={sharedStyles['sidebar-footer']}>
+                        {t('sidebar.footer.version', { version: '1.0.0' })}
+                    </footer>
+                </aside>
+                <main class={sharedStyles['main-content']}>
                     {statusMessage && (
-                      <div class={`${sharedStyles['status-container']} ${sharedStyles[statusMessage.type]}`} role="alert">
-                          <div class={sharedStyles['status-info']}>
-                              <div class={sharedStyles['status-content']}>
-                                  <p class={sharedStyles['status-text']}>{statusMessage.text}</p>
-                                  {typeof statusMessage.progress === 'number' && (
-                                      <div class={sharedStyles['progress-bar-container']}>
-                                          <div class={sharedStyles['progress-bar']} style={{ width: `${statusMessage.progress}%` }}></div>
-                                      </div>
-                                  )}
-                              </div>
-                          </div>
-                          <button class={sharedStyles['status-close-button']} onClick={() => setStatusMessage(null)} aria-label={t('status.close')}>&times;</button>
-                      </div>
+                        <div class={`${sharedStyles['status-container']} ${sharedStyles[statusMessage.type]}`} role="alert">
+                            <p class={sharedStyles['status-text']}>{statusMessage.text}</p>
+                            {statusMessage.progress !== undefined && (
+                                <div class={sharedStyles['progress-bar-container']}><div class={sharedStyles['progress-bar']} style={{width: `${statusMessage.progress}%`}}></div></div>
+                            )}
+                            <button class={sharedStyles['close-button']} onClick={() => setStatusMessage(null)}>&times;</button>
+                        </div>
                     )}
                     {renderView()}
-                  </div>
                 </main>
             </div>
-          </div>
-        </>
-      )}
+        )}
     </>
   );
 };
 
-render(<LanguageProvider><App /></LanguageProvider>, document.getElementById("root") as HTMLElement);
+
+render(
+  <LanguageProvider>
+    <App />
+  </LanguageProvider>,
+  document.getElementById("app")!
+);
