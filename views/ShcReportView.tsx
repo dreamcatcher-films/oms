@@ -383,11 +383,11 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const addPageHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
             if (pageNumber === 1) {
                 docInstance.setFont('AlumniSansSC-SemiBold', 'normal');
-                docInstance.setFontSize(14);
+                docInstance.setFontSize(20);
                 docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', pageWidth / 2, 40, { align: 'center' });
         
                 docInstance.setFont('SourceCodePro-Light', 'normal');
-                docInstance.setFontSize(8);
+                docInstance.setFontSize(6);
                 docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
         
                 docInstance.setFontSize(10);
@@ -438,7 +438,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         }, [] as any[][]);
     
         autoTable(doc, {
-            head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Diff', 'Conf.', 'Comments']],
+            head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Diff', '✓.', 'Comments']],
             body: mainTableBody,
             theme: 'grid',
             startY: 110,
