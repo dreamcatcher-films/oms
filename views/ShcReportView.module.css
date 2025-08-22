@@ -510,3 +510,12 @@
     color: white;
     font-weight: bold;
 }
+
+.excluded-compliance-row {
+    background-color: #fffbe6 !important;
+}
+
+.excluded-compliance-row td {
+    color: #8a6d3b;
+    font-style: italic;
+}
