@@ -468,9 +468,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
 
         const allStores = processedResults.flatMap(warehouse =>
             warehouse.hos.flatMap(hos =>
-                hos.managers.flatMap(manager =>
-                    manager.stores.filter(store => !store.isExcluded)
-                )
+                hos.managers.flatMap(manager => manager.stores)
             )
         );
 
