@@ -416,7 +416,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 docInstance.text(rdcStoreText, pageWidth / 2, 88, { align: 'center' });
 
                 // Right-aligned scores
-                docInstance.text(`Target score: > 100`, pageWidth - margin, 80, { align: 'right' });
+                docInstance.text(`Target score < 100`, pageWidth - margin, 80, { align: 'right' });
 
                 docInstance.setFont('ZillaSlabHighlight-Bold', 'normal');
                 const scoreText = `Current score: ${store.discrepancyCount}`;
@@ -447,7 +447,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                             font: 'Oswald-Bold',
                             fontStyle: 'normal',
                             textColor: [255, 255, 255], 
-                            fillColor: [0, 0, 0],
+                            fillColor: [64, 64, 64],
                             halign: 'left', 
                             fontSize: 7, 
                             cellPadding: 2 
