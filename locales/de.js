@@ -458,7 +458,8 @@ export default {
       "title": "Analyseergebnisse",
       "placeholder": "Führen Sie die Analyse aus, um die Ergebnisse hier anzuzeigen.",
       "mismatchesTitle": "Daten-Inkonsistenzen",
-      "storeCountSummary": "Verfügbare Filialen in SHC-Daten: {{shcStoreCount}} / Gesamtfilialen im RDC: {{orgStoreCount}}"
+      "storeCountSummary": "Verfügbare Filialen in SHC-Daten: {{shcStoreCount}} / Gesamtfilialen im RDC: {{orgStoreCount}}",
+      "downloadAllPdf": "PDFs für verfügbare Filialen herunterladen"
     },
     "config": {
       "title": "Abschnittskonfiguration",
