@@ -325,12 +325,15 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
     
         try {
-            // Helper to fetch font and convert to a binary string for VFS
-            const fetchFont = async (url: string) => {
+            // Helper to fetch font and convert to base64
+            const fetchAndEncodeFont = async (url: string) => {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`Failed to fetch font: ${url}`);
                 const fontBuffer = await response.arrayBuffer();
-                return new Uint8Array(fontBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '');
+                const uint8Array = new Uint8Array(fontBuffer);
+                // Convert Uint8Array to binary string, then to base64
+                const binaryString = Array.from(uint8Array).map(byte => String.fromCharCode(byte)).join('');
+                return btoa(binaryString);
             };
     
             // Fetch and register all fonts concurrently
@@ -340,10 +343,10 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 sourceCodeProData,
                 oswaldData,
             ] = await Promise.all([
-                fetchFont('/fonts/AlumniSansSC-SemiBold.ttf'),
-                fetchFont('/fonts/ZillaSlabHighlight-Bold.ttf'),
-                fetchFont('/fonts/SourceCodePro-Light.ttf'),
-                fetchFont('/fonts/Oswald-Bold.ttf'),
+                fetchAndEncodeFont('/fonts/AlumniSansSC-SemiBold.ttf'),
+                fetchAndEncodeFont('/fonts/ZillaSlabHighlight-Bold.ttf'),
+                fetchAndEncodeFont('/fonts/SourceCodePro-Light.ttf'),
+                fetchAndEncodeFont('/fonts/Oswald-Bold.ttf'),
             ]);
     
             doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', alumniSansData);
