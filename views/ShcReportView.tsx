@@ -776,11 +776,11 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 ]);
                 am.stores.forEach(store => {
                     body.push([
-                        `${store.storeName}`,
+                        `${store.storeNumber} - ${store.storeName}`,
                         formatValue(store.current),
                         formatValue(store.previous),
                         formatValue(store.start),
-                        '' // Empty for custom drawing
+                        formatChange(store.change),
                     ]);
                 });
             });
@@ -807,8 +807,14 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             startY: 55,
             theme: 'grid',
             headStyles: { font: 'Helvetica', fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', fontSize: 8, halign: 'center' },
-            styles: { font: 'Courier', valign: 'middle', halign: 'right', fontSize: 7 },
-            columnStyles: { 0: { halign: 'left' } },
+            styles: { font: 'Courier', valign: 'middle', fontSize: 7 },
+            columnStyles: { 
+                0: { halign: 'left' },
+                1: { halign: 'center' },
+                2: { halign: 'center' },
+                3: { halign: 'center' },
+                4: { halign: 'center' },
+             },
             didParseCell: (data) => {
                 const store = findStoreData(data.row);
                 if (store && data.section === 'body' && data.column.index > 0) {
@@ -816,20 +822,20 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 }
             },
             willDrawCell: (data) => {
+                if (data.row.section !== 'body') return;
                 const store = findStoreData(data.row);
-                if (store?.isExcluded) {
+                if (!store) return;
+
+                if (store.isExcluded) {
                     doc.setFillColor(255, 251, 230); // Light Yellow
                     doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                 }
-            },
-            didDrawCell: (data) => {
-                if (data.row.section !== 'body') return;
-                const doc = data.doc;
-                const store = findStoreData(data.row);
-                const amForStore = store ? complianceReportData.hosData.flatMap(h => h.managers).find(am => am.name === store.am) : null;
 
-                const drawBar = (value: number, maxVal: number, color: [number, number, number]) => {
-                     if (maxVal > 0 && value > 0) {
+                const amForStore = complianceReportData.hosData.flatMap(h => h.managers).find(am => am.name === store.am);
+                if (!amForStore) return;
+
+                const drawBar = (value: number | null, maxVal: number, color: [number, number, number]) => {
+                     if (value !== null && maxVal > 0 && value > 0) {
                         const width = (value / maxVal) * (data.cell.width - data.cell.padding('horizontal'));
                         const barHeight = data.cell.height * 0.8;
                         const barY = data.cell.y + (data.cell.height - barHeight) / 2;
@@ -837,47 +843,47 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                         doc.rect(data.cell.x + data.cell.padding('left'), barY, width, barHeight, 'F');
                     }
                 };
-                
-                const drawTextOnBar = (text: string, halign: 'right' | 'center', cell: any, bgColor: [number, number, number]) => {
-                    const brightness = (bgColor[0] * 299 + bgColor[1] * 587 + bgColor[2] * 114) / 1000;
-                    const textColor = brightness > 125 ? '#000000' : '#FFFFFF';
-                    
-                    doc.setFont('Courier', 'bold');
-                    doc.setTextColor(textColor);
-                    
-                    const textPos = cell.getTextPos();
-                    const y = cell.y + cell.height / 2;
 
-                    doc.text(text, textPos.x, y, { align: halign, baseline: 'middle' });
-                };
-
-                if (store && data.column.index >= 1 && data.column.index <= 3) {
-                    const value = data.cell.raw;
-                    if (typeof value === 'string' && value !== '-' && amForStore) {
-                        const numValue = parseInt(value, 10);
-                        const maxVal = [amForStore.maxScores.current, amForStore.maxScores.previous, amForStore.maxScores.start][data.column.index - 1];
-                        const color: [number, number, number] = [255, 193, 7]; // Amber
-                        drawBar(numValue, maxVal, color);
-                        drawTextOnBar(value, 'right', data.cell, color);
-                    }
+                if (data.column.index >= 1 && data.column.index <= 3) {
+                    const value = [store.current, store.previous, store.start][data.column.index - 1];
+                    const maxVal = [amForStore.maxScores.current, amForStore.maxScores.previous, amForStore.maxScores.start][data.column.index - 1];
+                    drawBar(value, maxVal, [255, 193, 7]);
                 }
-            
-                if (store && data.column.index === 4) {
+
+                if (data.column.index === 4) {
                     const change = store.change;
                     if (change !== null) {
                         let color: [number, number, number];
                         if (change < 0) color = [76, 175, 80];      // Green
                         else if (change <= 0.2) color = [255, 152, 0]; // Orange
                         else color = [244, 67, 54];                 // Red
-                        
-                        const maxChangeInGroup = Math.max(...(amForStore?.stores.map(s => Math.abs(s.change ?? 0)) ?? [1]));
-                        const barWidth = (data.cell.width - data.cell.padding('horizontal')) * (Math.abs(change) / (maxChangeInGroup || 1));
-                        const barHeight = data.cell.height * 0.8;
-                        const barY = data.cell.y + (data.cell.height - barHeight) / 2;
-                        const barX = data.cell.x + data.cell.padding('left');
                         doc.setFillColor(color[0], color[1], color[2]);
-                        doc.rect(barX, barY, barWidth, barHeight, 'F');
-                        drawTextOnBar(formatChange(change), 'center', data.cell, color);
+                        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                    }
+                }
+            },
+            didDrawCell: (data) => {
+                if (data.row.section !== 'body') return;
+                const store = findStoreData(data.row);
+                if (!store) return;
+            
+                if (data.column.index === 4) {
+                    const change = store.change;
+                    if (change !== null) {
+                        let bgColor: [number, number, number];
+                        if (change < 0) bgColor = [76, 175, 80];
+                        else if (change <= 0.2) bgColor = [255, 152, 0];
+                        else bgColor = [244, 67, 54];
+                        
+                        const brightness = (bgColor[0] * 299 + bgColor[1] * 587 + bgColor[2] * 114) / 1000;
+                        const textColor = brightness > 125 ? '#000000' : '#FFFFFF';
+
+                        doc.setFont('Courier', 'bold');
+                        doc.setTextColor(textColor);
+                        
+                        const textPos = data.cell.getTextPos();
+                        const y = data.cell.y + data.cell.height / 2;
+                        doc.text(formatChange(change), textPos.x, y, { align: 'center', baseline: 'middle' });
                     }
                 }
             },
@@ -1175,25 +1181,25 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                             <tbody>
                                 <tr class={styles['level-0']}>
                                     <td>{`${complianceReportData.rdcId} - ${complianceReportData.rdcName} (RDC Average)`}</td>
-                                    <td>{complianceReportData.rdcSummary.current.toFixed(2)}</td>
-                                    <td>{complianceReportData.rdcSummary.previous.toFixed(2)}</td>
-                                    <td>{complianceReportData.rdcSummary.start.toFixed(2)}</td>
+                                    <td>{complianceReportData.rdcSummary.current.toFixed(0)}</td>
+                                    <td>{complianceReportData.rdcSummary.previous.toFixed(0)}</td>
+                                    <td>{complianceReportData.rdcSummary.start.toFixed(0)}</td>
                                     <td>{complianceReportData.rdcSummary.change !== null ? `${(complianceReportData.rdcSummary.change * 100).toFixed(0)}%` : '-'}</td>
                                 </tr>
                                {complianceReportData.hosData.map(hos => (<>
                                    <tr class={styles['level-1']}>
                                        <td style={{paddingLeft: '1rem'}}>{hos.name}</td>
-                                       <td>{hos.current.toFixed(2)}</td>
-                                       <td>{hos.previous.toFixed(2)}</td>
-                                       <td>{hos.start.toFixed(2)}</td>
+                                       <td>{hos.current.toFixed(0)}</td>
+                                       <td>{hos.previous.toFixed(0)}</td>
+                                       <td>{hos.start.toFixed(0)}</td>
                                        <td>{hos.change !== null ? `${(hos.change * 100).toFixed(0)}%` : '-'}</td>
                                    </tr>
                                    {hos.managers.map(am => (<>
                                        <tr class={styles['level-2']}>
                                            <td style={{paddingLeft: '2rem'}}>{am.name}</td>
-                                           <td>{am.current.toFixed(2)}</td>
-                                           <td>{am.previous.toFixed(2)}</td>
-                                           <td>{am.start.toFixed(2)}</td>
+                                           <td>{am.current.toFixed(0)}</td>
+                                           <td>{am.previous.toFixed(0)}</td>
+                                           <td>{am.start.toFixed(0)}</td>
                                            <td>{am.change !== null ? `${(am.change * 100).toFixed(0)}%` : '-'}</td>
                                        </tr>
                                        {am.stores.map(store => {
@@ -1206,7 +1212,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                             }
                                            return (
                                                <tr class={`${styles['level-3']} ${store.isExcluded ? styles['excluded-compliance-row'] : ''}`}>
-                                                   <td style={{paddingLeft: '4rem'}}>{store.storeName}</td>
+                                                   <td style={{paddingLeft: '4rem'}}>{`${store.storeNumber} - ${store.storeName}`}</td>
                                                    <td><div class={styles['data-bar']} style={{'--value': `${(store.current ?? 0) / am.maxScores.current * 100}%`}}></div>{store.current ?? '-'}</td>
                                                    <td><div class={styles['data-bar']} style={{'--value': `${(store.previous ?? 0) / am.maxScores.previous * 100}%`}}></div>{store.previous ?? '-'}</td>
                                                    <td><div class={styles['data-bar']} style={{'--value': `${(store.start ?? 0) / am.maxScores.start * 100}%`}}></div>{store.start ?? '-'}</td>
