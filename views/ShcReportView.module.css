@@ -215,7 +215,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
     margin-bottom: 1rem;
+}
+.results-header-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
 }
 .store-count-summary {
     font-weight: 500;
@@ -452,4 +459,43 @@
     color: var(--text-light-color);
     font-weight: normal;
     margin-left: 0.5rem;
+}
+
+/* Compliance Report Table */
+.compliance-table td {
+    position: relative;
+    text-align: right;
+}
+.compliance-table td:first-child {
+    text-align: left;
+}
+.compliance-table .data-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background-color: #FFC107; /* Amber */
+    opacity: 0.3;
+    z-index: 0;
+    width: calc(var(--value, 0));
+}
+.compliance-table td {
+    position: relative;
+    z-index: 1;
+}
+
+.change-positive {
+    background-color: #4CAF50; /* Green */
+    color: white;
+    font-weight: bold;
+}
+.change-neutral {
+    background-color: #FF9800; /* Orange */
+    color: white;
+    font-weight: bold;
+}
+.change-negative {
+    background-color: #F44336; /* Red */
+    color: white;
+    font-weight: bold;
 }
