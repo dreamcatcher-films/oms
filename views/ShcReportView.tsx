@@ -25,19 +25,15 @@ const getWeekNumber = (d: Date) => {
     return weekNo;
 };
 
-// Helper function to correctly convert ArrayBuffer to Base64 using FileReader
-const arrayBufferToBase64 = (buffer: ArrayBuffer): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const dataUrl = reader.result as string;
-            // The result is a data URL like "data:...;base64,....". We need to extract the base64 part.
-            const base64 = dataUrl.split(',')[1];
-            resolve(base64);
-        };
-        reader.onerror = (error) => reject(error);
-        reader.readAsDataURL(new Blob([buffer]));
-    });
+// Replaces the FileReader-based function with a classic, reliable binary-to-base64 conversion.
+const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
 };
 
 
@@ -345,7 +341,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`Failed to fetch font: ${url}`);
                 const buffer = await response.arrayBuffer();
-                return await arrayBufferToBase64(buffer);
+                return arrayBufferToBase64(buffer);
             };
     
             const [
