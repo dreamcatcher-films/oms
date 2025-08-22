@@ -729,7 +729,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const doc = new jsPDF({ orientation: 'portrait' });
         const { rdcSummary, hosData, rdcId, rdcName } = complianceReportData;
 
-        const margin = 40;
+        const margin = 20;
         let headerFont = 'Helvetica';
         let bodyFont = 'Courier';
 
@@ -754,11 +754,11 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         }
         
         doc.setFont(headerFont, 'normal');
-        doc.setFontSize(20);
-        doc.text("SHC Compliance Report", margin, 10);
+        doc.setFontSize(18);
+        doc.text("SHC Compliance Report", margin, 30);
 
-        doc.setFontSize(16);
-        doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 20);
+        doc.setFontSize(14);
+        doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 45);
 
         const body: any[] = [];
         
@@ -766,18 +766,19 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const formatChange = (val: number | null) => val !== null ? `${(val * 100).toFixed(0)}%` : '-';
 
         // RDC Summary Row
+        const rdcRowStyles = { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff', halign: 'center' };
         body.push([
-            { content: `${rdcId} - ${rdcName} (RDC Average)`, colSpan: 1, styles: { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff' } },
-            { content: formatValue(rdcSummary.current), styles: { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff' } },
-            { content: formatValue(rdcSummary.previous), styles: { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff' } },
-            { content: formatValue(rdcSummary.start), styles: { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff' } },
-            { content: formatChange(rdcSummary.change), styles: { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff' } },
+            { content: `${rdcId} - ${rdcName} (RDC Average)`, colSpan: 1, styles: { ...rdcRowStyles, halign: 'left' } },
+            { content: formatValue(rdcSummary.current), styles: rdcRowStyles },
+            { content: formatValue(rdcSummary.previous), styles: rdcRowStyles },
+            { content: formatValue(rdcSummary.start), styles: rdcRowStyles },
+            { content: formatChange(rdcSummary.change), styles: rdcRowStyles },
         ]);
 
         hosData.forEach(hos => {
-            body.push([{ content: hos.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'normal', fillColor: '#6c757d', textColor: '#fff' } }]);
+            body.push([{ content: hos.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'normal', fillColor: '#6c757d', textColor: '#fff', fontSize: 9 } }]);
             hos.managers.forEach(am => {
-                body.push([{ content: am.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'normal', fillColor: '#f8f9fa' } }]);
+                body.push([{ content: am.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'normal', fillColor: '#adb5bd', fontSize: 8 } }]);
                 am.stores.forEach(store => {
                     body.push([
                         `${store.storeNumber} - ${store.storeName}`,
@@ -808,9 +809,9 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         autoTable(doc, {
             head: [['Store / AM / HoS', 'Currently', 'Week -1', 'Start', 'Change']],
             body: body,
-            startY: 30,
+            startY: 60,
             theme: 'grid',
-            headStyles: { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff', fontSize: 8 },
+            headStyles: { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff', fontSize: 8, halign: 'center' },
             styles: { font: bodyFont, valign: 'middle', halign: 'right', fontSize: 7 },
             columnStyles: { 0: { halign: 'left' } },
             willDrawCell: (data) => {
