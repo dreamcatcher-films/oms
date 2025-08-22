@@ -68,6 +68,7 @@ const REFRESH_COUNTDOWN_SECONDS = 10;
 
 const App = () => {
   const { t, language } = useTranslation();
+  const [isInitializing, setIsInitializing] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<Status | null>({ text: 'Inicjalizacja aplikacji...', type: 'info' });
   
@@ -108,6 +109,66 @@ const App = () => {
   useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
   const showCountdownModalRef = useRef(showCountdownModal);
   useEffect(() => { showCountdownModalRef.current = showCountdownModal; }, [showCountdownModal]);
+  
+  const initializeApp = useCallback(async () => {
+    console.log('[App] Starting initialization...');
+    
+    try {
+        console.log('[App] 1. Initializing SHC parsing worker...');
+        shcParsingWorkerRef.current = new Worker(new URL('./shc-parsing.worker.ts', import.meta.url), { type: 'module' });
+        console.log('[App]    Worker initialized.');
+
+        console.log('[App] 2. Loading and validating session...');
+        const savedSession = localStorage.getItem('oms-session');
+        if (savedSession) {
+            try {
+                const parsed = JSON.parse(savedSession);
+                if (parsed && parsed.mode === 'hq') {
+                    setUserSession({ mode: 'hq' });
+                    console.log('[App]    HQ session loaded successfully.');
+                } else if (parsed && parsed.mode === 'rdc' && parsed.rdc && typeof parsed.rdc.id === 'string' && typeof parsed.rdc.name === 'string') {
+                    setUserSession({ mode: 'rdc', rdc: { id: parsed.rdc.id, name: parsed.rdc.name } });
+                    console.log(`[App]    RDC session for ${parsed.rdc.id} loaded successfully.`);
+                } else {
+                    console.warn("[App]    Invalid session data found. Clearing.");
+                    localStorage.removeItem('oms-session');
+                }
+            } catch (e) {
+                console.error("[App]    Failed to parse session, clearing.", e);
+                localStorage.removeItem('oms-session');
+            }
+        } else {
+            console.log('[App]    No session found.');
+        }
+
+        console.log('[App] 3. Loading all settings...');
+        await loadSettings();
+        console.log('[App]    Settings loaded.');
+
+        console.log('[App] 4. Performing initial DB check...');
+        await performInitialCheck();
+        console.log('[App]    DB check complete.');
+        
+        console.log('[App] 5. Clearing outdated SHC data...');
+        await clearOutdatedShcData();
+        console.log('[App]    Outdated data check complete.');
+
+    } catch(e) {
+        console.error("[App] A critical error occurred during initialization:", e);
+        setStatusMessage({ text: 'A critical error occurred. Please refresh the page.', type: 'error' });
+    } finally {
+        setIsInitializing(false);
+        console.log('[App] Initialization complete.');
+    }
+  }, []);
+
+  useEffect(() => {
+    initializeApp();
+    
+    return () => {
+        shcParsingWorkerRef.current?.terminate();
+    };
+  }, [initializeApp]);
 
   useEffect(() => {
     const splashScreen = document.getElementById('splash-screen');
@@ -510,44 +571,6 @@ const App = () => {
       setTimeToNextRefresh(newConfig.interval * 60);
       await saveSetting('autoRefreshConfig', newConfig);
   };
-
-
-  useEffect(() => {
-    shcParsingWorkerRef.current = new Worker(new URL('./shc-parsing.worker.ts', import.meta.url), { type: 'module' });
-    
-    const savedSession = localStorage.getItem('oms-session');
-    if (savedSession) {
-        try {
-            const parsed = JSON.parse(savedSession);
-            
-            // Aggressive validation and reconstruction
-            if (parsed && parsed.mode === 'hq') {
-                setUserSession({ mode: 'hq' });
-            } else if (parsed && parsed.mode === 'rdc' && parsed.rdc && typeof parsed.rdc.id === 'string' && typeof parsed.rdc.name === 'string') {
-                // Reconstruct to ensure no extra properties are carried over
-                setUserSession({
-                    mode: 'rdc',
-                    rdc: { id: parsed.rdc.id, name: parsed.rdc.name }
-                });
-            } else {
-                // If structure is not what we expect, clear it.
-                console.warn("Invalid or outdated session data found. Clearing.");
-                localStorage.removeItem('oms-session');
-            }
-        } catch (e) {
-            console.error("Failed to parse session from localStorage. Clearing.", e);
-            localStorage.removeItem('oms-session');
-        }
-    }
-    
-    loadSettings();
-    performInitialCheck();
-    clearOutdatedShcData();
-    
-    return () => {
-        shcParsingWorkerRef.current?.terminate();
-    };
-  }, [loadSettings, performInitialCheck, clearOutdatedShcData]);
   
   const handleClearData = useCallback(async (type: DataType) => {
     const clearFn = {
@@ -819,6 +842,10 @@ const App = () => {
     { view: 'shc-report', labelKey: 'sidebar.shcReport' },
     { view: 'settings', labelKey: 'sidebar.settings' },
   ];
+
+  if (isInitializing) {
+    return null;
+  }
 
   return (
     <>
