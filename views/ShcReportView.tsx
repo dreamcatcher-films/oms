@@ -369,14 +369,14 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 }
 
                 docInstance.setFont('helvetica', 'bold');
-                docInstance.setFontSize(20);
+                docInstance.setFontSize(14);
                 docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', pageWidth / 2, 40, { align: 'center' });
         
                 docInstance.setFont('helvetica', 'normal');
                 docInstance.setFontSize(6);
                 docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
         
-                docInstance.setFontSize(8);
+                docInstance.setFontSize(10);
                 const rdcStoreText = `RDC: ${rdc?.name || ''}   STORE: ${store.storeNumber}`;
                 docInstance.text(rdcStoreText, pageWidth / 2, 88, { align: 'center' });
                 docInstance.text(`Target score: > 100`, pageWidth - margin, 80, { align: 'right' });
