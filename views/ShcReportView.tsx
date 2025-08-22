@@ -5,6 +5,7 @@ import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage,
 import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport } from '../db';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import JSZip from 'jszip';
 import styles from './ShcReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
@@ -34,6 +35,112 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
         binary += String.fromCharCode(bytes[i]);
     }
     return window.btoa(binary);
+};
+
+const generatePdfForStore = (
+    doc: jsPDF,
+    store: ShcStoreResult,
+    selectedRdc: string,
+    rdcList: RDC[],
+    logoData: string | null
+): jsPDF => {
+    const rdc = rdcList.find(r => r.id === selectedRdc);
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 40;
+
+    const addPageHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
+        if (pageNumber === 1) {
+            if (logoData) {
+                docInstance.addImage(logoData, 'PNG', margin, 30, 50, 50, undefined, 'FAST');
+            } else {
+                docInstance.setFillColor(211, 211, 211); // Light gray placeholder
+                docInstance.rect(margin, 30, 50, 50, 'F');
+            }
+
+            docInstance.setFont('helvetica', 'bold');
+            docInstance.setFontSize(14);
+            docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', pageWidth / 2, 40, { align: 'center' });
+    
+            docInstance.setFont('helvetica', 'normal');
+            docInstance.setFontSize(6);
+            docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
+    
+            docInstance.setFontSize(10);
+            const rdcStoreText = `RDC: ${rdc?.name || ''}   STORE: ${store.storeNumber}`;
+            docInstance.text(rdcStoreText, pageWidth / 2, 88, { align: 'center' });
+            docInstance.text(`Target score: > 100`, pageWidth - margin, 80, { align: 'right' });
+
+            docInstance.setFont('helvetica', 'bold');
+            docInstance.setFontSize(9);
+            const scoreText = `Current score: ${store.discrepancyCount}`;
+            docInstance.setTextColor(0, 0, 0);
+            docInstance.text(scoreText, pageWidth - margin, 95, { align: 'right' });
+        }
+
+        docInstance.setFont('helvetica', 'normal');
+        docInstance.setFontSize(8);
+        docInstance.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, pageHeight - 30, { align: 'center' });
+        docInstance.text(`RDC: ${rdc?.id || ''} ${rdc?.name || ''}   Store: ${store.storeNumber}`, pageWidth - margin, pageHeight - 20, { align: 'right' });
+    };
+
+    const mainTableBody = store.items.reduce((acc, item, index) => {
+        const prevItem = index > 0 ? store.items[index - 1] : null;
+        const settingChanged = !prevItem || prevItem.settingSpecificallyFor !== item.settingSpecificallyFor || prevItem.settingWidth !== item.settingWidth;
+
+        if (settingChanged) {
+            acc.push([
+                { 
+                    content: `${item.generalStoreArea} - ${item.settingSpecificallyFor} - ${item.settingWidth}`.toUpperCase(),
+                    colSpan: 7, 
+                    styles: { 
+                        font: 'helvetica',
+                        fontStyle: 'bold',
+                        textColor: [255, 255, 255], 
+                        fillColor: [0, 0, 0], // Black background
+                        halign: 'left', 
+                        fontSize: 7, 
+                        cellPadding: 2 
+                    } 
+                },
+            ]);
+        }
+        
+        acc.push([
+            item.articleNumber,
+            item.articleName,
+            item.planShc,
+            item.storeShc,
+            { content: item.diff.toString(), styles: { fontStyle: 'bold' } },
+            '',
+            ''
+        ]);
+
+        return acc;
+    }, [] as any[][]);
+
+    autoTable(doc, {
+        head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Diff', ' V', 'Comments']],
+        body: mainTableBody,
+        theme: 'grid',
+        startY: 120,
+        styles: { font: 'helvetica', fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
+        headStyles: { font: 'helvetica', fontStyle: 'bold', fillColor: '#e0e0e0', textColor: '#333', minCellHeight: 20, valign: 'middle' },
+        columnStyles: {
+            0: { cellWidth: 55 },
+            1: { cellWidth: 'auto' },
+            2: { cellWidth: 40, halign: 'center' },
+            3: { cellWidth: 40, halign: 'center' },
+            4: { cellWidth: 40, halign: 'center' },
+            5: { cellWidth: 20, halign: 'center' },
+            6: { cellWidth: 100 },
+        },
+        didDrawPage: (data) => {
+            addPageHeaderAndFooter(doc, data.pageNumber, (doc as any).internal.getNumberOfPages());
+        }
+    });
+    
+    return doc;
 };
 
 
@@ -334,10 +441,48 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
     }, [results, exclusionList]);
 
     const handleExportStorePdf = async (store: ShcStoreResult) => {
-        const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+        let logoData: string | null = null;
+        try {
+            const response = await fetch('/logo/logo.png');
+            if (response.ok) {
+                const buffer = await response.arrayBuffer();
+                logoData = `data:image/png;base64,${arrayBufferToBase64(buffer)}`;
+            }
+        } catch (e) { console.error("Could not load logo.", e); }
+
+        const doc = generatePdfForStore(new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' }), store, selectedRdc, rdcList, logoData);
+
+        const now = new Date();
+        const year = now.getFullYear().toString().slice(-2);
+        const week = getWeekNumber(now);
+        const filename = `SHC_${selectedRdc}_${store.storeNumber}_SHC_vs_Planogram_Report_${year}W${week}.pdf`;
+        
+        doc.save(filename);
+    };
     
-        // Custom fonts have been removed to reduce file size. Using standard PDF fonts.
-    
+    const handleDownloadAllPdfsAsZip = async () => {
+        if (!processedResults || isLoading) return;
+
+        setIsLoading(true);
+        setProgress({ message: 'Preparing to generate PDFs...', percentage: 0 });
+
+        const allStores = processedResults.flatMap(warehouse =>
+            warehouse.hos.flatMap(hos =>
+                hos.managers.flatMap(manager =>
+                    manager.stores.filter(store => !store.isExcluded)
+                )
+            )
+        );
+
+        if (allStores.length === 0) {
+            alert("No available stores to export.");
+            setIsLoading(false);
+            setProgress(null);
+            return;
+        }
+        
+        const zip = new JSZip();
+        
         let logoData: string | null = null;
         try {
             const response = await fetch('/logo/logo.png');
@@ -346,112 +491,46 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 logoData = `data:image/png;base64,${arrayBufferToBase64(buffer)}`;
             }
         } catch (e) {
-            console.error("Could not load logo.", e);
+            console.error("Could not load logo for zipping.", e);
         }
 
+        for (let i = 0; i < allStores.length; i++) {
+            const store = allStores[i];
+            const progressPercentage = (i / allStores.length) * 100;
+            setProgress({ message: `Generating PDF for store ${store.storeNumber} (${i + 1}/${allStores.length})`, percentage: progressPercentage });
+
+            await new Promise(resolve => setTimeout(resolve, 0)); 
+            
+            const doc = generatePdfForStore(new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' }), store, selectedRdc, rdcList, logoData);
+            
+            const now = new Date();
+            const year = now.getFullYear().toString().slice(-2);
+            const week = getWeekNumber(now);
+            const filename = `SHC_${selectedRdc}_${store.storeNumber}_SHC_vs_Planogram_Report_${year}W${week}.pdf`;
+            
+            const pdfData = doc.output('arraybuffer');
+            zip.file(filename, pdfData);
+        }
+        
+        setProgress({ message: 'Creating ZIP file...', percentage: 99 });
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        
         const now = new Date();
         const year = now.getFullYear().toString().slice(-2);
         const week = getWeekNumber(now);
-        const filename = `SHC_${selectedRdc}_${store.storeNumber}_SHC_vs_Planogram_Report_${year}W${week}.pdf`;
-    
-        const rdc = rdcList.find(r => r.id === selectedRdc);
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const margin = 40;
-    
-        const addPageHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
-            if (pageNumber === 1) {
-                if (logoData) {
-                    docInstance.addImage(logoData, 'PNG', margin, 30, 50, 50, undefined, 'FAST');
-                } else {
-                    docInstance.setFillColor(211, 211, 211); // Light gray placeholder
-                    docInstance.rect(margin, 30, 50, 50, 'F');
-                }
+        const zipFilename = `SHC_Reports_${selectedRdc}_${year}W${week}.zip`;
 
-                docInstance.setFont('helvetica', 'bold');
-                docInstance.setFontSize(14);
-                docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', pageWidth / 2, 40, { align: 'center' });
-        
-                docInstance.setFont('helvetica', 'normal');
-                docInstance.setFontSize(6);
-                docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
-        
-                docInstance.setFontSize(10);
-                const rdcStoreText = `RDC: ${rdc?.name || ''}   STORE: ${store.storeNumber}`;
-                docInstance.text(rdcStoreText, pageWidth / 2, 88, { align: 'center' });
-                docInstance.text(`Target score: > 100`, pageWidth - margin, 80, { align: 'right' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zipBlob);
+        link.download = zipFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
 
-                // Updated "Current score" rendering without background
-                docInstance.setFont('helvetica', 'bold');
-                docInstance.setFontSize(9);
-                const scoreText = `Current score: ${store.discrepancyCount}`;
-                docInstance.setTextColor(0, 0, 0);
-                docInstance.text(scoreText, pageWidth - margin, 95, { align: 'right' });
-            }
-
-            docInstance.setFont('helvetica', 'normal');
-            docInstance.setFontSize(8);
-            docInstance.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, pageHeight - 30, { align: 'center' });
-            docInstance.text(`RDC: ${rdc?.id || ''} ${rdc?.name || ''}   Store: ${store.storeNumber}`, pageWidth - margin, pageHeight - 20, { align: 'right' });
-        };
-    
-        const mainTableBody = store.items.reduce((acc, item, index) => {
-            const prevItem = index > 0 ? store.items[index - 1] : null;
-            const settingChanged = !prevItem || prevItem.settingSpecificallyFor !== item.settingSpecificallyFor || prevItem.settingWidth !== item.settingWidth;
-
-            if (settingChanged) {
-                acc.push([
-                    { 
-                        content: `${item.generalStoreArea} - ${item.settingSpecificallyFor} - ${item.settingWidth}`.toUpperCase(),
-                        colSpan: 7, 
-                        styles: { 
-                            font: 'helvetica',
-                            fontStyle: 'bold',
-                            textColor: [255, 255, 255], 
-                            fillColor: [64, 64, 64],
-                            halign: 'left', 
-                            fontSize: 7, 
-                            cellPadding: 2 
-                        } 
-                    },
-                ]);
-            }
-            
-            acc.push([
-                item.articleNumber,
-                item.articleName,
-                item.planShc,
-                item.storeShc,
-                { content: item.diff.toString(), styles: { fontStyle: 'bold' } },
-                '',
-                ''
-            ]);
-
-            return acc;
-        }, [] as any[][]);
-    
-        autoTable(doc, {
-            head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Diff', ' V', 'Comments']],
-            body: mainTableBody,
-            theme: 'grid',
-            startY: 120,
-            styles: { font: 'helvetica', fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
-            headStyles: { font: 'helvetica', fontStyle: 'bold', fillColor: '#e0e0e0', textColor: '#333', minCellHeight: 20, valign: 'middle' },
-            columnStyles: {
-                0: { cellWidth: 55 },
-                1: { cellWidth: 'auto' },
-                2: { cellWidth: 40, halign: 'center' },
-                3: { cellWidth: 40, halign: 'center' },
-                4: { cellWidth: 40, halign: 'center' },
-                5: { cellWidth: 20, halign: 'center' },
-                6: { cellWidth: 100 },
-            },
-            didDrawPage: (data) => {
-                addPageHeaderAndFooter(doc, data.pageNumber, (doc as any).internal.getNumberOfPages());
-            }
-        });
-        
-        doc.save(filename);
+        setIsLoading(false);
+        setProgress(null);
     };
 
     const groupedMismatches = useMemo(() => {
@@ -584,7 +663,12 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 <div class={styles['results-section']}>
                     <div class={styles['results-header']}>
                         <h3>{t('shcReport.results.title')}</h3>
-                        {storeCounts && <span class={styles['store-count-summary']}>{t('shcReport.results.storeCountSummary', storeCounts)}</span>}
+                        <div class={styles['results-header-actions']}>
+                            {storeCounts && <span class={styles['store-count-summary']}>{t('shcReport.results.storeCountSummary', storeCounts)}</span>}
+                            <button class={sharedStyles['button-primary']} onClick={handleDownloadAllPdfsAsZip} disabled={isLoading}>
+                                {t('shcReport.results.downloadAllPdf')}
+                            </button>
+                        </div>
                     </div>
                     <div class={sharedStyles['table-container']}>
                         <table>
