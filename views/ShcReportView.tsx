@@ -729,48 +729,47 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const doc = new jsPDF({ orientation: 'portrait' });
         const { rdcSummary, hosData, rdcId, rdcName } = complianceReportData;
 
-        const margin = 20;
+        const margin = 30;
         
         doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(14);
+        doc.setFontSize(12);
         doc.text("SHC Compliance Report", margin, 30);
 
         doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 45);
+        doc.setFontSize(8);
+        doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 42);
 
         const body: any[] = [];
         
         const formatValue = (val: number | null, precision: number = 0) => val !== null ? val.toFixed(precision) : '-';
         const formatChange = (val: number | null) => val !== null ? `${(val * 100).toFixed(0)}%` : '-';
 
-        // RDC Summary Row
-        const rdcRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', halign: 'center', fontSize: 9 };
+        const rdcRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', fontSize: 7 };
         body.push([
             { content: `${rdcId} - ${rdcName} (RDC Average)`, styles: { ...rdcRowStyles, halign: 'left' } },
-            { content: formatValue(rdcSummary.current, 2), styles: rdcRowStyles },
-            { content: formatValue(rdcSummary.previous, 2), styles: rdcRowStyles },
-            { content: formatValue(rdcSummary.start, 2), styles: rdcRowStyles },
-            { content: formatChange(rdcSummary.change), styles: rdcRowStyles },
+            { content: formatValue(rdcSummary.current, 2), styles: { ...rdcRowStyles, halign: 'center' } },
+            { content: formatValue(rdcSummary.previous, 2), styles: { ...rdcRowStyles, halign: 'center' } },
+            { content: formatValue(rdcSummary.start, 2), styles: { ...rdcRowStyles, halign: 'center' } },
+            { content: formatChange(rdcSummary.change), styles: { ...rdcRowStyles, halign: 'center' } },
         ]);
 
         hosData.forEach(hos => {
-            const hosRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#6c757d', textColor: '#fff', fontSize: 10, halign: 'center' };
+            const hosRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#6c757d', textColor: '#fff', fontSize: 8 };
             body.push([
                  { content: hos.name, styles: { ...hosRowStyles, halign: 'left' } },
-                 { content: formatValue(hos.current, 2), styles: hosRowStyles },
-                 { content: formatValue(hos.previous, 2), styles: hosRowStyles },
-                 { content: formatValue(hos.start, 2), styles: hosRowStyles },
-                 { content: formatChange(hos.change), styles: hosRowStyles }
+                 { content: formatValue(hos.current, 2), styles: { ...hosRowStyles, halign: 'center' } },
+                 { content: formatValue(hos.previous, 2), styles: { ...hosRowStyles, halign: 'center' } },
+                 { content: formatValue(hos.start, 2), styles: { ...hosRowStyles, halign: 'center' } },
+                 { content: formatChange(hos.change), styles: { ...hosRowStyles, halign: 'center' } }
             ]);
             hos.managers.forEach(am => {
-                const amRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#adb5bd', fontSize: 9, halign: 'center' };
+                const amRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#adb5bd', fontSize: 7 };
                  body.push([
                     { content: am.name, styles: { ...amRowStyles, halign: 'left' } },
-                    { content: formatValue(am.current, 2), styles: amRowStyles },
-                    { content: formatValue(am.previous, 2), styles: amRowStyles },
-                    { content: formatValue(am.start, 2), styles: amRowStyles },
-                    { content: formatChange(am.change), styles: amRowStyles }
+                    { content: formatValue(am.current, 2), styles: { ...amRowStyles, halign: 'center' } },
+                    { content: formatValue(am.previous, 2), styles: { ...amRowStyles, halign: 'center' } },
+                    { content: formatValue(am.start, 2), styles: { ...amRowStyles, halign: 'center' } },
+                    { content: formatChange(am.change), styles: { ...amRowStyles, halign: 'center' } }
                 ]);
                 am.stores.forEach(store => {
                     body.push([
@@ -802,9 +801,9 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         autoTable(doc, {
             head: [[t('shcReport.complianceReport.storeName'), t('shcReport.complianceReport.currently'), t('shcReport.complianceReport.weekMinus1'), t('shcReport.complianceReport.start'), t('shcReport.complianceReport.change')]],
             body: body,
-            startY: 60,
+            startY: 55,
             theme: 'grid',
-            headStyles: { font: 'Helvetica', fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', fontSize: 10, halign: 'center' },
+            headStyles: { font: 'Helvetica', fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', fontSize: 8, halign: 'center' },
             styles: { font: 'Courier', valign: 'middle', halign: 'right', fontSize: 7 },
             columnStyles: { 0: { halign: 'left' } },
             willDrawCell: (data) => {
@@ -815,20 +814,50 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 }
             },
             didDrawCell: (data) => {
+                const doc = data.doc;
                 const store = findStoreData(data.row);
                 const amForStore = store ? complianceReportData.hosData.flatMap(h => h.managers).find(am => am.name === store.am) : null;
+
+                const drawBarAndText = (value: number, maxVal: number, color: [number, number, number]) => {
+                     if (maxVal > 0) {
+                        const width = (value / maxVal) * (data.cell.width - data.cell.padding('horizontal'));
+                        const barHeight = data.cell.height * 0.8;
+                        const barY = data.cell.y + (data.cell.height - barHeight) / 2;
+                        doc.setFillColor(color[0], color[1], color[2]);
+                        doc.rect(data.cell.x + data.cell.padding('left'), barY, width, barHeight, 'F');
+                    }
+                };
                 
+                const drawTextWithBackground = (text: string, halign: 'left' | 'center' | 'right') => {
+                    const textWidth = doc.getTextWidth(text);
+                    const padding = 2;
+                    const boxHeight = data.cell.height - 2 * data.cell.padding('vertical');
+                    const boxY = data.cell.y + data.cell.padding('top');
+                    let boxX = 0;
+                    let textX = 0;
+
+                    if (halign === 'right') {
+                        boxX = data.cell.x + data.cell.width - data.cell.padding('right') - textWidth - padding;
+                        textX = data.cell.x + data.cell.width - data.cell.padding('right');
+                    } else if (halign === 'center') {
+                        boxX = data.cell.x + (data.cell.width - textWidth) / 2 - padding;
+                        textX = data.cell.x + data.cell.width / 2;
+                    }
+                    
+                    doc.setFillColor(255, 255, 255);
+                    doc.rect(boxX, boxY, textWidth + 2 * padding, boxHeight, 'F');
+                    
+                    doc.setFont('Courier', 'bold');
+                    doc.setTextColor('#000000');
+                    doc.text(text, textX, data.cell.getTextPos().y, { align: halign, baseline: 'middle' });
+                };
+
                 if (store && data.column.index >= 1 && data.column.index <= 3) {
                     const value = data.cell.raw;
                     if (typeof value === 'number' && value > 0 && amForStore) {
                         const maxVal = [amForStore.maxScores.current, amForStore.maxScores.previous, amForStore.maxScores.start][data.column.index - 1];
-                         if (maxVal > 0) {
-                            const width = (value / maxVal) * (data.cell.width - data.cell.padding('horizontal'));
-                            const barHeight = data.cell.height * 0.8;
-                            const barY = data.cell.y + (data.cell.height - barHeight) / 2;
-                            doc.setFillColor(255, 193, 7); // Amber
-                            doc.rect(data.cell.x + data.cell.padding('left'), barY, width, barHeight, 'F');
-                        }
+                        drawBarAndText(value, maxVal, [255, 193, 7]); // Amber
+                        drawTextWithBackground(formatValue(value, 0), 'right');
                     }
                 }
             
@@ -841,56 +870,17 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                         else color = [244, 67, 54];                 // Red
                         
                         if (color) {
+                            const maxChangeInGroup = Math.max(...amForStore?.stores.map(s => Math.abs(s.change ?? 0)) ?? [1]);
+                            const barWidth = (data.cell.width - data.cell.padding('horizontal')) * (Math.abs(change) / (maxChangeInGroup || 1));
                             const barHeight = data.cell.height * 0.8;
                             const barY = data.cell.y + (data.cell.height - barHeight) / 2;
-                            const barWidth = (data.cell.width * 0.8) * Math.min(1, Math.abs(change) * 2);
-                            const barX = data.cell.x + (data.cell.width - barWidth) / 2;
+                            const barX = data.cell.x + data.cell.padding('left');
                             doc.setFillColor(color[0], color[1], color[2]);
                             doc.rect(barX, barY, barWidth, barHeight, 'F');
+                            drawTextWithBackground(formatChange(change), 'center');
                         }
                     }
                 }
-                
-                const styles = data.cell.styles;
-                let text: string;
-                let fontStyle = styles.fontStyle;
-
-                if (store) {
-                    if (data.column.index > 0 && data.column.index < 4) {
-                        text = formatValue(data.cell.raw as number, 0);
-                        fontStyle = 'bold';
-                    } else if (data.column.index === 4) {
-                        text = formatChange(data.cell.raw as number);
-                        fontStyle = 'bold';
-                    } else {
-                        text = String(data.cell.text);
-                    }
-                } else {
-                    text = String(data.cell.text);
-                    fontStyle = 'bold';
-                }
-
-                doc.setFont(styles.font, fontStyle);
-                
-                if (store && data.column.index === 4 && store.change !== null) {
-                     doc.setTextColor('#ffffff');
-                } else {
-                     const textColor = data.cell.styles.textColor;
-                     if (Array.isArray(textColor)) {
-                        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-                     } else if (typeof textColor === 'number') {
-                        doc.setTextColor(textColor);
-                     } else {
-                        doc.setTextColor(textColor as string);
-                     }
-                }
-
-                const textPos = data.cell.getTextPos();
-                doc.text(text, textPos.x, textPos.y, {
-                    align: styles.halign as 'left' | 'center' | 'right' | 'justify',
-                    baseline: styles.valign as 'top' | 'middle' | 'bottom',
-                });
-                doc.setTextColor('#000000');
             },
         });
 
