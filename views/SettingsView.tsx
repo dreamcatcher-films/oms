@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { useTranslation } from '../i18n';
-import { DataType, RDC, UserSession, ExclusionListData } from '../utils/types';
+import { DataType, RDC, UserSession, ExclusionListData, ShcSnapshot } from '../utils/types';
 import styles from './SettingsView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
@@ -65,6 +65,35 @@ export const SettingsView = (props: SettingsViewProps) => {
             onAddRdc(newRdc);
             setNewRdc({ id: '', name: '' });
         }
+    };
+
+    const handleDownloadTemplate = () => {
+        const now = new Date();
+        const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+
+        const templateData: ShcSnapshot = {
+            weekNumber: weekNo,
+            year: now.getFullYear(),
+            generatedDate: now.toISOString(),
+            scores: {
+                "1001": 120,
+                "1002": 95,
+                "1003": 210
+            }
+        };
+        
+        const blob = new Blob([JSON.stringify(templateData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'shc_data_template.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     };
 
     return (
@@ -148,16 +177,26 @@ export const SettingsView = (props: SettingsViewProps) => {
                     <div class={styles['importer-section']}>
                         <h4>{t('settings.shcCompliance.baseline.title')}</h4>
                         <p>{t('settings.shcCompliance.baseline.description')}</p>
-                        <button class={sharedStyles['button-primary']} onClick={onImportShcBaselineData}>
-                            {t('settings.shcCompliance.baseline.button')}
-                        </button>
+                        <div class={sharedStyles['filter-actions']}>
+                            <button class={sharedStyles['button-primary']} onClick={onImportShcBaselineData}>
+                                {t('settings.shcCompliance.baseline.button')}
+                            </button>
+                            <button class={sharedStyles['button-link']} onClick={handleDownloadTemplate}>
+                                {t('settings.shcCompliance.baseline.downloadTemplate')}
+                            </button>
+                        </div>
                     </div>
                     <div class={styles['importer-section']}>
                         <h4>{t('settings.shcCompliance.previousWeek.title')}</h4>
                         <p>{t('settings.shcCompliance.previousWeek.description')}</p>
-                        <button class={sharedStyles['button-primary']} onClick={onImportShcPreviousWeekData}>
-                            {t('settings.shcCompliance.previousWeek.button')}
-                        </button>
+                        <div class={sharedStyles['filter-actions']}>
+                            <button class={sharedStyles['button-primary']} onClick={onImportShcPreviousWeekData}>
+                                {t('settings.shcCompliance.previousWeek.button')}
+                            </button>
+                            <button class={sharedStyles['button-link']} onClick={handleDownloadTemplate}>
+                                {t('settings.shcCompliance.previousWeek.downloadTemplate')}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
