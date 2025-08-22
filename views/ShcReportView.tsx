@@ -97,7 +97,7 @@ const generatePdfForStore = (
                         font: 'helvetica',
                         fontStyle: 'bold',
                         textColor: [255, 255, 255], 
-                        fillColor: [0, 0, 0], // Black background
+                        fillColor: [64, 64, 64], // Dark gray background dont change it
                         halign: 'left', 
                         fontSize: 7, 
                         cellPadding: 2 
