@@ -35,11 +35,13 @@ import {
   loadShcExclusionList as loadShcExclusionListDb,
   clearShcExclusionList as clearShcExclusionListDb,
   DBStatus,
+  saveShcBaselineData,
+  saveShcPreviousWeekData,
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
 import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper } from './utils/parsing';
-import { Status, View, DataType, RDC, UserSession, ReportResultItem, ExclusionListData, ShcDataType, ShcParsingWorkerMessage } from './utils/types';
+import { Status, View, DataType, RDC, UserSession, ReportResultItem, ExclusionListData, ShcDataType, ShcParsingWorkerMessage, ShcSnapshot } from './utils/types';
 
 import { LanguageSelector } from './components/LanguageSelector';
 import { LoginModal } from './components/LoginModal';
@@ -912,6 +914,35 @@ const App = () => {
       }
   };
 
+  const handleImportJsonFile = async (saveFn: (data: ShcSnapshot) => Promise<void>, dataTypeForMessage: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text) as ShcSnapshot;
+                // Basic validation
+                if (data && typeof data.scores === 'object' && data.scores !== null && typeof data.weekNumber === 'number') {
+                    await saveFn(data);
+                    setStatusMessage({ text: t('settings.shcCompliance.importSuccess', { type: dataTypeForMessage }), type: 'success' });
+                } else {
+                    throw new Error("Invalid file structure.");
+                }
+            } catch (err) {
+                 setStatusMessage({ text: t('settings.shcCompliance.importError'), type: 'error' });
+                 console.error("Error importing compliance data:", err);
+            }
+        }
+    };
+    input.click();
+  };
+
+  const handleImportShcBaselineData = () => handleImportJsonFile(saveShcBaselineData, t('settings.shcCompliance.baseline.title'));
+  const handleImportShcPreviousWeekData = () => handleImportJsonFile(saveShcPreviousWeekData, t('settings.shcCompliance.previousWeek.title'));
+
   
   // Render logic
   const renderView = () => {
@@ -981,6 +1012,8 @@ const App = () => {
                 onImportShcExclusionList={handleImportShcExclusionList}
                 onExportShcExclusionList={handleExportShcExclusionList}
                 onClearShcExclusionList={handleClearShcExclusionList}
+                onImportShcBaselineData={handleImportShcBaselineData}
+                onImportShcPreviousWeekData={handleImportShcPreviousWeekData}
               />;
           default:
               return <div class={sharedStyles['placeholder-view']}><h2>{t('placeholders.dashboard.title')}</h2><p>{t('placeholders.dashboard.description')}</p></div>;
