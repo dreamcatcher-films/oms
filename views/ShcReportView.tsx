@@ -408,7 +408,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                             font: 'helvetica',
                             fontStyle: 'bold',
                             textColor: [255, 255, 255], 
-                            fillColor: [0, 0, 0],
+                            fillColor: [64, 64, 64],
                             halign: 'left', 
                             fontSize: 7, 
                             cellPadding: 2 
