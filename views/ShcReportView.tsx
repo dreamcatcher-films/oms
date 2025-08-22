@@ -730,43 +730,55 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const { rdcSummary, hosData, rdcId, rdcName } = complianceReportData;
 
         const margin = 20;
-        const headerFont = 'Helvetica';
-        const bodyFont = 'Courier';
         
-        doc.setFont(headerFont, 'bold');
+        doc.setFont('Helvetica', 'bold');
         doc.setFontSize(14);
         doc.text("SHC Compliance Report", margin, 30);
 
-        doc.setFont(headerFont, 'normal');
+        doc.setFont('Helvetica', 'normal');
         doc.setFontSize(10);
         doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 45);
 
         const body: any[] = [];
         
-        const formatValue = (val: number | null) => val !== null ? val.toFixed(0) : '-';
+        const formatValue = (val: number | null, precision: number = 0) => val !== null ? val.toFixed(precision) : '-';
         const formatChange = (val: number | null) => val !== null ? `${(val * 100).toFixed(0)}%` : '-';
 
         // RDC Summary Row
-        const rdcRowStyles = { font: headerFont, fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', halign: 'center', fontSize: 10 };
+        const rdcRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', halign: 'center', fontSize: 9 };
         body.push([
-            { content: `${rdcId} - ${rdcName} (RDC Average)`, colSpan: 1, styles: { ...rdcRowStyles, halign: 'left' } },
-            { content: formatValue(rdcSummary.current), styles: rdcRowStyles },
-            { content: formatValue(rdcSummary.previous), styles: rdcRowStyles },
-            { content: formatValue(rdcSummary.start), styles: rdcRowStyles },
+            { content: `${rdcId} - ${rdcName} (RDC Average)`, styles: { ...rdcRowStyles, halign: 'left' } },
+            { content: formatValue(rdcSummary.current, 2), styles: rdcRowStyles },
+            { content: formatValue(rdcSummary.previous, 2), styles: rdcRowStyles },
+            { content: formatValue(rdcSummary.start, 2), styles: rdcRowStyles },
             { content: formatChange(rdcSummary.change), styles: rdcRowStyles },
         ]);
 
         hosData.forEach(hos => {
-            body.push([{ content: hos.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'bold', fillColor: '#6c757d', textColor: '#fff', fontSize: 12 } }]);
+            const hosRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#6c757d', textColor: '#fff', fontSize: 10, halign: 'center' };
+            body.push([
+                 { content: hos.name, styles: { ...hosRowStyles, halign: 'left' } },
+                 { content: formatValue(hos.current, 2), styles: hosRowStyles },
+                 { content: formatValue(hos.previous, 2), styles: hosRowStyles },
+                 { content: formatValue(hos.start, 2), styles: hosRowStyles },
+                 { content: formatChange(hos.change), styles: hosRowStyles }
+            ]);
             hos.managers.forEach(am => {
-                body.push([{ content: am.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'bold', fillColor: '#adb5bd', fontSize: 12 } }]);
+                const amRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#adb5bd', fontSize: 9, halign: 'center' };
+                 body.push([
+                    { content: am.name, styles: { ...amRowStyles, halign: 'left' } },
+                    { content: formatValue(am.current, 2), styles: amRowStyles },
+                    { content: formatValue(am.previous, 2), styles: amRowStyles },
+                    { content: formatValue(am.start, 2), styles: amRowStyles },
+                    { content: formatChange(am.change), styles: amRowStyles }
+                ]);
                 am.stores.forEach(store => {
                     body.push([
                         `${store.storeNumber} - ${store.storeName}`,
-                        store.current ?? '-',
-                        store.previous ?? '-',
-                        store.start ?? '-',
-                        store.change !== null ? `${(store.change * 100).toFixed(0)}%` : '-',
+                        store.current,
+                        store.previous,
+                        store.start,
+                        store.change,
                     ]);
                 });
             });
@@ -792,8 +804,8 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             body: body,
             startY: 60,
             theme: 'grid',
-            headStyles: { font: headerFont, fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', fontSize: 10, halign: 'center' },
-            styles: { font: bodyFont, valign: 'middle', halign: 'right', fontSize: 7 },
+            headStyles: { font: 'Helvetica', fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', fontSize: 10, halign: 'center' },
+            styles: { font: 'Courier', valign: 'middle', halign: 'right', fontSize: 7 },
             columnStyles: { 0: { halign: 'left' } },
             willDrawCell: (data) => {
                 const store = findStoreData(data.row);
@@ -806,7 +818,6 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 const store = findStoreData(data.row);
                 const amForStore = store ? complianceReportData.hosData.flatMap(h => h.managers).find(am => am.name === store.am) : null;
                 
-                // --- 1. Draw Data/Change Bars ---
                 if (store && data.column.index >= 1 && data.column.index <= 3) {
                     const value = data.cell.raw;
                     if (typeof value === 'number' && value > 0 && amForStore) {
@@ -832,7 +843,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                         if (color) {
                             const barHeight = data.cell.height * 0.8;
                             const barY = data.cell.y + (data.cell.height - barHeight) / 2;
-                            const barWidth = data.cell.width * 0.8;
+                            const barWidth = (data.cell.width * 0.8) * Math.min(1, Math.abs(change) * 2);
                             const barX = data.cell.x + (data.cell.width - barWidth) / 2;
                             doc.setFillColor(color[0], color[1], color[2]);
                             doc.rect(barX, barY, barWidth, barHeight, 'F');
@@ -840,10 +851,26 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                     }
                 }
                 
-                // --- 2. Redraw Text on Top ---
                 const styles = data.cell.styles;
-                doc.setFont(styles.font, styles.fontStyle);
-                doc.setFontSize(styles.fontSize);
+                let text: string;
+                let fontStyle = styles.fontStyle;
+
+                if (store) {
+                    if (data.column.index > 0 && data.column.index < 4) {
+                        text = formatValue(data.cell.raw as number, 0);
+                        fontStyle = 'bold';
+                    } else if (data.column.index === 4) {
+                        text = formatChange(data.cell.raw as number);
+                        fontStyle = 'bold';
+                    } else {
+                        text = String(data.cell.text);
+                    }
+                } else {
+                    text = String(data.cell.text);
+                    fontStyle = 'bold';
+                }
+
+                doc.setFont(styles.font, fontStyle);
                 
                 if (store && data.column.index === 4 && store.change !== null) {
                      doc.setTextColor('#ffffff');
@@ -858,13 +885,12 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                      }
                 }
 
-                const text = Array.isArray(data.cell.text) ? data.cell.text.join(' ') : String(data.cell.text);
                 const textPos = data.cell.getTextPos();
                 doc.text(text, textPos.x, textPos.y, {
                     align: styles.halign as 'left' | 'center' | 'right' | 'justify',
                     baseline: styles.valign as 'top' | 'middle' | 'bottom',
                 });
-                doc.setTextColor('#000000'); // Reset to default
+                doc.setTextColor('#000000');
             },
         });
 
