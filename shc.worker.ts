@@ -22,6 +22,7 @@ const createLocatorKey = (s1: string, s2: string): string => {
 
 onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
     const { sectionConfig, rdcId } = e.data;
+    console.log(`[SHC Worker] Analysis started for RDC: ${rdcId || 'All'}`);
     
     try {
         postMessage({ type: 'progress', payload: { message: 'Fetching data from database...', percentage: 5 } } as ShcWorkerMessage);
@@ -38,20 +39,38 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
             getAllCategoryRelationData(),
         ]);
         
+        console.log('[SHC Worker] Initial data fetched from DB:', {
+            shcData: shcData.length,
+            planogramData: planogramData.length,
+            orgStructureData: orgStructureData.length,
+            categoryRelationData: categoryRelationData.length
+        });
+        
         postMessage({ type: 'progress', payload: { message: 'Filtering & preparing data...', percentage: 15 } } as ShcWorkerMessage);
         
         if (rdcId) {
             const rdcStoreNumbers = new Set(orgStructureData.filter(r => r.warehouseId === rdcId).map(r => r.storeNumber));
+            console.log(`[SHC Worker] Found ${rdcStoreNumbers.size} stores in Org Structure for RDC ${rdcId}.`);
+
             orgStructureData = orgStructureData.filter(r => r.warehouseId === rdcId);
             shcData = shcData.filter(r => rdcStoreNumbers.has(r.storeNumber));
             categoryRelationData = categoryRelationData.filter(r => rdcStoreNumbers.has(r.storeNumber));
+
+            console.log(`[SHC Worker] Data filtered for RDC ${rdcId}:`, {
+                orgStructureData: orgStructureData.length,
+                shcData: shcData.length,
+                categoryRelationData: categoryRelationData.length
+            });
         }
 
         const enabledSections = new Set(sectionConfig.filter(s => s.enabled).map(s => s.id));
         const sectionOrderMap = new Map(sectionConfig.map(s => [s.id, s.order]));
+        console.log(`[SHC Worker] ${enabledSections.size} sections are enabled in the configuration.`);
         
         const filteredShcData = shcData.filter(row => row.itemStatus === '8' && row.shelfCapacityUnit === 'C');
         const filteredCategoryRelationData = categoryRelationData.filter(row => enabledSections.has(row.settingSpecificallyFor));
+        console.log(`[SHC Worker] SHC data filtered (status 8 & unit C): ${filteredShcData.length} rows.`);
+        console.log(`[SHC Worker] Category Relation data filtered by enabled sections: ${filteredCategoryRelationData.length} rows.`);
         
         planogramData.forEach(row => {
             row.locatorKey = createLocatorKey(row.settingSpecificallyFor, row.settingWidth);
@@ -82,6 +101,13 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
             if (!shcByStoreMap.has(row.storeNumber)) shcByStoreMap.set(row.storeNumber, new Map());
             shcByStoreMap.get(row.storeNumber)!.set(row.itemNumber, row);
         });
+
+        console.log('[SHC Worker] Data maps created:', {
+            orgMapSize: orgMap.size,
+            categoryRelationMapSize: categoryRelationMap.size,
+            planogramMapSize: planogramMap.size,
+            shcByStoreMapSize: shcByStoreMap.size,
+        });
         
         postMessage({ type: 'progress', payload: { message: 'Grouping stores by hierarchy...', percentage: 25 } } as ShcWorkerMessage);
 
@@ -97,11 +123,13 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
             const am = hos.get(store.areaManager)!;
             am.push(store);
         });
+        console.log(`[SHC Worker] Hierarchy built. Found ${hierarchy.size} warehouses.`);
         
         const mismatches: ShcMismatchItem[] = [];
         const flatResults: any[] = [];
         let processedStores = 0;
         const totalStoresToProcess = orgStructureData.length;
+        console.log(`[SHC Worker] Starting analysis for ${totalStoresToProcess} stores...`);
         
         for (const [warehouseId, hosMap] of hierarchy.entries()) {
             for (const [hosName, amMap] of hosMap.entries()) {
@@ -161,6 +189,8 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
             }
         }
         
+        console.log(`[SHC Worker] Analysis complete. Found ${flatResults.length} discrepancies and ${mismatches.length} mismatches.`);
+
         postMessage({ type: 'progress', payload: { message: 'Building final report...', percentage: 95 } } as ShcWorkerMessage);
         
         const finalHierarchicalResult: ShcAnalysisResult = [];
@@ -219,6 +249,8 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
             wh.discrepancyCount = hosList.reduce((sum, h) => sum + h.discrepancyCount, 0);
             finalHierarchicalResult.push({ ...wh, hos: hosList });
         });
+
+        console.log('[SHC Worker] Final report structure built.', finalHierarchicalResult);
 
         const finalMessage: ShcWorkerMessage = {
             type: 'complete',
