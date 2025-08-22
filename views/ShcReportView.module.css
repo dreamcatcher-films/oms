@@ -497,29 +497,28 @@
     left: 0;
     top: 0;
     height: 100%;
-    background-color: #FFC107; /* Amber */
-    opacity: 0.3;
+    background-color: rgba(255, 193, 7, 0.3); /* Amber with alpha */
     z-index: 0;
     width: calc(var(--value, 0));
 }
 .compliance-table .change-bar {
-    background-color: #4CAF50; /* Green */
-    opacity: 0.5;
+    background-color: rgba(76, 175, 80, 0.5); /* Green with alpha */
 }
 .compliance-table td {
     position: relative;
     z-index: 1;
 }
 .compliance-table .level-0 > td {
-    background-color: #6c757d;
+    background-color: #343a40; /* Darker Gray for RDC */
     color: white;
     font-weight: bold;
 }
 .compliance-table .level-1 > td {
-    background-color: #adb5bd; /* Medium Gray for HoS */
+    background-color: #6c757d; /* Medium Gray for HoS */
+    color: white;
 }
 .compliance-table .level-2 > td {
-    background-color: #dee2e6; /* Lighter Gray for AM */
+    background-color: #adb5bd; /* Lighter Gray for AM */
 }
 
 .change-positive {
@@ -563,8 +562,7 @@
     }
 
     /* Force printing of background colors and images */
-    .printable-area, .data-bar, .change-bar, .change-neutral, .change-negative, .excluded-compliance-row,
-    .level-0 > td, .level-1 > td, .level-2 > td {
+    .printable-area, .printable-area * {
         -webkit-print-color-adjust: exact !important;
         color-adjust: exact !important;
         print-color-adjust: exact !important;
@@ -580,28 +578,30 @@
         box-shadow: none !important;
     }
     
-    .printable-area h3 {
+    .printable-area .results-header h3 {
         margin-top: 0;
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
         page-break-after: avoid;
         border-bottom: 1px solid var(--border-color);
+        width: 100%;
     }
 
     .results-header-actions {
-        display: none;
+        display: none !important;
     }
 
     .compliance-table {
         width: 100%;
         font-size: 8pt;
+        page-break-inside: auto;
     }
 
     .compliance-table thead {
         display: table-header-group;
     }
 
-    .compliance-table tr, .compliance-table tbody {
+    .compliance-table tr {
         page-break-inside: avoid;
     }
 
