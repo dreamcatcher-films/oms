@@ -758,7 +758,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         doc.text("SHC Compliance Report", margin, 10);
 
         doc.setFontSize(12);
-        doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 10);
+        doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 25);
 
         const body: any[] = [];
         
@@ -808,7 +808,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         autoTable(doc, {
             head: [['Store / AM / HoS', 'Currently', 'Week -1', 'Start', 'Change']],
             body: body,
-            startY: 55,
+            startY: 35,
             theme: 'grid',
             headStyles: { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff', fontSize: 8 },
             styles: { font: bodyFont, valign: 'middle', halign: 'right', fontSize: 7 },
