@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'preact/hooks';
 import { VNode } from 'preact';
 import { useTranslation } from '../i18n';
-import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup, RDC, ShcStoreResult, ShcComplianceReportData, ShcComplianceStoreData, ShcSnapshot, ShcComplianceManagerData } from '../utils/types';
-import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport, loadShcBaselineData, loadShcPreviousWeekData } from '../db';
+import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup, RDC, ShcStoreResult, ShcComplianceReportData, ShcComplianceStoreData, ShcSnapshot, ShcComplianceManagerData, ShcComplianceHosData, ShcComplianceReportSummary } from '../utils/types';
+import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport, loadShcBaselineData, loadShcPreviousWeekData, getAllOrgStructureData } from '../db';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
@@ -571,26 +571,19 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         setIsLoading(true);
         setIsComplianceDataReady(false);
 
-        const [baselineData, previousWeekData] = await Promise.all([
+        const [baselineData, previousWeekData, orgData] = await Promise.all([
             loadShcBaselineData(),
-            loadShcPreviousWeekData()
+            loadShcPreviousWeekData(),
+            getAllOrgStructureData(),
         ]);
+
+        const storeNameMap = new Map(orgData.map(o => [o.storeNumber, o.storeName]));
 
         if (!baselineData || !previousWeekData) {
             setIsComplianceDataReady(false);
             setIsLoading(false);
             return;
         }
-
-        const report: ShcComplianceReportData = {
-            rdcId: selectedRdc,
-            rdcName: rdcList.find(r => r.id === selectedRdc)?.name || '',
-            hosData: [],
-            snapshotInfo: {
-                baseline: baselineData,
-                previousWeek: previousWeekData
-            }
-        };
 
         const allStoresCurrentData = new Map<string, { store: ShcStoreResult, hos: string, am: string }>();
         processedResults.forEach(warehouse => {
@@ -604,6 +597,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         });
         
         const processedHos = new Map<string, { name: string, managers: Map<string, { name: string, stores: ShcComplianceStoreData[] }> }>();
+        const allStoresForRdc: ShcComplianceStoreData[] = [];
 
         allStoresCurrentData.forEach(({ store, hos, am }) => {
             const storeNumber = store.storeNumber;
@@ -618,43 +612,79 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
 
             const storeData: ShcComplianceStoreData = {
                 storeNumber,
-                storeName: store.storeNumber, // Placeholder, assuming store name isn't in this structure
+                storeName: storeNameMap.get(storeNumber) || storeNumber,
                 am,
                 hos,
                 current,
                 previous,
                 start,
-                change
+                change,
+                isExcluded: exclusionList.has(storeNumber),
             };
+            allStoresForRdc.push(storeData);
             
-            if (!processedHos.has(hos)) {
-                processedHos.set(hos, { name: hos, managers: new Map() });
-            }
+            if (!processedHos.has(hos)) processedHos.set(hos, { name: hos, managers: new Map() });
             const hosData = processedHos.get(hos)!;
 
-            if (!hosData.managers.has(am)) {
-                hosData.managers.set(am, { name: am, stores: [] });
-            }
+            if (!hosData.managers.has(am)) hosData.managers.set(am, { name: am, stores: [] });
             const amData = hosData.managers.get(am)!;
             amData.stores.push(storeData);
         });
         
-        report.hosData = Array.from(processedHos.values()).map(hosEntry => {
-            const managers = Array.from(hosEntry.managers.values()).map(amEntry => {
-                 const amCurrent = amEntry.stores.reduce((sum, s) => sum + (s.current ?? 0), 0);
-                 const amPrevious = amEntry.stores.reduce((sum, s) => sum + (s.previous ?? 0), 0);
-                 const amStart = amEntry.stores.reduce((sum, s) => sum + (s.start ?? 0), 0);
-                 const amChange = amStart > 0 ? ((amCurrent - amStart) / amStart) : null;
+        const calculateAverage = (scores: (number | null)[]) => {
+            const validScores = scores.filter((s): s is number => s !== null);
+            return validScores.length > 0 ? validScores.reduce((a, b) => a + b, 0) / validScores.length : 0;
+        };
+        
+        const calculateChange = (currentScores: (number|null)[], startScores: (number|null)[]) => {
+            const currentSum = currentScores.filter((s): s is number => s !== null).reduce((a, b) => a + b, 0);
+            const startSum = startScores.filter((s): s is number => s !== null).reduce((a, b) => a + b, 0);
+            return startSum > 0 ? (currentSum - startSum) / startSum : null;
+        };
 
-                return { ...amEntry, current: amCurrent, previous: amPrevious, start: amStart, change: amChange };
+        const hosData = Array.from(processedHos.values()).map(hosEntry => {
+            const managers = Array.from(hosEntry.managers.values()).map(amEntry => {
+                 const activeStores = amEntry.stores.filter(s => !s.isExcluded);
+                 const amCurrentAvg = calculateAverage(activeStores.map(s => s.current));
+                 const amPreviousAvg = calculateAverage(activeStores.map(s => s.previous));
+                 const amStartAvg = calculateAverage(activeStores.map(s => s.start));
+                 const amChange = calculateChange(activeStores.map(s => s.current), activeStores.map(s => s.start));
+
+                const allScoresCurrent = amEntry.stores.map(s => s.current).filter((v): v is number => v !== null);
+                const allScoresPrevious = amEntry.stores.map(s => s.previous).filter((v): v is number => v !== null);
+                const allScoresStart = amEntry.stores.map(s => s.start).filter((v): v is number => v !== null);
+                const maxScores = {
+                    current: Math.max(...allScoresCurrent, 1),
+                    previous: Math.max(...allScoresPrevious, 1),
+                    start: Math.max(...allScoresStart, 1),
+                };
+
+                return { ...amEntry, current: amCurrentAvg, previous: amPreviousAvg, start: amStartAvg, change: amChange, maxScores };
             });
-            const hosCurrent = managers.reduce((sum, m) => sum + m.current, 0);
-            const hosPrevious = managers.reduce((sum, m) => sum + m.previous, 0);
-            const hosStart = managers.reduce((sum, m) => sum + m.start, 0);
-            const hosChange = hosStart > 0 ? ((hosCurrent - hosStart) / hosStart) : null;
+            const activeStoresInHos = managers.flatMap(m => m.stores).filter(s => !s.isExcluded);
+            const hosCurrentAvg = calculateAverage(activeStoresInHos.map(s => s.current));
+            const hosPreviousAvg = calculateAverage(activeStoresInHos.map(s => s.previous));
+            const hosStartAvg = calculateAverage(activeStoresInHos.map(s => s.start));
+            const hosChange = calculateChange(activeStoresInHos.map(s => s.current), activeStoresInHos.map(s => s.start));
             
-            return { name: hosEntry.name, managers, current: hosCurrent, previous: hosPrevious, start: hosStart, change: hosChange };
+            return { name: hosEntry.name, managers, current: hosCurrentAvg, previous: hosPreviousAvg, start: hosStartAvg, change: hosChange };
         });
+        
+        const allActiveStores = allStoresForRdc.filter(s => !s.isExcluded);
+        const rdcSummary: ShcComplianceReportSummary = {
+            current: calculateAverage(allActiveStores.map(s => s.current)),
+            previous: calculateAverage(allActiveStores.map(s => s.previous)),
+            start: calculateAverage(allActiveStores.map(s => s.start)),
+            change: calculateChange(allActiveStores.map(s => s.current), allActiveStores.map(s => s.start)),
+        };
+
+        const report: ShcComplianceReportData = {
+            rdcId: selectedRdc,
+            rdcName: rdcList.find(r => r.id === selectedRdc)?.name || '',
+            hosData: hosData,
+            snapshotInfo: { baseline: baselineData, previousWeek: previousWeekData },
+            rdcSummary
+        };
 
         setComplianceReportData(report);
         setIsComplianceDataReady(true);
@@ -696,19 +726,33 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
 
     const handleExportCompliancePdf = () => {
         if (!complianceReportData) return;
-        const doc = new jsPDF({ orientation: 'landscape' });
+        const doc = new jsPDF({ orientation: 'portrait' });
+        const { rdcSummary, hosData, rdcId, rdcName } = complianceReportData;
 
-        doc.setFontSize(18);
-        doc.text("SHC Compliance Report", 40, 40);
+        doc.setFontSize(14);
+        doc.text("SHC Compliance Report", 40, 30);
 
         doc.setFontSize(10);
-        doc.text(`RDC: ${complianceReportData.rdcId} - ${complianceReportData.rdcName}`, 40, 55);
+        doc.text(`RDC: ${rdcId} - ${rdcName}`, 40, 45);
 
         const body: any[] = [];
-        complianceReportData.hosData.forEach(hos => {
-            body.push([{ content: hos.name, colSpan: 6, styles: { fontStyle: 'bold', fillColor: '#f0f0f0' } }]);
+        
+        const formatValue = (val: number | null) => val !== null ? val.toFixed(0) : '-';
+        const formatChange = (val: number | null) => val !== null ? `${(val * 100).toFixed(0)}%` : '-';
+
+        // RDC Summary Row
+        body.push([
+            { content: `${rdcId} - ${rdcName} (RDC Average)`, colSpan: 1, styles: { fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff' } },
+            { content: formatValue(rdcSummary.current), styles: { fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff' } },
+            { content: formatValue(rdcSummary.previous), styles: { fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff' } },
+            { content: formatValue(rdcSummary.start), styles: { fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff' } },
+            { content: formatChange(rdcSummary.change), styles: { fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff' } },
+        ]);
+
+        hosData.forEach(hos => {
+            body.push([{ content: hos.name, colSpan: 5, styles: { fontStyle: 'bold', fillColor: '#6c757d', textColor: '#fff' } }]);
             hos.managers.forEach(am => {
-                body.push([{ content: am.name, colSpan: 6, styles: { fontStyle: 'bold', fillColor: '#f8f9fa', textColor: '#333' } }]);
+                body.push([{ content: am.name, colSpan: 5, styles: { fontStyle: 'bold', fillColor: '#f8f9fa' } }]);
                 am.stores.forEach(store => {
                     body.push([
                         `${store.storeNumber} - ${store.storeName}`,
@@ -716,77 +760,74 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                         store.previous ?? '-',
                         store.start ?? '-',
                         store.change !== null ? `${(store.change * 100).toFixed(0)}%` : '-',
-                        '' // Placeholder for data bar
                     ]);
                 });
             });
         });
+        
+        const findStoreData = (row: any): ShcComplianceStoreData | null => {
+            if (row.section !== 'body' || !Array.isArray(row.raw) || typeof row.raw[0] !== 'string') return null;
+            const content = row.raw[0] as string;
+            const storeNumberMatch = content.match(/^(\d+)/);
+            if (!storeNumberMatch) return null;
+            
+            for (const hos of complianceReportData.hosData) {
+                for (const am of hos.managers) {
+                    const store = am.stores.find(s => s.storeNumber === storeNumberMatch[1]);
+                    if (store) return store;
+                }
+            }
+            return null;
+        };
 
         autoTable(doc, {
-            head: [['Store / AM / HoS', 'Currently', 'Week -1', 'Start', 'Change', '']],
+            head: [['Store / AM / HoS', 'Currently', 'Week -1', 'Start', 'Change']],
             body: body,
-            startY: 70,
+            startY: 60,
             theme: 'grid',
             headStyles: { fillColor: '#343a40', textColor: '#fff' },
+            styles: { valign: 'middle', halign: 'right' },
+            columnStyles: { 0: { halign: 'left' } },
             didDrawCell: (data) => {
-                // We are providing the `body` so `raw` will be an array, not an HTML element.
-                const rawRow = data.row.raw as any[];
-                if (!Array.isArray(rawRow)) return;
-
-                // Data bars for store value cells ('Currently', 'Week -1', 'Start')
-                if (data.section === 'body' && data.column.index >= 1 && data.column.index <= 3) {
-                    // Data bars only apply to store rows, which have a string in the first cell.
-                    if (typeof rawRow[0] === 'string') {
-                        const value = data.cell.raw;
-                        if (typeof value === 'number' && value > 0) {
-                            const storeIdentifier = rawRow[0] as string;
-                            const storeNumber = storeIdentifier.split(' - ')[0];
-
-                            let amForStore: ShcComplianceManagerData | undefined;
-                            // Find the manager this store belongs to in our report data structure
-                            for (const hos of complianceReportData.hosData) {
-                                const foundAm = hos.managers.find(am => am.stores.some(s => s.storeNumber === storeNumber));
-                                if (foundAm) {
-                                    amForStore = foundAm;
-                                    break;
-                                }
-                            }
-
-                            if (amForStore) {
-                                // Get all scores for this manager's stores to determine the maximum value for scaling
-                                const allScoresForAm = amForStore.stores.flatMap(s => [s.current, s.previous, s.start]);
-                                const maxVal = Math.max(...allScoresForAm.filter((v): v is number => v !== null), 1);
-                                
-                                if (maxVal > 0) {
-                                    const width = (value / maxVal) * (data.cell.width - data.cell.padding('horizontal'));
-                                    doc.setFillColor(255, 193, 7); // Amber color
-                                    doc.rect(data.cell.x + data.cell.padding('left'), data.cell.y + 4, width, data.cell.height - 8, 'F');
-                                }
+                const store = findStoreData(data.row);
+                if (store?.isExcluded) {
+                    doc.setFillColor(255, 251, 230); // Light Yellow
+                    doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                }
+                
+                if (store && data.column.index >= 1 && data.column.index <= 3) {
+                    const value = data.cell.raw;
+                    if (typeof value === 'number' && value > 0) {
+                        const amForStore = complianceReportData.hosData.flatMap(h => h.managers).find(am => am.name === store.am);
+                        if (amForStore) {
+                            const maxVal = [amForStore.maxScores.current, amForStore.maxScores.previous, amForStore.maxScores.start][data.column.index - 1];
+                             if (maxVal > 0) {
+                                const width = (value / maxVal) * (data.cell.width - data.cell.padding('horizontal'));
+                                doc.setFillColor(255, 193, 7); // Amber
+                                doc.rect(data.cell.x + data.cell.padding('left'), data.cell.y + 4, width, data.cell.height - 8, 'F');
                             }
                         }
                     }
                 }
             
-                // Color formatting for the 'Change' column
-                if (data.section === 'body' && data.column.index === 4) {
-                    // Also only for store rows
-                    if (typeof rawRow[0] === 'string') {
-                        const value = data.cell.raw as string;
-                        if (value && value.includes('%')) {
-                            const numericVal = parseFloat(value.replace('%', ''));
-                            if (!isNaN(numericVal)) {
-                                if (numericVal < 0) doc.setFillColor(76, 175, 80); // Green for improvement
-                                else if (numericVal <= 20) doc.setFillColor(255, 152, 0); // Orange for slight worsening
-                                else doc.setFillColor(244, 67, 54); // Red for significant worsening
-                                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                            }
+                if (store && data.column.index === 4) {
+                    const change = store.change;
+                    if (change !== null) {
+                        let color: [number, number, number] | undefined;
+                        if (change < 0) color = [76, 175, 80];      // Green
+                        else if (change <= 0.2) color = [255, 152, 0]; // Orange
+                        else color = [244, 67, 54];                 // Red
+                        
+                        if (color) {
+                            doc.setFillColor(...color);
+                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                         }
                     }
                 }
-            }
+            },
         });
 
-        doc.save(`shc_compliance_report_${selectedRdc}.pdf`);
+        doc.save(`shc_compliance_report_${selectedRdc}_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     return (
@@ -1051,20 +1092,27 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                 </tr>
                             </thead>
                             <tbody>
+                                <tr class={styles['level-0']}>
+                                    <td>{`${complianceReportData.rdcId} - ${complianceReportData.rdcName} (RDC Average)`}</td>
+                                    <td>{complianceReportData.rdcSummary.current.toFixed(2)}</td>
+                                    <td>{complianceReportData.rdcSummary.previous.toFixed(2)}</td>
+                                    <td>{complianceReportData.rdcSummary.start.toFixed(2)}</td>
+                                    <td>{complianceReportData.rdcSummary.change !== null ? `${(complianceReportData.rdcSummary.change * 100).toFixed(0)}%` : '-'}</td>
+                                </tr>
                                {complianceReportData.hosData.map(hos => (<>
-                                   <tr class={styles['level-0']}>
-                                       <td>{hos.name}</td>
-                                       <td>{hos.current}</td>
-                                       <td>{hos.previous}</td>
-                                       <td>{hos.start}</td>
+                                   <tr class={styles['level-1']}>
+                                       <td style={{paddingLeft: '1rem'}}>{hos.name}</td>
+                                       <td>{hos.current.toFixed(2)}</td>
+                                       <td>{hos.previous.toFixed(2)}</td>
+                                       <td>{hos.start.toFixed(2)}</td>
                                        <td>{hos.change !== null ? `${(hos.change * 100).toFixed(0)}%` : '-'}</td>
                                    </tr>
                                    {hos.managers.map(am => (<>
-                                       <tr class={styles['level-1']}>
+                                       <tr class={styles['level-2']}>
                                            <td style={{paddingLeft: '2rem'}}>{am.name}</td>
-                                           <td>{am.current}</td>
-                                           <td>{am.previous}</td>
-                                           <td>{am.start}</td>
+                                           <td>{am.current.toFixed(2)}</td>
+                                           <td>{am.previous.toFixed(2)}</td>
+                                           <td>{am.start.toFixed(2)}</td>
                                            <td>{am.change !== null ? `${(am.change * 100).toFixed(0)}%` : '-'}</td>
                                        </tr>
                                        {am.stores.map(store => {
@@ -1076,11 +1124,11 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                                 else changeClass = styles['change-negative'];
                                             }
                                            return (
-                                               <tr class={styles['level-2']}>
+                                               <tr class={`${styles['level-3']} ${store.isExcluded ? styles['excluded-compliance-row'] : ''}`}>
                                                    <td style={{paddingLeft: '4rem'}}>{store.storeNumber} - {store.storeName}</td>
-                                                   <td><div class={styles['data-bar']} style={{'--value': `${(store.current ?? 0) / Math.max(am.current, 1) * 100}%`}}></div>{store.current ?? '-'}</td>
-                                                   <td><div class={styles['data-bar']} style={{'--value': `${(store.previous ?? 0) / Math.max(am.current, 1) * 100}%`}}></div>{store.previous ?? '-'}</td>
-                                                   <td><div class={styles['data-bar']} style={{'--value': `${(store.start ?? 0) / Math.max(am.current, 1) * 100}%`}}></div>{store.start ?? '-'}</td>
+                                                   <td><div class={styles['data-bar']} style={{'--value': `${(store.current ?? 0) / am.maxScores.current * 100}%`}}></div>{store.current ?? '-'}</td>
+                                                   <td><div class={styles['data-bar']} style={{'--value': `${(store.previous ?? 0) / am.maxScores.previous * 100}%`}}></div>{store.previous ?? '-'}</td>
+                                                   <td><div class={styles['data-bar']} style={{'--value': `${(store.start ?? 0) / am.maxScores.start * 100}%`}}></div>{store.start ?? '-'}</td>
                                                    <td class={changeClass}>{change !== null ? `${(change * 100).toFixed(0)}%` : '-'}</td>
                                                </tr>
                                            )
