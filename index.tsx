@@ -846,76 +846,87 @@ const App = () => {
   if (isInitializing) {
     return null;
   }
-
-  return (
-    <>
-        <div style={{display: 'none'}}>
-            <input type="file" ref={exclusionFileInputRef} onChange={handleImportExclusionList} accept=".txt" />
-            <input type="file" ref={shcExclusionFileInputRef} onChange={handleImportShcExclusionList} accept=".txt" />
-            <input type="file" ref={configImportInputRef} onChange={handleImportConfig} accept=".json" />
-            <input type="file" ref={shcBaselineInputRef} onChange={(e) => handleImportShcSnapshot(e, 'baseline')} accept=".json" />
-            <input type="file" ref={shcPreviousWeekInputRef} onChange={(e) => handleImportShcSnapshot(e, 'previousWeek')} accept=".json" />
-        </div>
-        {!userSession && <LoginModal onLogin={handleLogin} rdcList={rdcList} />}
-        {isIdle && <IdleSplashScreen onContinue={handleContinueFromIdle} />}
-        {showCountdownModal && <RefreshCountdownModal countdown={countdown} onCancel={handleCancelRefresh} />}
-        
-        {userSession && (
-            <div class={sharedStyles['app-container']}>
-                <header class={sharedStyles.header}>
-                    <div class={sharedStyles['header-left']}>
-                        <h1>{t('header.title')}</h1>
-                        {userSession && (
-                            <div class={sharedStyles['session-info']}>
-                                <span>{t('header.session.mode')}: <strong>{userSession.mode.toUpperCase()}</strong></span>
-                                {userSession.rdc && <span>RDC: <strong>{userSession.rdc.id}</strong></span>}
-                            </div>
-                        )}
-                    </div>
-                    <div class={sharedStyles['header-right']}>
-                        <AutoRefreshControl config={autoRefreshConfig} onConfigChange={handleAutoRefreshConfigChange} timeToNextRefresh={timeToNextRefresh} />
-                        <LanguageSelector />
-                        <button class={sharedStyles['button-secondary']} onClick={handleLogout}>{t('header.session.logout')}</button>
-                    </div>
-                </header>
-                <aside class={sharedStyles.sidebar}>
-                    <nav>
-                        <ul>
-                            {navItems.map(item => {
-                                if (item.hqOnly && userSession.mode !== 'hq') return null;
-                                return (
-                                    <li key={item.view}>
-                                        <button 
-                                            class={`${sharedStyles['nav-button']} ${currentView === item.view ? sharedStyles.active : ''}`}
-                                            onClick={() => setCurrentView(item.view)}
-                                        >
-                                            {t(item.labelKey)}
-                                        </button>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </nav>
-                    <footer class={sharedStyles['sidebar-footer']}>
-                        {t('sidebar.footer.version', { version: '1.0.0' })}
-                    </footer>
-                </aside>
-                <main class={sharedStyles['main-content']}>
-                    {statusMessage && (
-                        <div class={`${sharedStyles['status-container']} ${sharedStyles[statusMessage.type]}`} role="alert">
-                            <p class={sharedStyles['status-text']}>{statusMessage.text}</p>
-                            {statusMessage.progress !== undefined && (
-                                <div class={sharedStyles['progress-bar-container']}><div class={sharedStyles['progress-bar']} style={{width: `${statusMessage.progress}%`}}></div></div>
-                            )}
-                            <button class={sharedStyles['close-button']} onClick={() => setStatusMessage(null)}>&times;</button>
-                        </div>
-                    )}
-                    {renderView()}
-                </main>
-            </div>
-        )}
-    </>
-  );
+  
+  try {
+    return (
+      <>
+          <div style={{display: 'none'}}>
+              <input type="file" ref={exclusionFileInputRef} onChange={handleImportExclusionList} accept=".txt" />
+              <input type="file" ref={shcExclusionFileInputRef} onChange={handleImportShcExclusionList} accept=".txt" />
+              <input type="file" ref={configImportInputRef} onChange={handleImportConfig} accept=".json" />
+              <input type="file" ref={shcBaselineInputRef} onChange={(e) => handleImportShcSnapshot(e, 'baseline')} accept=".json" />
+              <input type="file" ref={shcPreviousWeekInputRef} onChange={(e) => handleImportShcSnapshot(e, 'previousWeek')} accept=".json" />
+          </div>
+          {!userSession && <LoginModal onLogin={handleLogin} rdcList={rdcList} />}
+          {isIdle && <IdleSplashScreen onContinue={handleContinueFromIdle} />}
+          {showCountdownModal && <RefreshCountdownModal countdown={countdown} onCancel={handleCancelRefresh} />}
+          
+          {userSession && (
+              <div class={sharedStyles['app-container']}>
+                  <header class={sharedStyles.header}>
+                      <div class={sharedStyles['header-left']}>
+                          <h1>{t('header.title')}</h1>
+                          {userSession && (
+                              <div class={sharedStyles['session-info']}>
+                                  <span>{t('header.session.mode')}: <strong>{userSession.mode.toUpperCase()}</strong></span>
+                                  {userSession.rdc && <span>RDC: <strong>{userSession.rdc.id}</strong></span>}
+                              </div>
+                          )}
+                      </div>
+                      <div class={sharedStyles['header-right']}>
+                          <AutoRefreshControl config={autoRefreshConfig} onConfigChange={handleAutoRefreshConfigChange} timeToNextRefresh={timeToNextRefresh} />
+                          <LanguageSelector />
+                          <button class={sharedStyles['button-secondary']} onClick={handleLogout}>{t('header.session.logout')}</button>
+                      </div>
+                  </header>
+                  <aside class={sharedStyles.sidebar}>
+                      <nav>
+                          <ul>
+                              {navItems.map(item => {
+                                  if (item.hqOnly && userSession.mode !== 'hq') return null;
+                                  return (
+                                      <li key={item.view}>
+                                          <button 
+                                              class={`${sharedStyles['nav-button']} ${currentView === item.view ? sharedStyles.active : ''}`}
+                                              onClick={() => setCurrentView(item.view)}
+                                          >
+                                              {t(item.labelKey)}
+                                          </button>
+                                      </li>
+                                  );
+                              })}
+                          </ul>
+                      </nav>
+                      <footer class={sharedStyles['sidebar-footer']}>
+                          {t('sidebar.footer.version', { version: '1.0.0' })}
+                      </footer>
+                  </aside>
+                  <main class={sharedStyles['main-content']}>
+                      {statusMessage && (
+                          <div class={`${sharedStyles['status-container']} ${sharedStyles[statusMessage.type]}`} role="alert">
+                              <p class={sharedStyles['status-text']}>{statusMessage.text}</p>
+                              {statusMessage.progress !== undefined && (
+                                  <div class={sharedStyles['progress-bar-container']}><div class={sharedStyles['progress-bar']} style={{width: `${statusMessage.progress}%`}}></div></div>
+                              )}
+                              <button class={sharedStyles['close-button']} onClick={() => setStatusMessage(null)}>&times;</button>
+                          </div>
+                      )}
+                      {renderView()}
+                  </main>
+              </div>
+          )}
+      </>
+    );
+  } catch (error) {
+    console.error("A critical rendering error occurred in App component:", error);
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', backgroundColor: '#fbe9e7', border: '1px solid #ffab91', borderRadius: '8px', margin: '2rem' }}>
+        <h2 style={{color: '#d9534f'}}>Application Error</h2>
+        <p style={{color: '#333'}}>A critical error occurred while rendering the application.</p>
+        <p style={{color: '#666', marginTop: '1rem'}}>Please check the console for details and try refreshing the page.</p>
+      </div>
+    );
+  }
 };
 
 
@@ -923,5 +934,5 @@ render(
   <LanguageProvider>
     <App />
   </LanguageProvider>,
-  document.getElementById("app")!
+  document.getElementById("root")!
 );
