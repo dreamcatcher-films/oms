@@ -422,7 +422,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 const scoreText = `Current score: ${store.discrepancyCount}`;
                 const scoreTextWidth = docInstance.getTextWidth(scoreText);
                 docInstance.rect(pageWidth - margin - scoreTextWidth - 4, 85, scoreTextWidth + 8, 12, 'F');
-                docInstance.setTextColor(255, 255, 255);
+                docInstance.setTextColor(0, 0, 0);
                 docInstance.text(scoreText, pageWidth - margin, 95, { align: 'right' });
                 docInstance.setTextColor(0, 0, 0);
             }
