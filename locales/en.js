@@ -530,6 +530,7 @@ export default {
       "title": "SHC Compliance Report",
       "exportPdf": "Download Compliance PDF",
       "exportSnapshot": "Export Current Week Snapshot",
+      "printReport": "Print Report",
       "exportSnapshotSuccess": "Current week's data exported successfully.",
       "noData": "Cannot generate report. Please import baseline and previous week data in Settings.",
       "storeName": "Store Name",
