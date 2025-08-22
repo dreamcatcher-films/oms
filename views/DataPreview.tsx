@@ -174,8 +174,8 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
 
 
   useEffect(() => {
-    if (userSession?.mode === 'rdc') {
-      const rdcId = userSession.rdc!.id;
+    if (userSession?.mode === 'rdc' && userSession.rdc?.id) {
+      const rdcId = userSession.rdc.id;
       setProductFilters(prev => ({ ...prev, warehouseId: rdcId }));
       setAppliedProductFilters(prev => ({ ...prev, warehouseId: rdcId }));
       setGoodsReceiptsFilters(prev => ({ ...prev, warehouseId: rdcId }));
@@ -347,7 +347,7 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
   
   const clearFilters = () => {
     setCurrentPage(1);
-    const rdcFilter = userSession?.mode === 'rdc' ? { warehouseId: userSession.rdc!.id } : { warehouseId: '' };
+    const rdcFilter = userSession?.mode === 'rdc' && userSession.rdc ? { warehouseId: userSession.rdc.id } : { warehouseId: '' };
 
     if(activeTab === 'products') {
         setProductFilters({ ...rdcFilter, productId: '', status: '' });
