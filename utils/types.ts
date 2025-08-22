@@ -4,7 +4,7 @@ export type Status = {
   progress?: number;
 };
 
-export type View = 'import' | 'threat-report' | 'dashboard' | 'simulations' | 'data-preview' | 'settings' | 'status-report' | 'shc-report';
+export type View = 'import' | 'threat-report' | 'dashboard' | 'simulations' | 'data-preview' | 'settings' | 'status-report' | 'shc-report' | 'shc-compliance-report';
 
 export type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales';
 export type ShcDataType = 'shc' | 'planogram' | 'orgStructure' | 'categoryRelation';
@@ -338,3 +338,50 @@ export type ShcParsingWorkerMessage =
     | { type: 'complete', payload: ShcParsingWorkerCompletePayload }
     | { type: 'save_complete', payload: null }
     | { type: 'error', payload: string };
+
+// --- SHC Compliance Report Types ---
+export type ShcSnapshot = {
+    weekNumber: number;
+    year: number;
+    generatedDate: string; // ISO string
+    scores: Record<string, number>; // { [storeNumber]: score }
+};
+
+export type ShcComplianceStoreData = {
+    storeNumber: string;
+    storeName: string;
+    am: string;
+    hos: string;
+    current: number | null;
+    previous: number | null;
+    start: number | null;
+    change: number | null; // Percentage change from start
+};
+
+export type ShcComplianceManagerData = {
+    name: string;
+    stores: ShcComplianceStoreData[];
+    current: number;
+    previous: number;
+    start: number;
+    change: number | null;
+};
+
+export type ShcComplianceHosData = {
+    name: string;
+    managers: ShcComplianceManagerData[];
+    current: number;
+    previous: number;
+    start: number;
+    change: number | null;
+};
+
+export type ShcComplianceReportData = {
+    rdcId: string;
+    rdcName: string;
+    hosData: ShcComplianceHosData[];
+    snapshotInfo: {
+        baseline: ShcSnapshot | null;
+        previousWeek: ShcSnapshot | null;
+    };
+};
