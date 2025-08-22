@@ -732,7 +732,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const margin = 30;
         
         doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(12);
+        doc.setFontSize(10);
         doc.text("SHC Compliance Report", margin, 30);
 
         doc.setFont('Helvetica', 'normal');
@@ -741,43 +741,43 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
 
         const body: any[] = [];
         
-        const formatValue = (val: number | null, precision: number = 0) => val !== null ? val.toFixed(precision) : '-';
+        const formatValue = (val: number | null, precision: number = 0) => val !== null ? Math.round(val).toFixed(precision) : '-';
         const formatChange = (val: number | null) => val !== null ? `${(val * 100).toFixed(0)}%` : '-';
 
-        const rdcRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', fontSize: 7 };
+        const rdcRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', fontSize: 6 };
         body.push([
-            { content: `${rdcId} - ${rdcName} (RDC Average)`, styles: { ...rdcRowStyles, halign: 'left' } },
-            { content: formatValue(rdcSummary.current, 2), styles: { ...rdcRowStyles, halign: 'center' } },
-            { content: formatValue(rdcSummary.previous, 2), styles: { ...rdcRowStyles, halign: 'center' } },
-            { content: formatValue(rdcSummary.start, 2), styles: { ...rdcRowStyles, halign: 'center' } },
+            { content: `${rdcId} - ${rdcName} (RDC Average)`, colSpan: 1, styles: { ...rdcRowStyles, halign: 'left' } },
+            { content: formatValue(rdcSummary.current, 0), styles: { ...rdcRowStyles, halign: 'center' } },
+            { content: formatValue(rdcSummary.previous, 0), styles: { ...rdcRowStyles, halign: 'center' } },
+            { content: formatValue(rdcSummary.start, 0), styles: { ...rdcRowStyles, halign: 'center' } },
             { content: formatChange(rdcSummary.change), styles: { ...rdcRowStyles, halign: 'center' } },
         ]);
 
         hosData.forEach(hos => {
-            const hosRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#6c757d', textColor: '#fff', fontSize: 8 };
+            const hosRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#6c757d', textColor: '#fff', fontSize: 6 };
             body.push([
-                 { content: hos.name, styles: { ...hosRowStyles, halign: 'left' } },
-                 { content: formatValue(hos.current, 2), styles: { ...hosRowStyles, halign: 'center' } },
-                 { content: formatValue(hos.previous, 2), styles: { ...hosRowStyles, halign: 'center' } },
-                 { content: formatValue(hos.start, 2), styles: { ...hosRowStyles, halign: 'center' } },
+                 { content: hos.name, colSpan: 1, styles: { ...hosRowStyles, halign: 'left' } },
+                 { content: formatValue(hos.current, 0), styles: { ...hosRowStyles, halign: 'center' } },
+                 { content: formatValue(hos.previous, 0), styles: { ...hosRowStyles, halign: 'center' } },
+                 { content: formatValue(hos.start, 0), styles: { ...hosRowStyles, halign: 'center' } },
                  { content: formatChange(hos.change), styles: { ...hosRowStyles, halign: 'center' } }
             ]);
             hos.managers.forEach(am => {
-                const amRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#adb5bd', fontSize: 7 };
+                const amRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#adb5bd', fontSize: 6 };
                  body.push([
-                    { content: am.name, styles: { ...amRowStyles, halign: 'left' } },
-                    { content: formatValue(am.current, 2), styles: { ...amRowStyles, halign: 'center' } },
-                    { content: formatValue(am.previous, 2), styles: { ...amRowStyles, halign: 'center' } },
-                    { content: formatValue(am.start, 2), styles: { ...amRowStyles, halign: 'center' } },
+                    { content: am.name, colSpan: 1, styles: { ...amRowStyles, halign: 'left' } },
+                    { content: formatValue(am.current, 0), styles: { ...amRowStyles, halign: 'center' } },
+                    { content: formatValue(am.previous, 0), styles: { ...amRowStyles, halign: 'center' } },
+                    { content: formatValue(am.start, 0), styles: { ...amRowStyles, halign: 'center' } },
                     { content: formatChange(am.change), styles: { ...amRowStyles, halign: 'center' } }
                 ]);
                 am.stores.forEach(store => {
                     body.push([
                         `${store.storeNumber} - ${store.storeName}`,
-                        store.current,
-                        store.previous,
-                        store.start,
-                        store.change,
+                        formatValue(store.current),
+                        formatValue(store.previous),
+                        formatValue(store.start),
+                        '' // Empty for custom drawing
                     ]);
                 });
             });
@@ -799,7 +799,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         };
 
         autoTable(doc, {
-            head: [[t('shcReport.complianceReport.storeName'), t('shcReport.complianceReport.currently'), t('shcReport.complianceReport.weekMinus1'), t('shcReport.complianceReport.start'), t('shcReport.complianceReport.change')]],
+            head: [['Store Name', t('shcReport.complianceReport.currently'), t('shcReport.complianceReport.weekMinus1'), t('shcReport.complianceReport.start'), 'Change (curr/start)']],
             body: body,
             startY: 55,
             theme: 'grid',
@@ -814,12 +814,13 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 }
             },
             didDrawCell: (data) => {
+                if (data.row.section !== 'body') return;
                 const doc = data.doc;
                 const store = findStoreData(data.row);
                 const amForStore = store ? complianceReportData.hosData.flatMap(h => h.managers).find(am => am.name === store.am) : null;
 
-                const drawBarAndText = (value: number, maxVal: number, color: [number, number, number]) => {
-                     if (maxVal > 0) {
+                const drawBar = (value: number, maxVal: number, color: [number, number, number]) => {
+                     if (maxVal > 0 && value > 0) {
                         const width = (value / maxVal) * (data.cell.width - data.cell.padding('horizontal'));
                         const barHeight = data.cell.height * 0.8;
                         const barY = data.cell.y + (data.cell.height - barHeight) / 2;
@@ -828,57 +829,63 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                     }
                 };
                 
-                const drawTextWithBackground = (text: string, halign: 'left' | 'center' | 'right') => {
+                const drawTextWithBackground = (text: string, halign: 'left' | 'center' | 'right', cell: any) => {
                     const textWidth = doc.getTextWidth(text);
-                    const padding = 2;
-                    const boxHeight = data.cell.height - 2 * data.cell.padding('vertical');
-                    const boxY = data.cell.y + data.cell.padding('top');
+                    const paddingX = 4;
+                    const paddingY = 1;
+
+                    const boxWidth = textWidth + 2 * paddingX;
+                    const boxHeight = cell.height - 2 * cell.padding('vertical') - 2 * paddingY;
+                    const boxY = cell.y + cell.padding('top') + paddingY;
+
                     let boxX = 0;
                     let textX = 0;
 
                     if (halign === 'right') {
-                        boxX = data.cell.x + data.cell.width - data.cell.padding('right') - textWidth - padding;
-                        textX = data.cell.x + data.cell.width - data.cell.padding('right');
+                        textX = cell.x + cell.width - cell.padding('right');
+                        boxX = textX - textWidth - paddingX;
                     } else if (halign === 'center') {
-                        boxX = data.cell.x + (data.cell.width - textWidth) / 2 - padding;
-                        textX = data.cell.x + data.cell.width / 2;
+                        textX = cell.x + cell.width / 2;
+                        boxX = textX - textWidth / 2 - paddingX;
+                    } else { // left
+                        textX = cell.x + cell.padding('left');
+                        boxX = textX - paddingX;
                     }
                     
                     doc.setFillColor(255, 255, 255);
-                    doc.rect(boxX, boxY, textWidth + 2 * padding, boxHeight, 'F');
+                    doc.rect(boxX, boxY, boxWidth, boxHeight, 'F');
                     
                     doc.setFont('Courier', 'bold');
                     doc.setTextColor('#000000');
-                    doc.text(text, textX, data.cell.getTextPos().y, { align: halign, baseline: 'middle' });
+                    doc.text(text, textX, cell.getTextPos().y, { align: halign, baseline: 'middle' });
                 };
 
                 if (store && data.column.index >= 1 && data.column.index <= 3) {
                     const value = data.cell.raw;
-                    if (typeof value === 'number' && value > 0 && amForStore) {
+                    if (typeof value === 'string' && value !== '-' && amForStore) {
+                        const numValue = parseInt(value, 10);
                         const maxVal = [amForStore.maxScores.current, amForStore.maxScores.previous, amForStore.maxScores.start][data.column.index - 1];
-                        drawBarAndText(value, maxVal, [255, 193, 7]); // Amber
-                        drawTextWithBackground(formatValue(value, 0), 'right');
+                        drawBar(numValue, maxVal, [255, 193, 7]); // Amber
+                        drawTextWithBackground(value, 'right', data.cell);
                     }
                 }
             
                 if (store && data.column.index === 4) {
                     const change = store.change;
                     if (change !== null) {
-                        let color: [number, number, number] | undefined;
+                        let color: [number, number, number];
                         if (change < 0) color = [76, 175, 80];      // Green
                         else if (change <= 0.2) color = [255, 152, 0]; // Orange
                         else color = [244, 67, 54];                 // Red
                         
-                        if (color) {
-                            const maxChangeInGroup = Math.max(...amForStore?.stores.map(s => Math.abs(s.change ?? 0)) ?? [1]);
-                            const barWidth = (data.cell.width - data.cell.padding('horizontal')) * (Math.abs(change) / (maxChangeInGroup || 1));
-                            const barHeight = data.cell.height * 0.8;
-                            const barY = data.cell.y + (data.cell.height - barHeight) / 2;
-                            const barX = data.cell.x + data.cell.padding('left');
-                            doc.setFillColor(color[0], color[1], color[2]);
-                            doc.rect(barX, barY, barWidth, barHeight, 'F');
-                            drawTextWithBackground(formatChange(change), 'center');
-                        }
+                        const maxChangeInGroup = Math.max(...(amForStore?.stores.map(s => Math.abs(s.change ?? 0)) ?? [1]));
+                        const barWidth = (data.cell.width - data.cell.padding('horizontal')) * (Math.abs(change) / (maxChangeInGroup || 1));
+                        const barHeight = data.cell.height * 0.8;
+                        const barY = data.cell.y + (data.cell.height - barHeight) / 2;
+                        const barX = data.cell.x + data.cell.padding('left');
+                        doc.setFillColor(color[0], color[1], color[2]);
+                        doc.rect(barX, barY, barWidth, barHeight, 'F');
+                        drawTextWithBackground(formatChange(change), 'center', data.cell);
                     }
                 }
             },
