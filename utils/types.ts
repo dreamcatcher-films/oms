@@ -398,4 +398,5 @@ export type ShcComplianceReportData = {
         previousWeek: ShcSnapshot | null;
     };
     rdcSummary: ShcComplianceReportSummary;
+    bestRdcChange?: number;
 };
