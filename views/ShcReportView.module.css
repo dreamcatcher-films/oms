@@ -535,3 +535,58 @@
     color: #8a6d3b;
     font-style: italic;
 }
+
+/* --- PRINT STYLES --- */
+.printable-area {
+    /* Hook for JS/CSS */
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    .printable-area,
+    .printable-area * {
+        visibility: visible;
+    }
+
+    /* Force printing of background colors and images */
+    .printable-area, .data-bar, .change-bar, .change-neutral, .change-negative, .excluded-compliance-row,
+    .level-0 > td, .level-1 > td, .level-2 > td {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .printable-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        padding: 20px !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    .results-header-actions {
+        display: none;
+    }
+
+    .compliance-table {
+        width: 100%;
+        font-size: 8pt;
+    }
+
+    .compliance-table thead {
+        display: table-header-group;
+    }
+
+    .compliance-table tr, .compliance-table tbody {
+        page-break-inside: avoid;
+    }
+
+    .compliance-table td, .compliance-table th {
+        padding: 4px;
+    }
+}
