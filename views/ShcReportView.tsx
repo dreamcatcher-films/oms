@@ -390,7 +390,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 docInstance.setFontSize(6);
                 docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
         
-                docInstance.setFontSize(10);
+                docInstance.setFontSize(8);
                 docInstance.text(`Target score: > 100`, pageWidth - margin, 80, { align: 'right' });
 
                 docInstance.setFont('ZillaSlabHighlight-Bold', 'normal');
@@ -415,7 +415,8 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                         styles: { 
                             font: 'Oswald-Bold',
                             fontStyle: 'normal',
-                            textColor: '#333', 
+                            textColor: [255, 255, 255], 
+                            fillColor: [0, 0, 0],
                             halign: 'left', 
                             fontSize: 7, 
                             cellPadding: 2 
@@ -438,7 +439,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         }, [] as any[][]);
     
         autoTable(doc, {
-            head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Diff', '✓.', 'Comments']],
+            head: [['Item Number', 'Item Name', 'Plan SHC', 'Store SHC', 'Diff', 'V', 'Comments']],
             body: mainTableBody,
             theme: 'grid',
             startY: 110,
