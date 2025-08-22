@@ -1194,19 +1194,23 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                        </tr>
                                        {am.stores.map(store => {
                                             const change = store.change;
+                                            const changeCellClass = change !== null
+                                                ? (change < 0 ? `${styles['data-bar']} ${styles['change-bar']}`
+                                                    : (change <= 0.2 ? styles['change-neutral'] : styles['change-negative']))
+                                                : '';
+                                            
+                                            const changeCellStyle: { [key: string]: string } = {};
+                                            if (change !== null && change < 0 && complianceReportData.bestRdcChange && complianceReportData.bestRdcChange < 0) {
+                                                changeCellStyle['--value'] = `${(change / complianceReportData.bestRdcChange) * 100}%`;
+                                            }
+
                                             return (
                                                <tr class={`${styles['level-3']} ${store.isExcluded ? styles['excluded-compliance-row'] : ''}`}>
                                                    <td style={{paddingLeft: '4rem'}}>{`${store.storeNumber} - ${store.storeName}`}</td>
-                                                   <td><div class={styles['data-bar']} style={{'--value': `${(store.current ?? 0) / am.maxScores.current * 100}%`}}></div>{store.current ?? '-'}</td>
-                                                   <td><div class={styles['data-bar']} style={{'--value': `${(store.previous ?? 0) / am.maxScores.previous * 100}%`}}></div>{store.previous ?? '-'}</td>
-                                                   <td><div class={styles['data-bar']} style={{'--value': `${(store.start ?? 0) / am.maxScores.start * 100}%`}}></div>{store.start ?? '-'}</td>
-                                                   <td class={change !== null && change >= 0 ? (change <= 0.2 ? styles['change-neutral'] : styles['change-negative']) : ''}>
-                                                        {change !== null && change < 0 && complianceReportData.bestRdcChange && complianceReportData.bestRdcChange < 0 && (
-                                                            <div 
-                                                                class={`${styles['data-bar']} ${styles['change-bar']}`} 
-                                                                style={{'--value': `${(change / complianceReportData.bestRdcChange) * 100}%`}}
-                                                            ></div>
-                                                        )}
+                                                   <td class={styles['data-bar']} style={{'--value': `${(store.current ?? 0) / am.maxScores.current * 100}%`}}>{store.current ?? '-'}</td>
+                                                   <td class={styles['data-bar']} style={{'--value': `${(store.previous ?? 0) / am.maxScores.previous * 100}%`}}>{store.previous ?? '-'}</td>
+                                                   <td class={styles['data-bar']} style={{'--value': `${(store.start ?? 0) / am.maxScores.start * 100}%`}}>{store.start ?? '-'}</td>
+                                                   <td class={changeCellClass} style={changeCellStyle}>
                                                         {change !== null ? `${(change * 100).toFixed(0)}%` : '-'}
                                                     </td>
                                                </tr>
