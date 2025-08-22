@@ -730,34 +730,15 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const { rdcSummary, hosData, rdcId, rdcName } = complianceReportData;
 
         const margin = 20;
-        let headerFont = 'Helvetica';
-        let bodyFont = 'Courier';
-
-        // Try to load and add custom fonts
-        try {
-            const alumniSansResponse = await fetch('/fonts/AlumniSansSC-SemiBold.ttf');
-            if (!alumniSansResponse.ok) throw new Error('AlumniSansSC-SemiBold.ttf not found');
-            const alumniSansFont = await alumniSansResponse.arrayBuffer();
-            doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', arrayBufferToBase64(alumniSansFont));
-            doc.addFont('AlumniSansSC-SemiBold.ttf', 'AlumniSansSC', 'normal');
-            headerFont = 'AlumniSansSC';
-
-            const sourceCodeProResponse = await fetch('/fonts/SourceCodePro-Light.ttf');
-            if (!sourceCodeProResponse.ok) throw new Error('SourceCodePro-Light.ttf not found');
-            const sourceCodeProFont = await sourceCodeProResponse.arrayBuffer();
-            doc.addFileToVFS('SourceCodePro-Light.ttf', arrayBufferToBase64(sourceCodeProFont));
-            doc.addFont('SourceCodePro-Light.ttf', 'SourceCodePro', 'normal');
-            bodyFont = 'SourceCodePro';
-
-        } catch (error) {
-            console.warn("Custom fonts could not be loaded. Falling back to standard fonts.", error);
-        }
+        const headerFont = 'Helvetica';
+        const bodyFont = 'Courier';
         
-        doc.setFont(headerFont, 'normal');
-        doc.setFontSize(16);
+        doc.setFont(headerFont, 'bold');
+        doc.setFontSize(14);
         doc.text("SHC Compliance Report", margin, 30);
 
-        doc.setFontSize(12);
+        doc.setFont(headerFont, 'normal');
+        doc.setFontSize(10);
         doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 45);
 
         const body: any[] = [];
@@ -766,7 +747,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const formatChange = (val: number | null) => val !== null ? `${(val * 100).toFixed(0)}%` : '-';
 
         // RDC Summary Row
-        const rdcRowStyles = { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff', halign: 'center' };
+        const rdcRowStyles = { font: headerFont, fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', halign: 'center', fontSize: 10 };
         body.push([
             { content: `${rdcId} - ${rdcName} (RDC Average)`, colSpan: 1, styles: { ...rdcRowStyles, halign: 'left' } },
             { content: formatValue(rdcSummary.current), styles: rdcRowStyles },
@@ -776,9 +757,9 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         ]);
 
         hosData.forEach(hos => {
-            body.push([{ content: hos.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'normal', fillColor: '#6c757d', textColor: '#fff', fontSize: 14 } }]);
+            body.push([{ content: hos.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'bold', fillColor: '#6c757d', textColor: '#fff', fontSize: 12 } }]);
             hos.managers.forEach(am => {
-                body.push([{ content: am.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'normal', fillColor: '#adb5bd', fontSize: 14 } }]);
+                body.push([{ content: am.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'bold', fillColor: '#adb5bd', fontSize: 12 } }]);
                 am.stores.forEach(store => {
                     body.push([
                         `${store.storeNumber} - ${store.storeName}`,
@@ -807,11 +788,11 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         };
 
         autoTable(doc, {
-            head: [['Store / AM / HoS', 'Currently', 'Week -1', 'Start', 'Change']],
+            head: [[t('shcReport.complianceReport.storeName'), t('shcReport.complianceReport.currently'), t('shcReport.complianceReport.weekMinus1'), t('shcReport.complianceReport.start'), t('shcReport.complianceReport.change')]],
             body: body,
             startY: 60,
             theme: 'grid',
-            headStyles: { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff', fontSize: 14, halign: 'center' },
+            headStyles: { font: headerFont, fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', fontSize: 10, halign: 'center' },
             styles: { font: bodyFont, valign: 'middle', halign: 'right', fontSize: 7 },
             columnStyles: { 0: { halign: 'left' } },
             willDrawCell: (data) => {
@@ -861,7 +842,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 
                 // --- 2. Redraw Text on Top ---
                 const styles = data.cell.styles;
-                doc.setFont(styles.font, 'normal'); // Use 'normal' as font file defines weight
+                doc.setFont(styles.font, styles.fontStyle);
                 doc.setFontSize(styles.fontSize);
                 
                 if (store && data.column.index === 4 && store.change !== null) {
