@@ -486,27 +486,18 @@
     text-align: center;
 }
 .compliance-table td {
-    position: relative;
     text-align: center;
 }
 .compliance-table td:first-child {
     text-align: left;
 }
-.compliance-table .data-bar {
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 100%;
-    background-color: rgba(255, 193, 7, 0.3); /* Amber with alpha */
-    z-index: 0;
-    width: calc(var(--value, 0));
+.compliance-table td.data-bar {
+    background-repeat: no-repeat;
+    background-size: var(--value, 0%) 100%;
+    background-image: linear-gradient(to right, rgba(255, 193, 7, 0.3), rgba(255, 193, 7, 0.3));
 }
-.compliance-table .change-bar {
-    background-color: rgba(76, 175, 80, 0.5); /* Green with alpha */
-}
-.compliance-table td {
-    position: relative;
-    z-index: 1;
+.compliance-table td.change-bar {
+    background-image: linear-gradient(to right, rgba(76, 175, 80, 0.5), rgba(76, 175, 80, 0.5));
 }
 .compliance-table .level-0 > td {
     background-color: #343a40; /* Darker Gray for RDC */
