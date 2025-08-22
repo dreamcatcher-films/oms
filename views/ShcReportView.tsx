@@ -170,6 +170,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
     const [storeCounts, setStoreCounts] = useState<{ shcStoreCount: number, orgStoreCount: number } | null>(null);
 
     const [selectedRdc, setSelectedRdc] = useState<string>('');
+    const [storeNameMap, setStoreNameMap] = useState<Map<string, string>>(new Map());
     
     // State for Compliance Report
     const [complianceReportData, setComplianceReportData] = useState<ShcComplianceReportData | null>(null);
@@ -177,6 +178,15 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
 
 
     const canRunAnalysis = counts.shc > 0 && counts.planogram > 0 && counts.orgStructure > 0 && counts.categoryRelation > 0 && config !== null && selectedRdc !== '';
+
+    useEffect(() => {
+        (async () => {
+            if (counts.orgStructure > 0) {
+                const orgData = await getAllOrgStructureData();
+                setStoreNameMap(new Map(orgData.map(o => [o.storeNumber, o.storeName])));
+            }
+        })();
+    }, [counts.orgStructure]);
 
     useEffect(() => {
         workerRef.current = new Worker(new URL('../shc.worker.ts', import.meta.url), { type: 'module' });
@@ -571,13 +581,10 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         setIsLoading(true);
         setIsComplianceDataReady(false);
 
-        const [baselineData, previousWeekData, orgData] = await Promise.all([
+        const [baselineData, previousWeekData] = await Promise.all([
             loadShcBaselineData(),
             loadShcPreviousWeekData(),
-            getAllOrgStructureData(),
         ]);
-
-        const storeNameMap = new Map(orgData.map(o => [o.storeNumber, o.storeName]));
 
         if (!baselineData || !previousWeekData) {
             setIsComplianceDataReady(false);
