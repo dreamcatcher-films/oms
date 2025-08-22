@@ -754,11 +754,11 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         }
         
         doc.setFont(headerFont, 'normal');
-        doc.setFontSize(16);
-        doc.text("SHC Compliance Report", margin, 30);
+        doc.setFontSize(20);
+        doc.text("SHC Compliance Report", margin, 10);
 
-        doc.setFontSize(10);
-        doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 42);
+        doc.setFontSize(12);
+        doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 10);
 
         const body: any[] = [];
         
