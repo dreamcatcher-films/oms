@@ -37,7 +37,9 @@ import {
   DBStatus,
   saveShcBaselineData,
   saveShcPreviousWeekData,
-  Product
+  Product,
+  GoodsReceipt,
+  OpenOrder
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
@@ -210,7 +212,7 @@ const App = () => {
   }, [t]);
 
   // --- File Processing Logic ---
-  const processFile = useCallback(async <T extends Product | Sale>(
+  const processFile = useCallback(async <T extends Product | Sale | GoodsReceipt | OpenOrder>(
     file: File,
     dataType: DataType,
     rowMapper: (row: any) => T | null,
