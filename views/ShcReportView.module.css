@@ -321,6 +321,15 @@
     color: var(--text-light-color);
 }
 
+.section-separator-row > td {
+    background-color: #e9ecef;
+    font-weight: bold;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    font-size: 0.9em;
+    color: var(--text-light-color);
+}
+
 /* Store Exclusion Styles */
 .name-cell {
     display: flex;
