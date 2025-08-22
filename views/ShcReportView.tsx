@@ -3,6 +3,7 @@ import { VNode } from 'preact';
 import { useTranslation } from '../i18n';
 import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup, RDC, ShcStoreResult } from '../utils/types';
 import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport } from '../db';
+import * as fonts from '../utils/fonts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import styles from './ShcReportView.module.css';
@@ -323,6 +324,19 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
 
     const handleExportStorePdf = (store: ShcStoreResult) => {
         const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+
+        // Add fonts to VFS
+        doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', fonts.alumniSansSCSemiBold);
+        doc.addFileToVFS('ZillaSlabHighlight-Bold.ttf', fonts.zillaSlabHighlightBold);
+        doc.addFileToVFS('RobotoMono-Light.ttf', fonts.robotoMonoLight);
+        doc.addFileToVFS('Oswald-Bold.ttf', fonts.oswaldBold);
+        
+        // Add fonts to jsPDF
+        doc.addFont('AlumniSansSC-SemiBold.ttf', 'AlumniSansSC-SemiBold', 'normal');
+        doc.addFont('ZillaSlabHighlight-Bold.ttf', 'ZillaSlabHighlight-Bold', 'normal');
+        doc.addFont('RobotoMono-Light.ttf', 'RobotoMono-Light', 'normal');
+        doc.addFont('Oswald-Bold.ttf', 'Oswald-Bold', 'normal');
+
         const now = new Date();
         const year = now.getFullYear().toString().slice(-2);
         const week = getWeekNumber(now);
@@ -334,25 +348,24 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const margin = 40;
     
         const addPageHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
-            // Header (only on first page)
             if (pageNumber === 1) {
+                docInstance.setFont('AlumniSansSC-SemiBold', 'normal');
                 docInstance.setFontSize(14);
-                docInstance.setFont('helvetica', 'bold');
                 docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', pageWidth / 2, 40, { align: 'center' });
         
+                docInstance.setFont('RobotoMono-Light', 'normal');
                 docInstance.setFontSize(8);
-                docInstance.setFont('helvetica', 'normal');
                 docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
         
                 docInstance.setFontSize(10);
-                docInstance.setFont('helvetica', 'bold');
                 docInstance.text(`Target score: less than 100`, pageWidth - margin, 80, { align: 'right' });
+
+                docInstance.setFont('ZillaSlabHighlight-Bold', 'normal');
                 docInstance.text(`Current score: ${store.discrepancyCount}`, pageWidth - margin, 95, { align: 'right' });
             }
 
-            // Footer (on all pages)
+            docInstance.setFont('RobotoMono-Light', 'normal');
             docInstance.setFontSize(8);
-            docInstance.setFont('helvetica', 'normal');
             docInstance.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, pageHeight - 30, { align: 'center' });
             docInstance.text(`RDC: ${rdc?.id || ''} ${rdc?.name || ''}   Store: ${store.storeNumber}`, pageWidth - margin, pageHeight - 20, { align: 'right' });
         };
@@ -364,10 +377,11 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             if (settingChanged) {
                 acc.push([
                     { 
-                        content: `${item.generalStoreArea} - ${item.settingSpecificallyFor} - ${item.settingWidth}`, 
+                        content: `${item.generalStoreArea} - ${item.settingSpecificallyFor} - ${item.settingWidth}`.toUpperCase(),
                         colSpan: 7, 
                         styles: { 
-                            fontStyle: 'bold', 
+                            font: 'Oswald-Bold',
+                            fontStyle: 'normal',
                             textColor: '#333', 
                             halign: 'left', 
                             fontSize: 7, 
@@ -382,7 +396,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 item.articleName,
                 item.planShc,
                 item.storeShc,
-                { content: item.diff, styles: { fontStyle: 'bold' } },
+                { content: item.diff.toString(), styles: { fontStyle: 'bold' } },
                 '',
                 ''
             ]);
@@ -395,8 +409,8 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             body: mainTableBody,
             theme: 'grid',
             startY: 110,
-            styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
-            headStyles: { fillColor: '#e0e0e0', textColor: '#333', fontStyle: 'bold', minCellHeight: 20, valign: 'middle' },
+            styles: { font: 'RobotoMono-Light', fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
+            headStyles: { font: 'RobotoMono-Light', fontStyle: 'bold', fillColor: '#e0e0e0', textColor: '#333', minCellHeight: 20, valign: 'middle' },
             columnStyles: {
                 0: { cellWidth: 55 },
                 1: { cellWidth: 'auto' },
@@ -411,7 +425,6 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             }
         });
         
-        // Final pass to ensure all pages have headers/footers
         const totalPages = (doc as any).internal.getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) {
             doc.setPage(i);
