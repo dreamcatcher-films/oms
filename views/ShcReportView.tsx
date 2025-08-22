@@ -25,6 +25,22 @@ const getWeekNumber = (d: Date) => {
     return weekNo;
 };
 
+// Helper function to correctly convert ArrayBuffer to Base64 using FileReader
+const arrayBufferToBase64 = (buffer: ArrayBuffer): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result as string;
+            // The result is a data URL like "data:...;base64,....". We need to extract the base64 part.
+            const base64 = dataUrl.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(new Blob([buffer]));
+    });
+};
+
+
 export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusionList }: Props) => {
     const { t } = useTranslation();
     const workerRef = useRef<Worker | null>(null);
@@ -325,31 +341,29 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
     
         try {
-            // Helper to fetch font as an ArrayBuffer
-            const fetchFont = async (url: string) => {
+            const fetchFontAsBase64 = async (url: string) => {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`Failed to fetch font: ${url}`);
-                return response.arrayBuffer();
+                const buffer = await response.arrayBuffer();
+                return await arrayBufferToBase64(buffer);
             };
     
-            // Fetch and register all fonts concurrently
             const [
-                alumniSansData,
-                zillaSlabData,
-                sourceCodeProData,
-                oswaldData,
+                alumniSansBase64,
+                zillaSlabBase64,
+                sourceCodeProBase64,
+                oswaldBase64,
             ] = await Promise.all([
-                fetchFont('/fonts/AlumniSansSC-SemiBold.ttf'),
-                fetchFont('/fonts/ZillaSlabHighlight-Bold.ttf'),
-                fetchFont('/fonts/SourceCodePro-Light.ttf'),
-                fetchFont('/fonts/Oswald-Bold.ttf'),
+                fetchFontAsBase64('/fonts/AlumniSansSC-SemiBold.ttf'),
+                fetchFontAsBase64('/fonts/ZillaSlabHighlight-Bold.ttf'),
+                fetchFontAsBase64('/fonts/SourceCodePro-Light.ttf'),
+                fetchFontAsBase64('/fonts/Oswald-Bold.ttf'),
             ]);
     
-            // Register fonts with jsPDF using their binary data (as Uint8Array)
-            doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', new Uint8Array(alumniSansData) as any);
-            doc.addFileToVFS('ZillaSlabHighlight-Bold.ttf', new Uint8Array(zillaSlabData) as any);
-            doc.addFileToVFS('SourceCodePro-Light.ttf', new Uint8Array(sourceCodeProData) as any);
-            doc.addFileToVFS('Oswald-Bold.ttf', new Uint8Array(oswaldData) as any);
+            doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', alumniSansBase64);
+            doc.addFileToVFS('ZillaSlabHighlight-Bold.ttf', zillaSlabBase64);
+            doc.addFileToVFS('SourceCodePro-Light.ttf', sourceCodeProBase64);
+            doc.addFileToVFS('Oswald-Bold.ttf', oswaldBase64);
     
             doc.addFont('AlumniSansSC-SemiBold.ttf', 'AlumniSansSC-SemiBold', 'normal');
             doc.addFont('ZillaSlabHighlight-Bold.ttf', 'ZillaSlabHighlight-Bold', 'normal');
@@ -358,7 +372,6 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
     
         } catch (error) {
             console.error("Font loading failed, falling back to standard fonts.", error);
-            // In case of error, the PDF will be generated with jsPDF default fonts.
         }
 
         const now = new Date();
