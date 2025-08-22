@@ -48,7 +48,7 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
         }
 
         const enabledSections = new Set(sectionConfig.filter(s => s.enabled).map(s => s.id));
-        const sectionOrderMap = new Map(sectionConfig.map((s, i) => [s.id, i]));
+        const sectionOrderMap = new Map(sectionConfig.map(s => [s.id, s.order]));
         
         const filteredShcData = shcData.filter(row => row.itemStatus === '8' && row.shelfCapacityUnit === 'C');
         const filteredCategoryRelationData = categoryRelationData.filter(row => enabledSections.has(row.settingSpecificallyFor));
@@ -196,7 +196,13 @@ onmessage = async (e: MessageEvent<ShcWorkerRequest>) => {
                         store.items.sort((a: any, b: any) => {
                             const orderA = sectionOrderMap.get(a.settingSpecificallyFor) ?? Infinity;
                             const orderB = sectionOrderMap.get(b.settingSpecificallyFor) ?? Infinity;
-                            return orderA - orderB;
+                            if (orderA !== orderB) {
+                                return orderA - orderB;
+                            }
+                            if (a.articleNumber && b.articleNumber) {
+                                return a.articleNumber.localeCompare(b.articleNumber);
+                            }
+                            return 0;
                         });
                         store.discrepancyCount = store.items.length;
                         managerDiscrepancyCount += store.discrepancyCount;
