@@ -408,22 +408,14 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 docInstance.setFontSize(6);
                 docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
         
-                const rdcText = `RDC STORE`;
-                const rdcNameText = `${rdc?.name || ''} ${store.storeNumber}`;
-                const rdcTextWidth = docInstance.getTextWidth(rdcText);
-                const rdcNameTextWidth = docInstance.getTextWidth(rdcNameText);
-                const boxWidth = Math.max(rdcTextWidth, rdcNameTextWidth) + 20;
-                const boxHeight = 35;
-                const boxX = (pageWidth - boxWidth) / 2;
-                const boxY = 75;
-                docInstance.setDrawColor(0);
-                docInstance.rect(boxX, boxY, boxWidth, boxHeight);
                 docInstance.setFont('SourceCodePro-Light', 'normal');
-                docInstance.setFontSize(10);
-                docInstance.text(rdcText, pageWidth / 2, boxY + 14, { align: 'center' });
-                docInstance.text(rdcNameText, pageWidth / 2, boxY + 28, { align: 'center' });
-
                 docInstance.setFontSize(8);
+
+                // Centered RDC/Store info
+                const rdcStoreText = `RDC: ${rdc?.name || ''}   STORE: ${store.storeNumber}`;
+                docInstance.text(rdcStoreText, pageWidth / 2, 88, { align: 'center' });
+
+                // Right-aligned scores
                 docInstance.text(`Target score: > 100`, pageWidth - margin, 80, { align: 'right' });
 
                 docInstance.setFont('ZillaSlabHighlight-Bold', 'normal');
