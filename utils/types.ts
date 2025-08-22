@@ -356,6 +356,7 @@ export type ShcComplianceStoreData = {
     previous: number | null;
     start: number | null;
     change: number | null; // Percentage change from start
+    isExcluded: boolean;
 };
 
 export type ShcComplianceManagerData = {
@@ -365,6 +366,11 @@ export type ShcComplianceManagerData = {
     previous: number;
     start: number;
     change: number | null;
+    maxScores: {
+        current: number;
+        previous: number;
+        start: number;
+    };
 };
 
 export type ShcComplianceHosData = {
@@ -376,6 +382,13 @@ export type ShcComplianceHosData = {
     change: number | null;
 };
 
+export type ShcComplianceReportSummary = {
+    current: number;
+    previous: number;
+    start: number;
+    change: number | null;
+}
+
 export type ShcComplianceReportData = {
     rdcId: string;
     rdcName: string;
@@ -384,4 +397,5 @@ export type ShcComplianceReportData = {
         baseline: ShcSnapshot | null;
         previousWeek: ShcSnapshot | null;
     };
+    rdcSummary: ShcComplianceReportSummary;
 };
