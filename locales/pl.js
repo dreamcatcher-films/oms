@@ -198,110 +198,110 @@ export default {
       "warning": "Początkowy stan magazynowy nie mógł być w pełni dopasowany do przyjęć towaru. Symulacja zakłada, że ta niedopasowana część jest najstarszym towarem i może podlegać wcześniejszym odpisom.",
       "deliveryDate": "Data Dostawy",
       "bestBeforeDate": "Data Przydatności",
-      "daysForSale": "Dni na Sprzedaż",
-      "regulationBreached": "Przekroczone (T/N)",
+      "daysForSale": "Dni na sprzedaż",
+      "regulationBreached": "Naruszenie (T/N)",
       "quantity": "Ilość",
-      "unknownBatch": "Nieznana Partia",
+      "unknownBatch": "Nieznana partia",
       "legend": {
         "ald": "Ryzyko ALD",
-        "writeOff": "Zagrożenie Odpisem",
-        "nonCompliant": "Niezgodne Przyjęcie",
-        "manual": "Dostawa Ręczna"
+        "writeOff": "Ryzyko odpisu",
+        "nonCompliant": "Niezgodne przyjęcie",
+        "manual": "Dostawa ręczna"
       }
     },
     "log": {
       "title": "Dziennik Symulacji",
       "date": "Data",
-      "stockStart": "Stan Początkowy",
+      "stockStart": "Stan początkowy",
       "sales": "Sprzedaż",
       "receipts": "Przyjęcia",
       "writeOffs": "Odpisy",
       "ald": "ALD",
-      "stockEnd": "Stan Końcowy",
+      "stockEnd": "Stan końcowy",
       "notes": "Notatki"
     },
     "chart": {
       "title": "Prognoza Stanu Magazynowego (14 dni)"
     },
     "buttons": {
-        "add": "Dodaj",
-        "resetDefaults": "Resetuj",
-        "showMore": "Pokaż więcej",
-        "showLess": "Pokaż mniej",
-        "rerun": "Uruchom Ponownie",
-        "showChart": "Pokaż Wykres",
-        "hideChart": "Ukryj Wykres"
+      "add": "Dodaj",
+      "resetDefaults": "Resetuj",
+      "showMore": "Pokaż więcej",
+      "showLess": "Pokaż mniej",
+      "rerun": "Uruchom ponownie",
+      "showChart": "Pokaż wykres",
+      "hideChart": "Ukryj wykres"
     },
     "watchlist": {
-        "viewing": "Przeglądany artykuł {{current}} z {{total}}"
+      "viewing": "Przeglądanie pozycji {{current}} z {{total}}"
     }
   },
   "settings": {
     "title": "Ustawienia",
     "dataSources": {
         "title": "Źródła Danych",
-        "description": "Połącz swoje lokalne pliki z danymi, aby umożliwić ich szybkie ponowne ładowanie. Aplikacja zapamięta Twój wybór.",
+        "description": "Połącz swoje lokalne pliki danych, aby umożliwić szybkie przeładowanie. Aplikacja zapamięta Twój wybór.",
         "dataType": "Typ Danych",
         "linkedFile": "Połączony Plik",
         "actions": "Akcje",
         "notLinked": "Nie połączono",
         "linkFile": "Połącz Plik",
         "clearLink": "Usuń Połączenie",
-        "linkSuccess": "Plik połączono pomyślnie.",
+        "linkSuccess": "Plik połączony pomyślnie.",
         "linkError": "Błąd podczas łączenia pliku.",
         "permissionDenied": "Odmówiono uprawnień do odczytu pliku.",
         "permissionNeeded": "Nie udzielono uprawnień do odczytu pliku.",
         "reloadError": "Nie można odczytać pliku. Mógł zostać przeniesiony lub usunięty.",
-        "linkClearedSuccess": "Połączenie z plikiem usunięte.",
-        "linkClearedError": "Błąd podczas usuwania połączenia z plikiem.",
-        "clearLinkConfirm": "Czy na pewno chcesz usunąć to połączenie? Dane z bazy nie zostaną usunięte."
+        "linkClearedSuccess": "Połączenie pliku usunięte.",
+        "linkClearedError": "Błąd podczas usuwania połączenia pliku.",
+        "clearLinkConfirm": "Czy na pewno chcesz usunąć to połączenie? Dane bazowe nie zostaną usunięte."
     },
     "configManagement": {
         "title": "Zarządzanie Konfiguracją",
-        "description": "Eksportuj swoje ustawienia (jak lista RDC) do pliku lub importuj je na innym urządzeniu. Ta opcja nie obejmuje połączonych plików.",
+        "description": "Eksportuj swoje ustawienia (takie jak lista RDC) do pliku lub importuj je na innym urządzeniu. Nie obejmuje to połączonych plików.",
         "exportButton": "Eksportuj Konfigurację",
         "importButton": "Importuj Konfigurację",
         "exportSuccess": "Konfiguracja wyeksportowana pomyślnie.",
         "importSuccess": "Konfiguracja zaimportowana pomyślnie.",
-        "importError": "Błąd podczas importu pliku konfiguracyjnego."
+        "importError": "Błąd podczas importowania pliku konfiguracyjnego."
     },
     "rdcManagement": {
-        "title": "Zarządzanie Magazynami (RDC)",
+        "title": "Zarządzanie RDC",
         "description": "Dodawaj lub usuwaj Regionalne Centra Dystrybucyjne (RDC) z listy dostępnej przy logowaniu.",
-        "rdcId": "ID Magazynu",
-        "rdcName": "Nazwa Magazynu",
-        "addRdc": "Dodaj Magazyn",
+        "rdcId": "ID RDC",
+        "rdcName": "Nazwa RDC",
+        "addRdc": "Dodaj RDC",
         "deleteRdc": "Usuń",
-        "addSuccess": "Magazyn dodany pomyślnie.",
-        "deleteSuccess": "Magazyn usunięty pomyślnie.",
-        "deleteConfirm": "Czy na pewno chcesz usunąć ten magazyn?"
+        "addSuccess": "RDC dodane pomyślnie.",
+        "deleteSuccess": "RDC usunięte pomyślnie.",
+        "deleteConfirm": "Czy na pewno chcesz usunąć to RDC?"
     },
     "exclusionList": {
       "title": "Zarządzanie Listą Wykluczeń",
-      "description": "Zaimportuj listę numerów produktów, które mają być wykluczone z obliczeń 'Podejrzanych statusów' w Raporcie Statusów. Produkty te nadal będą widoczne w raporcie, ale zostaną podświetlone.",
+      "description": "Importuj listę numerów produktów, które mają być wykluczone z obliczeń 'Podejrzanych Statusów' w Raporcie Statusów. Produkty te będą nadal widoczne w raporcie, ale zostaną podświetlone.",
       "importButton": "Importuj listę (.txt)",
       "clearButton": "Wyczyść listę",
       "currentCount": "Na liście wykluczeń znajduje się {{count}} pozycji.",
       "importSuccess": "Lista wykluczeń zaimportowana pomyślnie. Załadowano {{count}} pozycji.",
-      "importError": "Błąd podczas importu listy wykluczeń.",
+      "importError": "Błąd podczas importowania listy wykluczeń.",
       "clearSuccess": "Lista wykluczeń została wyczyszczona.",
       "clearConfirm": "Czy na pewno chcesz wyczyścić całą listę wykluczeń?"
     },
     "shcExclusionList": {
-      "title": "Wykluczenia Sklepów w Raporcie SHC",
-      "description": "Importuj lub eksportuj listę numerów sklepów, aby tymczasowo wykluczyć je z obliczeń w raporcie SHC. Wykluczone sklepy będą podświetlone i nie będą wliczane do podsumowań.",
+      "title": "Wykluczenia Sklepów SHC",
+      "description": "Importuj lub eksportuj listę numerów sklepów, aby tymczasowo wykluczyć je z obliczeń raportu SHC. Wykluczone sklepy zostaną podświetlone i nie będą wliczane do sum.",
       "importButton": "Importuj Listę (.txt)",
       "exportButton": "Eksportuj Listę",
       "clearButton": "Wyczyść Listę",
       "currentCount": "Na liście wykluczeń znajduje się {{count}} sklepów.",
       "importSuccess": "Lista wykluczeń SHC zaimportowana. Załadowano {{count}} sklepów.",
-      "importError": "Błąd podczas importu listy wykluczeń SHC.",
+      "importError": "Błąd podczas importowania listy wykluczeń SHC.",
       "clearSuccess": "Lista wykluczeń SHC została wyczyszczona.",
       "clearConfirm": "Czy na pewno chcesz wyczyścić całą listę wykluczeń SHC?"
     },
     "watchlists": {
-        "title": "Listy Obserwowane",
-        "description": "Twórz i zarządzaj listami produktów do monitorowania. (Funkcja w budowie)"
+        "title": "Listy Obserwacyjne",
+        "description": "Twórz i zarządzaj listami produktów do monitorowania. (Funkcjonalność w budowie)"
     }
   },
   "loginModal": {
@@ -315,13 +315,13 @@ export default {
   },
   "modals": {
     "refresh": {
-        "title": "Automatyczne odświeżanie danych",
+        "title": "Automatyczne Odświeżanie Danych",
         "message": "Dane zostaną ponownie załadowane za {{seconds}} sekund.",
-        "cancel": "Anuluj odświeżanie"
+        "cancel": "Anuluj Odświeżanie"
     },
     "idle": {
         "title": "Sesja wygasła z powodu braku aktywności",
-        "continue": "Kontynuuj sesję"
+        "continue": "Kontynuuj Sesję"
     }
   },
   "common": {
@@ -329,18 +329,18 @@ export default {
     "noShort": "N"
   },
   "dataType": {
-    "products": "Dane podstawowe",
-    "goodsReceipts": "Przyjęcia towaru",
-    "openOrders": "Otwarte zamówienia",
-    "sales": "Dane o odsprzedaży",
+    "products": "Dane Podstawowe",
+    "goodsReceipts": "Przyjęcia Towaru",
+    "openOrders": "Otwarte Zamówienia",
+    "sales": "Dane Sprzedaży",
     "shc": "Dane ze Sklepów (SHC)",
     "planogram": "Planogram",
     "orgStructure": "Struktura Org.",
-    "categoryRelation": "Relacja Kategoria-Sklep"
+    "categoryRelation": "Relacje Kategorii"
   },
   "threatReport": {
     "title": "Raport Zagrożeń",
-    "description": "Uruchom symulację zbiorczą dla produktów na podstawie wybranych kryteriów, aby zidentyfikować pozycje o najwyższym ryzyku odpisu.",
+    "description": "Uruchom masową symulację dla produktów na podstawie wybranych kryteriów, aby zidentyfikować pozycje o najwyższym ryzyku odpisu.",
     "controls": {
       "title": "Parametry Raportu",
       "warehouses": "Magazyny",
@@ -356,12 +356,12 @@ export default {
       "title": "Wyniki Raportu",
       "noResults": "Żadne produkty nie pasują do wybranych kryteriów lub nie znaleziono żadnych zagrożeń.",
       "goToSimulation": "Analizuj",
-      "analyzeSelected": "Analizuj zaznaczone ({{count}})",
+      "analyzeSelected": "Analizuj Zaznaczone ({{count}})",
       "warehouseId": "Magazyn",
       "productId": "Artykuł",
-      "caseSize": "Szt. w kart.",
-      "palletFactor": "Kart. na pal.",
-      "daysOfStock": "Dni Zapasu (RW)",
+      "caseSize": "Rozm. op.",
+      "palletFactor": "Wsp. pal.",
+      "daysOfStock": "Dni Zapasu",
       "aldValue": "Wartość ALD",
       "avgDailySales": "Śr. Sprzedaż",
       "nonCompliantReceipts": "Niezgodne Przyj.",
@@ -370,7 +370,7 @@ export default {
   },
   "statusReport": {
     "title": "Raport Spójności Statusów",
-    "description": "Uruchom raport, aby znaleźć produkty z niespójnymi statusami w różnych magazynach. Raport pokaże tylko produkty, w których wykryto niezgodność statusu.",
+    "description": "Uruchom raport, aby znaleźć produkty o niespójnych statusach w różnych magazynach. Raport pokaże tylko produkty, w których wykryto niespójność statusu.",
     "runReport": "Uruchom Raport",
     "runningTitle": "Generowanie Raportu...",
     "runningDescription": "Analizowanie {{processed}} z {{total}} grup produktów.",
@@ -378,26 +378,26 @@ export default {
       "title": "Filtry",
       "productId": "Nr artykułu",
       "dominantStatus": "Status",
-      "excludeNoStock": "Wyklucz art. bez stanu mag.",
-      "showOnlyUndetermined": "Pokaż tylko art. bez statusu dominującego",
-      "includeConsistent": "Pokaż także spójne pozycje",
-      "excludeWhenDominantIs": "Wyklucz, gdy status dominujący to:",
-      "apply": "Filtruj",
-      "clear": "Wyczyść filtry",
+      "excludeNoStock": "Wyklucz pozycje bez stanu magazynowego",
+      "showOnlyUndetermined": "Pokaż tylko pozycje bez dominującego statusu",
+      "includeConsistent": "Pokaż również spójne pozycje",
+      "excludeWhenDominantIs": "Wyklucz, gdy dominujący status to:",
+      "apply": "Zastosuj Filtry",
+      "clear": "Wyczyść Filtry",
       "all": "Wszystkie",
-      "pastedInfo": "Filtrowanie wg {{count}} wklejonych pozycji"
+      "pastedInfo": "Filtrowanie według {{count}} wklejonych pozycji"
     },
     "exclusionInfo": {
-      "info": "Wykluczone pozycje wgrano {{date}} o {{time}}. Załadowano pozycji: {{count}}",
-      "updateButton": "Zaktualizuj listę"
+      "info": "Wykluczone pozycje wgrane {{date}} o {{time}}. Załadowano pozycji: {{count}}",
+      "updateButton": "Aktualizuj listę"
     },
     "summary": {
       "title": "Podsumowanie Raportu",
       "warehouse": "Magazyn",
-      "itemsChecked": "Sprawdzone art.",
-      "suspiciousStatuses": "Podejrzane statusy",
+      "itemsChecked": "Sprawdzone Pozycje",
+      "suspiciousStatuses": "Podejrzane Statusy",
       "excluded": "Wykluczone",
-      "status8Items": "Artykuły ze stat. 8"
+      "status8Items": "Pozycje ze statusem 8"
     },
     "statusTypes": {
       "dominant": "Dominujący",
@@ -406,21 +406,21 @@ export default {
     },
     "results": {
       "title": "Niespójne Produkty",
-      "titleWithConsistent": "Wyniki ({{count}}) z uwzgl. Spójnych",
-      "noResults": "Nie znaleziono produktów z niespójnymi statusami.",
+      "titleWithConsistent": "Wyniki ({{count}}) wraz ze spójnymi",
+      "noResults": "Nie znaleziono produktów o niespójnych statusach.",
       "productId": "Nr artykułu",
-      "productName": "Nazwa produktu",
-      "caseSize": "Szt. w kart.",
+      "productName": "Nazwa Produktu",
+      "caseSize": "Rozmiar Opakowania",
       "dominantStatus": "Ustalony Status",
       "exportPdf": "Eksportuj do PDF"
     },
     "tooltips": {
-      "excluded": "Wykluczony z analizy"
+      "excluded": "Wykluczone z analizy"
     },
     "pdf": {
-      "summaryTitle": "Podsumowanie dla magazynów",
+      "summaryTitle": "Podsumowanie Magazynów",
       "inconsistentProductsTitle": "Niespójne Produkty",
-      "groupedByStatus": "Grupowane wg podejrzanego statusu: {{status}}",
+      "groupedByStatus": "Grupowane według podejrzanego statusu: {{status}}",
       "exportOptionsTitle": "Opcje Eksportu",
       "selectWarehouse": "Wybierz magazyn do eksportu",
       "allWarehouses": "Wszystkie magazyny",
@@ -432,14 +432,14 @@ export default {
       "generatedOn": "Wygenerowano",
       "activeFilters": "Aktywne Filtry",
       "format": "Format Raportu",
-      "summaryFormat": "Podsumowanie Szczegółowe (wg Magazynu)",
-      "comparativeFormat": "Tabela Porównawcza (jak na Ekranie)",
+      "summaryFormat": "Szczegółowe Podsumowanie (wg Magazynu)",
+      "comparativeFormat": "Tabela Porównawcza (Jak na ekranie)",
       "filterByStatus": "Filtruj wg Podejrzanego Statusu",
       "allStatuses": "Wszystkie Podejrzane Statusy"
     }
   },
   "shcReport": {
-    "description": "Uruchom analizę weryfikującą zgodność danych SHC w systemie z danymi w planogramach.",
+    "description": "Uruchom analizę, aby zweryfikować spójność danych SHC w systemie z danymi planogramu.",
     "status": {
       "readingFiles": "Wczytywanie plików..."
     },
@@ -447,37 +447,38 @@ export default {
       "allFilesRequired": "Wszystkie 4 zestawy danych muszą być zaimportowane i należy wybrać RDC, aby uruchomić analizę.",
       "fileReadError": "Wystąpił błąd podczas odczytu jednego z połączonych plików."
     },
-    "validation": {
-      "title": "Sprawdzenie Spójności Danych",
-      "message": "Znaleziono {{count}} sklepów w Strukturze Organizacyjnej, dla których brakuje danych w dzisiejszym pliku SHC.",
+     "validation": {
+      "title": "Sprawdzanie Spójności Danych",
+      "message": "{{count}} sklepów znaleziono w Strukturze Organizacyjnej, ale brakuje ich w dzisiejszych danych SHC.",
       "listHeader": "Brakujące sklepy:",
-      "continue": "Kontynuuj mimo wszystko",
+      "continue": "Kontynuuj Mimo To",
       "cancel": "Anuluj"
     },
     "results": {
       "title": "Wyniki Analizy",
-      "placeholder": "Uruchom analizę, aby zobaczyć tutaj wyniki.",
-      "mismatchesTitle": "Niedopasowania Danych",
-      "storeCountSummary": "Dostępne sklepy w danych SHC: {{shcStoreCount}} / Wszystkie sklepy w RDC: {{orgStoreCount}}"
+      "placeholder": "Uruchom analizę, aby zobaczyć wyniki.",
+      "mismatchesTitle": "Niezgodności Danych",
+      "storeCountSummary": "Dostępne sklepy w danych SHC: {{shcStoreCount}} / Całkowita liczba sklepów w RDC: {{orgStoreCount}}",
+      "downloadAllPdf": "Pobierz pliki PDF dla wszystkich dostępnych sklepów"
     },
     "config": {
       "title": "Konfiguracja Sekcji",
-      "description": "Wybierz i uporządkuj sekcje, które mają być uwzględnione w analizie. Przeciągnij i upuść, aby zmienić kolejność.",
+      "description": "Wybierz i zmień kolejność sekcji, które mają być uwzględnione w analizie. Przeciągnij i upuść, aby zmienić kolejność.",
       "save": "Zapisz Konfigurację",
       "import": "Importuj",
       "export": "Eksportuj",
       "importSuccess": "Konfiguracja sekcji zaimportowana pomyślnie.",
       "exportSuccess": "Konfiguracja sekcji wyeksportowana pomyślnie.",
-      "importError": "Błąd podczas importu konfiguracji sekcji.",
+      "importError": "Błąd podczas importowania konfiguracji sekcji.",
       "saved": "Konfiguracja zapisana.",
       "unsaved": "Masz niezapisane zmiany.",
       "addNew": "Dodaj wszystkie nowe sekcje",
       "removeStale": "Usuń wszystkie nieaktualne sekcje",
       "new": "Nowa",
-      "stale": "Nieakt.",
+      "stale": "Nieaktualna",
       "selectAll": "Zaznacz wszystko",
       "deselectAll": "Odznacz wszystko",
-      "activeSectionsSummary": "{{active}} aktywne z {{total}} dostępnych",
+      "activeSectionsSummary": "{{active}} aktywnych z {{total}} dostępnych",
       "refreshOrder": "Odśwież kolejność w sekcji"
     },
     "rdcSelector": {
@@ -486,39 +487,39 @@ export default {
     },
     "table": {
       "warehouse": "Magazyn",
-      "hos": "Head of Sales",
-      "am": "Area Manager",
+      "hos": "Kierownik Sprzedaży",
+      "am": "Kierownik Rejonu",
       "store": "Sklep",
-      "discrepancies": "Niezgodności",
-      "avgPerStore": "Śr. na sklep",
+      "discrepancies": "Rozbieżności",
+      "avgPerStore": "Śr. na Sklep",
       "itemNumber": "Nr artykułu",
       "itemName": "Nazwa artykułu",
-      "planShc": "SHC Planogram",
-      "storeShc": "SHC Sklep",
+      "planShc": "Plan SHC",
+      "storeShc": "Sklep SHC",
       "diff": "Różnica",
       "section": "Sekcja",
       "itemGroup": "Grupa towarowa",
       "sectionWidth": "Szerokość ustawienia",
-      "excluded": "(Wykluczony z podsumowań)",
+      "excluded": "(Wyłączone z sum)",
       "tooltip": {
-        "toggleExclusion": "Przełącz Wykluczenie",
-        "exportPdf": "Eksportuj Sklep do PDF"
+        "toggleExclusion": "Przełącz wykluczenie",
+        "exportPdf": "Eksportuj sklep do PDF"
       }
     }
   },
   "columns": {
     "product": {
       "warehouseId": "Magazyn",
-      "dispoGroup": "Grupa Dispo",
-      "itemGroup": "Grupa Tow.",
+      "dispoGroup": "Grupa Dyspo",
+      "itemGroup": "Grupa Art.",
       "orderArea": "Obszar Zam.",
-      "productId": "Nr art. krótki",
-      "fullProductId": "Nr art. pełny",
+      "productId": "Nr art. (Krótki)",
+      "fullProductId": "Nr art. (Pełny)",
       "name": "Nazwa",
-      "caseSize": "Szt. w kart.",
-      "cartonsPerLayer": "Kart. na war.",
+      "caseSize": "Szt./Op.",
+      "cartonsPerLayer": "Op./Warstwa",
       "duessFactor": "DD",
-      "cartonsPerPallet": "Kart. na pal.",
+      "cartonsPerPallet": "Op./Paleta",
       "shelfLifeAtReceiving": "W-DATE dni",
       "shelfLifeAtStore": "S-DATE dni",
       "customerShelfLife": "C-DATE dni",
@@ -526,64 +527,64 @@ export default {
       "status": "Status",
       "itemLocked": "Zablokowany",
       "slotNr": "Slot",
-      "unprocessedDeliveryQty": "Nieroz. dost.",
+      "unprocessedDeliveryQty": "Nieprzetw. Dost.",
       "supplierId": "ID Dostawcy",
       "supplierName": "Nazwa Dostawcy",
-      "stockOnHand": "Stan mag.",
-      "storeAllocationToday": "Alok. dzisiaj",
-      "storeAllocationTotal": "Alok. łączna",
-      "promoDate": "Data promo",
-      "estimatedReceivings": "Szac. dostawy"
+      "stockOnHand": "Stan Magazynowy",
+      "storeAllocationToday": "Alok. Dziś",
+      "storeAllocationTotal": "Alok. Całkowita",
+      "promoDate": "Data Promocji",
+      "estimatedReceivings": "Szac. Przyjęcia"
     },
     "goodsReceipt": {
       "warehouseId": "Magazyn",
-      "productId": "Nr art. krótki",
-      "fullProductId": "Nr art. pełny",
+      "productId": "Nr art. (Krótki)",
+      "fullProductId": "Nr art. (Pełny)",
       "name": "Nazwa",
-      "deliveryUnit": "Jedn. dostawy",
+      "deliveryUnit": "Jedn. Dostawy",
       "deliveryQtyUom": "Ilość (J.m.)",
-      "caseSize": "Szt. w kart.",
-      "deliveryQtyPcs": "Ilość (szt.)",
-      "poNr": "Nr zamówienia",
-      "deliveryDate": "Data dostawy",
-      "bestBeforeDate": "Data przydatności",
+      "caseSize": "Szt./Op.",
+      "deliveryQtyPcs": "Ilość (Szt.)",
+      "poNr": "Nr Zamówienia",
+      "deliveryDate": "Data Dostawy",
+      "bestBeforeDate": "Data Przydatności",
       "supplierId": "ID Dostawcy",
       "supplierName": "Nazwa Dostawcy",
-      "bolNr": "BOL Nr",
-      "deliveryNote": "Nota dostawy",
-      "intSupplierNr": "Międz. ID Dostawcy",
-      "intItemNr": "Międz. nr art.",
-      "caseGtin": "GTIN kartonu",
-      "liaReference": "LIA Ref"
+      "bolNr": "Nr BOL",
+      "deliveryNote": "Dowód Dostawy",
+      "intSupplierNr": "Wew. Nr Dost.",
+      "intItemNr": "Wew. Nr Art.",
+      "caseGtin": "GTIN Opakowania",
+      "liaReference": "Ref. LIA"
     },
     "openOrder": {
       "warehouseId": "Magazyn",
-      "productId": "Nr art. krótki",
-      "fullProductId": "Nr art. pełny",
+      "productId": "Nr art. (Krótki)",
+      "fullProductId": "Nr art. (Pełny)",
       "name": "Nazwa",
-      "orderUnit": "Jedn. zamówienia",
+      "orderUnit": "Jedn. Zamówienia",
       "orderQtyUom": "Ilość (J.m.)",
-      "caseSize": "Szt. w kart.",
-      "orderQtyPcs": "Ilość (szt.)",
-      "poNr": "Nr zamówienia",
+      "caseSize": "Szt./Op.",
+      "orderQtyPcs": "Ilość (Szt.)",
+      "poNr": "Nr Zamówienia",
       "supplierId": "ID Dostawcy",
       "supplierName": "Nazwa Dostawcy",
-      "deliveryDate": "Plan. data dostawy",
-      "creationDate": "Data utworzenia",
-      "deliveryLeadTime": "Czas realizacji (dni)"
+      "deliveryDate": "Plan. Data Dost.",
+      "creationDate": "Data Utworzenia",
+      "deliveryLeadTime": "Czas Realizacji (dni)"
     },
     "sale": {
-      "resaleDate": "Data odsprzedaży",
+      "resaleDate": "Data Odsprzedaży",
       "warehouseId": "Magazyn",
       "productId": "Nr artykułu",
-      "productName": "Nazwa produktu",
-      "quantity": "Sprzedana ilość"
+      "productName": "Nazwa Produktu",
+      "quantity": "Sprzedana Ilość"
     },
     "shc": {
         "storeNumber": "Numer sklepu",
         "itemNumber": "Numer artykułu",
         "itemDescription": "Opis artykułu",
-        "piecesInBox": "Szt. w kartonie",
+        "piecesInBox": "Sztuki w opakowaniu",
         "itemStatus": "Status artykułu",
         "itemGroup": "Grupa towarowa",
         "shelfCapacity": "Pojemność półki (SHC)",
@@ -596,15 +597,15 @@ export default {
         "itemNumber": "Numer artykułu",
         "itemName": "Nazwa artykułu",
         "targetShc": "Docelowe SHC",
-        "facings": "Facingi",
+        "facings": "Liczba frontów",
         "depth": "Głębokość"
     },
     "orgStructure": {
         "storeNumber": "Numer sklepu",
         "storeName": "Nazwa sklepu",
         "warehouseId": "ID Magazynu",
-        "areaManager": "Area Manager",
-        "headOfSales": "Head of Sales"
+        "areaManager": "Kierownik Rejonu",
+        "headOfSales": "Kierownik Sprzedaży"
     },
     "categoryRelation": {
         "generalStoreArea": "Ogólny obszar sklepu",
