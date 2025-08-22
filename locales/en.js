@@ -458,7 +458,8 @@ export default {
       "title": "Analysis Results",
       "placeholder": "Run the analysis to see the results here.",
       "mismatchesTitle": "Data Mismatches",
-      "storeCountSummary": "Available stores in SHC Data: {{shcStoreCount}} / Total stores in RDC: {{orgStoreCount}}"
+      "storeCountSummary": "Available stores in SHC Data: {{shcStoreCount}} / Total stores in RDC: {{orgStoreCount}}",
+      "downloadAllPdf": "Download PDFs for available stores"
     },
     "config": {
       "title": "Section Configuration",
