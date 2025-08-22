@@ -391,10 +391,10 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
         
                 docInstance.setFontSize(10);
-                docInstance.text(`Target score: less than 100`, pageWidth - margin, 80, { align: 'right' });
+                docInstance.text(`Target score: > 100`, pageWidth - margin, 80, { align: 'right' });
 
                 docInstance.setFont('ZillaSlabHighlight-Bold', 'normal');
-                docInstance.text(`Current score: ${store.discrepancyCount}`, pageWidth - margin, 95, { align: 'right' });
+                docInstance.text(`Current_score:_${store.discrepancyCount}`, pageWidth - margin, 95, { align: 'right' });
             }
 
             docInstance.setFont('SourceCodePro-Light', 'normal');
