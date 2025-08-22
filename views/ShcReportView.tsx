@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'preact/hooks';
 import { VNode } from 'preact';
 import { useTranslation } from '../i18n';
-import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup, RDC, ShcStoreResult, ShcComplianceReportData, ShcComplianceStoreData, ShcSnapshot } from '../utils/types';
+import type { ShcDataType, ShcAnalysisResult, ShcMismatchItem, ShcWorkerMessage, ShcResultItem, ShcSectionConfigItem, ShcSectionGroup, RDC, ShcStoreResult, ShcComplianceReportData, ShcComplianceStoreData, ShcSnapshot, ShcComplianceManagerData } from '../utils/types';
 import { loadSetting, saveSetting, getUniqueShcSectionsGrouped, validateStoresExistInShc, getStoreCountsForShcReport, loadShcBaselineData, loadShcPreviousWeekData } from '../db';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -712,26 +712,58 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             theme: 'grid',
             headStyles: { fillColor: '#343a40', textColor: '#fff' },
             didDrawCell: (data) => {
+                // We are providing the `body` so `raw` will be an array, not an HTML element.
+                const rawRow = data.row.raw as any[];
+                if (!Array.isArray(rawRow)) return;
+
+                // Data bars for store value cells ('Currently', 'Week -1', 'Start')
                 if (data.section === 'body' && data.column.index >= 1 && data.column.index <= 3) {
-                    const value = data.cell.raw;
-                    if (typeof value === 'number') {
-                        const amData = complianceReportData.hosData.flatMap(h => h.managers).find(m => m.name === data.row.raw[0]?.content);
-                        if (amData) {
-                            const maxVal = Math.max(...amData.stores.flatMap(s => [s.current, s.previous, s.start]).filter(v => v !== null) as number[], 1);
-                            const width = (value / maxVal) * (data.cell.width - data.cell.padding('horizontal'));
-                            doc.setFillColor(255, 193, 7); // Amber color
-                            doc.rect(data.cell.x + data.cell.padding('left'), data.cell.y + 4, width, data.cell.height - 8, 'F');
+                    // Data bars only apply to store rows, which have a string in the first cell.
+                    if (typeof rawRow[0] === 'string') {
+                        const value = data.cell.raw;
+                        if (typeof value === 'number' && value > 0) {
+                            const storeIdentifier = rawRow[0] as string;
+                            const storeNumber = storeIdentifier.split(' - ')[0];
+
+                            let amForStore: ShcComplianceManagerData | undefined;
+                            // Find the manager this store belongs to in our report data structure
+                            for (const hos of complianceReportData.hosData) {
+                                const foundAm = hos.managers.find(am => am.stores.some(s => s.storeNumber === storeNumber));
+                                if (foundAm) {
+                                    amForStore = foundAm;
+                                    break;
+                                }
+                            }
+
+                            if (amForStore) {
+                                // Get all scores for this manager's stores to determine the maximum value for scaling
+                                const allScoresForAm = amForStore.stores.flatMap(s => [s.current, s.previous, s.start]);
+                                const maxVal = Math.max(...allScoresForAm.filter((v): v is number => v !== null), 1);
+                                
+                                if (maxVal > 0) {
+                                    const width = (value / maxVal) * (data.cell.width - data.cell.padding('horizontal'));
+                                    doc.setFillColor(255, 193, 7); // Amber color
+                                    doc.rect(data.cell.x + data.cell.padding('left'), data.cell.y + 4, width, data.cell.height - 8, 'F');
+                                }
+                            }
                         }
                     }
                 }
-                if (data.section === 'body' && data.column.index === 4) { // Change column
-                    const value = data.cell.raw as string;
-                    if (value && value.includes('%')) {
-                        const numericVal = parseFloat(value.replace('%', ''));
-                        if (numericVal < 0) doc.setFillColor(76, 175, 80); // Green
-                        else if (numericVal <= 20) doc.setFillColor(255, 152, 0); // Orange
-                        else doc.setFillColor(244, 67, 54); // Red
-                        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+            
+                // Color formatting for the 'Change' column
+                if (data.section === 'body' && data.column.index === 4) {
+                    // Also only for store rows
+                    if (typeof rawRow[0] === 'string') {
+                        const value = data.cell.raw as string;
+                        if (value && value.includes('%')) {
+                            const numericVal = parseFloat(value.replace('%', ''));
+                            if (!isNaN(numericVal)) {
+                                if (numericVal < 0) doc.setFillColor(76, 175, 80); // Green for improvement
+                                else if (numericVal <= 20) doc.setFillColor(255, 152, 0); // Orange for slight worsening
+                                else doc.setFillColor(244, 67, 54); // Red for significant worsening
+                                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                            }
+                        }
                     }
                 }
             }
