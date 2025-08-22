@@ -866,14 +866,21 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 if (store && data.column.index === 4 && store.change !== null) {
                      doc.setTextColor('#ffffff');
                 } else {
-                     doc.setTextColor(styles.textColor);
+                     const textColor = data.cell.styles.textColor;
+                     if (Array.isArray(textColor)) {
+                        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+                     } else if (typeof textColor === 'number') {
+                        doc.setTextColor(textColor);
+                     } else {
+                        doc.setTextColor(textColor as string);
+                     }
                 }
 
                 const text = Array.isArray(data.cell.text) ? data.cell.text.join(' ') : String(data.cell.text);
                 const textPos = data.cell.getTextPos();
                 doc.text(text, textPos.x, textPos.y, {
-                    align: styles.halign,
-                    baseline: styles.valign
+                    align: styles.halign as 'left' | 'center' | 'right' | 'justify',
+                    baseline: styles.valign as 'top' | 'middle' | 'bottom',
                 });
                 doc.setTextColor('#000000'); // Reset to default
             },
