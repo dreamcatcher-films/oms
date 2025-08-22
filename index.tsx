@@ -519,12 +519,19 @@ const App = () => {
     if (savedSession) {
         try {
             const parsed = JSON.parse(savedSession);
-            // Validate the parsed session to ensure it has the required properties
-            if (parsed && typeof parsed.mode === 'string' && (parsed.mode === 'hq' || (parsed.mode === 'rdc' && parsed.rdc && typeof parsed.rdc.id === 'string'))) {
-                setUserSession(parsed);
+            
+            // Aggressive validation and reconstruction
+            if (parsed && parsed.mode === 'hq') {
+                setUserSession({ mode: 'hq' });
+            } else if (parsed && parsed.mode === 'rdc' && parsed.rdc && typeof parsed.rdc.id === 'string' && typeof parsed.rdc.name === 'string') {
+                // Reconstruct to ensure no extra properties are carried over
+                setUserSession({
+                    mode: 'rdc',
+                    rdc: { id: parsed.rdc.id, name: parsed.rdc.name }
+                });
             } else {
-                // If session data is invalid or incomplete, clear it
-                console.warn("Invalid session data found in localStorage. Clearing.");
+                // If structure is not what we expect, clear it.
+                console.warn("Invalid or outdated session data found. Clearing.");
                 localStorage.removeItem('oms-session');
             }
         } catch (e) {
