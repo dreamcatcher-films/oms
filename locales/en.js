@@ -299,6 +299,22 @@ export default {
       "clearSuccess": "SHC exclusion list has been cleared.",
       "clearConfirm": "Are you sure you want to clear the entire SHC exclusion list?"
     },
+    "shcCompliance": {
+      "title": "SHC Compliance Report Data",
+      "description": "Import historical data files required to generate the SHC Compliance Report.",
+      "baseline": {
+        "title": "Baseline Data",
+        "description": "Import a one-time JSON file with the initial discrepancy scores for each store at the beginning of the project.",
+        "button": "Import Baseline (.json)"
+      },
+      "previousWeek": {
+        "title": "Previous Week Data",
+        "description": "Import the JSON file with discrepancy scores from the previous week. This file can be generated from the compliance report itself.",
+        "button": "Import Previous Week (.json)"
+      },
+      "importSuccess": "Successfully imported and saved {{type}} data.",
+      "importError": "Failed to import file. Ensure it is a valid JSON with the correct structure."
+    },
     "watchlists": {
         "title": "Watchlists",
         "description": "Create and manage lists of products to monitor. (Feature under construction)"
@@ -459,7 +475,8 @@ export default {
       "placeholder": "Run the analysis to see the results here.",
       "mismatchesTitle": "Data Mismatches",
       "storeCountSummary": "Available stores in SHC Data: {{shcStoreCount}} / Total stores in RDC: {{orgStoreCount}}",
-      "downloadAllPdf": "Download PDFs for available stores"
+      "downloadAllPdf": "Download PDFs for available stores",
+      "generateComplianceReport": "Generate Compliance Report"
     },
     "config": {
       "title": "Section Configuration",
@@ -505,6 +522,18 @@ export default {
         "toggleExclusion": "Toggle Exclusion",
         "exportPdf": "Export Store to PDF"
       }
+    },
+    "complianceReport": {
+      "title": "SHC Compliance Report",
+      "exportPdf": "Download Compliance PDF",
+      "exportSnapshot": "Export Current Week Snapshot",
+      "exportSnapshotSuccess": "Current week's data exported successfully.",
+      "noData": "Cannot generate report. Please import baseline and previous week data in Settings.",
+      "storeName": "Store Name",
+      "currently": "Currently",
+      "weekMinus1": "Week -1",
+      "start": "Start",
+      "change": "Change (curr/start)"
     }
   },
   "columns": {
