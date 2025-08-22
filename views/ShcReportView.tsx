@@ -724,16 +724,41 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         URL.revokeObjectURL(url);
     };
 
-    const handleExportCompliancePdf = () => {
+    const handleExportCompliancePdf = async () => {
         if (!complianceReportData) return;
         const doc = new jsPDF({ orientation: 'portrait' });
         const { rdcSummary, hosData, rdcId, rdcName } = complianceReportData;
 
-        doc.setFontSize(14);
-        doc.text("SHC Compliance Report", 40, 30);
+        const margin = 40;
+        let headerFont = 'Helvetica';
+        let bodyFont = 'Courier';
 
-        doc.setFontSize(10);
-        doc.text(`RDC: ${rdcId} - ${rdcName}`, 40, 45);
+        // Try to load and add custom fonts
+        try {
+            // It's better to fetch fonts once and reuse, but for this self-contained function, we fetch here.
+            // NOTE: Font files must be available in the /public/fonts/ directory.
+            const alumniSansResponse = await fetch('/fonts/AlumniSans-Regular.ttf');
+            const alumniSansFont = await alumniSansResponse.arrayBuffer();
+            doc.addFileToVFS('AlumniSans-Regular.ttf', arrayBufferToBase64(alumniSansFont));
+            doc.addFont('AlumniSans-Regular.ttf', 'AlumniSans', 'normal');
+            headerFont = 'AlumniSans';
+
+            const sourceCodeProResponse = await fetch('/fonts/SourceCodePro-Regular.ttf');
+            const sourceCodeProFont = await sourceCodeProResponse.arrayBuffer();
+            doc.addFileToVFS('SourceCodePro-Regular.ttf', arrayBufferToBase64(sourceCodeProFont));
+            doc.addFont('SourceCodePro-Regular.ttf', 'SourceCodePro', 'normal');
+            bodyFont = 'SourceCodePro';
+
+        } catch (error) {
+            console.warn("Custom fonts could not be loaded. Falling back to standard fonts.", error);
+        }
+        
+        doc.setFont(headerFont, 'normal');
+        doc.setFontSize(18);
+        doc.text("SHC Compliance Report", margin, 30);
+
+        doc.setFontSize(12);
+        doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 45);
 
         const body: any[] = [];
         
@@ -785,27 +810,31 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             body: body,
             startY: 60,
             theme: 'grid',
-            headStyles: { fillColor: '#343a40', textColor: '#fff' },
-            styles: { valign: 'middle', halign: 'right' },
+            headStyles: { font: bodyFont, fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff' },
+            styles: { font: bodyFont, valign: 'middle', halign: 'right' },
             columnStyles: { 0: { halign: 'left' } },
-            didDrawCell: (data) => {
+            willDrawCell: (data) => {
                 const store = findStoreData(data.row);
                 if (store?.isExcluded) {
                     doc.setFillColor(255, 251, 230); // Light Yellow
                     doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                 }
+            },
+            didDrawCell: (data) => {
+                const store = findStoreData(data.row);
+                const amForStore = store ? complianceReportData.hosData.flatMap(h => h.managers).find(am => am.name === store.am) : null;
                 
+                // --- 1. Draw Data/Change Bars ---
                 if (store && data.column.index >= 1 && data.column.index <= 3) {
                     const value = data.cell.raw;
-                    if (typeof value === 'number' && value > 0) {
-                        const amForStore = complianceReportData.hosData.flatMap(h => h.managers).find(am => am.name === store.am);
-                        if (amForStore) {
-                            const maxVal = [amForStore.maxScores.current, amForStore.maxScores.previous, amForStore.maxScores.start][data.column.index - 1];
-                             if (maxVal > 0) {
-                                const width = (value / maxVal) * (data.cell.width - data.cell.padding('horizontal'));
-                                doc.setFillColor(255, 193, 7); // Amber
-                                doc.rect(data.cell.x + data.cell.padding('left'), data.cell.y + 4, width, data.cell.height - 8, 'F');
-                            }
+                    if (typeof value === 'number' && value > 0 && amForStore) {
+                        const maxVal = [amForStore.maxScores.current, amForStore.maxScores.previous, amForStore.maxScores.start][data.column.index - 1];
+                         if (maxVal > 0) {
+                            const width = (value / maxVal) * (data.cell.width - data.cell.padding('horizontal'));
+                            const barHeight = data.cell.height * 0.8;
+                            const barY = data.cell.y + (data.cell.height - barHeight) / 2;
+                            doc.setFillColor(255, 193, 7); // Amber
+                            doc.rect(data.cell.x + data.cell.padding('left'), barY, width, barHeight, 'F');
                         }
                     }
                 }
@@ -819,11 +848,34 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                         else color = [244, 67, 54];                 // Red
                         
                         if (color) {
-                            doc.setFillColor(...color);
-                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                            const barHeight = data.cell.height * 0.8;
+                            const barY = data.cell.y + (data.cell.height - barHeight) / 2;
+                            const barWidth = data.cell.width * 0.8;
+                            const barX = data.cell.x + (data.cell.width - barWidth) / 2;
+                            doc.setFillColor(color[0], color[1], color[2]);
+                            doc.rect(barX, barY, barWidth, barHeight, 'F');
                         }
                     }
                 }
+                
+                // --- 2. Redraw Text on Top ---
+                const styles = data.cell.styles;
+                doc.setFont(styles.font, styles.fontStyle);
+                doc.setFontSize(styles.fontSize);
+                
+                if (store && data.column.index === 4 && store.change !== null) {
+                     doc.setTextColor('#ffffff');
+                } else {
+                     doc.setTextColor(styles.textColor);
+                }
+
+                const text = Array.isArray(data.cell.text) ? data.cell.text.join(' ') : String(data.cell.text);
+                const textPos = data.cell.getTextPos();
+                doc.text(text, textPos.x, textPos.y, {
+                    align: styles.halign,
+                    baseline: styles.valign
+                });
+                doc.setTextColor('#000000'); // Reset to default
             },
         });
 
