@@ -760,29 +760,29 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const rdcRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', fontSize: 8 };
         body.push([
             { content: `${rdcId} - ${rdcName} (RDC Average)`, styles: { ...rdcRowStyles, halign: 'left' } },
-            { content: formatValue(rdcSummary.current), styles: { ...rdcRowStyles, halign: 'center' } },
-            { content: formatValue(rdcSummary.previous), styles: { ...rdcRowStyles, halign: 'center' } },
-            { content: formatValue(rdcSummary.start), styles: { ...rdcRowStyles, halign: 'center' } },
-            { content: formatChange(rdcSummary.change), styles: { ...rdcRowStyles, halign: 'center' } },
+            { content: formatValue(rdcSummary.current), styles: { ...rdcRowStyles, halign: 'right' } },
+            { content: formatValue(rdcSummary.previous), styles: { ...rdcRowStyles, halign: 'right' } },
+            { content: formatValue(rdcSummary.start), styles: { ...rdcRowStyles, halign: 'right' } },
+            { content: formatChange(rdcSummary.change), styles: { ...rdcRowStyles, halign: 'right' } },
         ]);
 
         hosData.forEach(hos => {
             const hosRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#6c757d', textColor: '#fff', fontSize: 8 };
             body.push([
                  { content: hos.name, styles: { ...hosRowStyles, halign: 'left' } },
-                 { content: formatValue(hos.current), styles: { ...hosRowStyles, halign: 'center' } },
-                 { content: formatValue(hos.previous), styles: { ...hosRowStyles, halign: 'center' } },
-                 { content: formatValue(hos.start), styles: { ...hosRowStyles, halign: 'center' } },
-                 { content: formatChange(hos.change), styles: { ...hosRowStyles, halign: 'center' } }
+                 { content: formatValue(hos.current), styles: { ...hosRowStyles, halign: 'right' } },
+                 { content: formatValue(hos.previous), styles: { ...hosRowStyles, halign: 'right' } },
+                 { content: formatValue(hos.start), styles: { ...hosRowStyles, halign: 'right' } },
+                 { content: formatChange(hos.change), styles: { ...hosRowStyles, halign: 'right' } }
             ]);
             hos.managers.forEach(am => {
                 const amRowStyles = { font: 'Helvetica', fontStyle: 'bold', fillColor: '#adb5bd', fontSize: 8 };
                  body.push([
-                    { content: `${am.name} ${am.stores[0]?.hos}`, styles: { ...amRowStyles, halign: 'left' } },
-                    { content: formatValue(am.current), styles: { ...amRowStyles, halign: 'center' } },
-                    { content: formatValue(am.previous), styles: { ...amRowStyles, halign: 'center' } },
-                    { content: formatValue(am.start), styles: { ...amRowStyles, halign: 'center' } },
-                    { content: formatChange(am.change), styles: { ...amRowStyles, halign: 'center' } }
+                    { content: am.name, styles: { ...amRowStyles, halign: 'left' } },
+                    { content: formatValue(am.current), styles: { ...amRowStyles, halign: 'right' } },
+                    { content: formatValue(am.previous), styles: { ...amRowStyles, halign: 'right' } },
+                    { content: formatValue(am.start), styles: { ...amRowStyles, halign: 'right' } },
+                    { content: formatChange(am.change), styles: { ...amRowStyles, halign: 'right' } }
                 ]);
                 am.stores.forEach(store => {
                     body.push([
@@ -817,14 +817,14 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             startY: 55,
             theme: 'grid',
             headStyles: { font: 'Helvetica', fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff', fontSize: 8, halign: 'center' },
-            styles: { font: 'Courier', valign: 'middle', fontSize: 7 },
+            styles: { font: 'Helvetica', valign: 'middle', fontSize: 7, textColor: '#000000' },
             columnStyles: { 
                 0: { halign: 'left' },
-                1: { halign: 'center' },
-                2: { halign: 'center' },
-                3: { halign: 'center' },
-                4: { halign: 'center' },
-             },
+                1: { halign: 'right' },
+                2: { halign: 'right' },
+                3: { halign: 'right' },
+                4: { halign: 'right' },
+            },
             didParseCell: (data) => {
                 const store = findStoreData(data.row);
                 if (store && data.section === 'body' && data.column.index > 0) {
@@ -851,48 +851,20 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                     const value = [store.current, store.previous, store.start][data.column.index - 1];
                     const maxVal = [amForStore.maxScores.current, amForStore.maxScores.previous, amForStore.maxScores.start][data.column.index - 1];
                     if (value !== null && maxVal > 0 && value >= 0) {
-                        const width = (value / maxVal) * (data.cell.width - data.cell.padding('horizontal'));
+                        const width = (value / maxVal) * data.cell.width;
                         doc.setFillColor(255, 193, 7); // Orange
-                        doc.rect(data.cell.x + data.cell.padding('left'), barY, width, barHeight, 'F');
+                        doc.rect(data.cell.x, barY, width, barHeight, 'F');
                     }
                 }
 
                 if (data.column.index === 4) {
                     const change = store.change;
-                    if (change !== null) {
-                        if (change < 0) { // Improvement, green bar
-                            const width = bestRdcChange && bestRdcChange < 0
-                                ? (change / bestRdcChange) * data.cell.width
-                                : 0;
-                            doc.setFillColor(76, 175, 80); // Green
-                            doc.rect(data.cell.x, barY, width, barHeight, 'F');
-                        } else { // Neutral or worse, fill cell background
-                            const color: [number, number, number] = change <= 0.2 ? [255, 152, 0] : [244, 67, 54]; // Orange or Red
-                            doc.setFillColor(color[0], color[1], color[2]);
-                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                        }
-                    }
-                }
-            },
-            didDrawCell: (data) => {
-                if (data.row.section !== 'body') return;
-                const store = findStoreData(data.row);
-                if (!store) return;
-            
-                if (data.column.index === 4) {
-                    const change = store.change;
-                    if (change !== null && change >= 0) {
-                        const bgColor: [number, number, number] = change <= 0.2 ? [255, 152, 0] : [244, 67, 54];
-                        
-                        const brightness = (bgColor[0] * 299 + bgColor[1] * 587 + bgColor[2] * 114) / 1000;
-                        const textColor = brightness > 125 ? '#000000' : '#FFFFFF';
-
-                        doc.setFont('Courier', 'bold');
-                        doc.setTextColor(textColor);
-                        
-                        const textPos = data.cell.getTextPos();
-                        const y = data.cell.y + data.cell.height / 2;
-                        doc.text(formatChange(change), textPos.x, y, { align: 'center', baseline: 'middle' });
+                    if (change !== null && change < 0) { // Improvement, green bar
+                        const width = bestRdcChange && bestRdcChange < 0
+                            ? (change / bestRdcChange) * data.cell.width
+                            : 0;
+                        doc.setFillColor(76, 175, 80); // Green
+                        doc.rect(data.cell.x, barY, width, barHeight, 'F');
                     }
                 }
             },
