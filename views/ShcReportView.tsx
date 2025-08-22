@@ -820,16 +820,17 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             styles: { font: 'Helvetica', valign: 'middle', fontSize: 7, textColor: '#000000' },
             columnStyles: { 
                 0: { halign: 'left' },
-                1: { halign: 'right' },
-                2: { halign: 'right' },
-                3: { halign: 'right' },
-                4: { halign: 'right' },
+                1: { halign: 'center' },
+                2: { halign: 'center' },
+                3: { halign: 'center' },
+                4: { halign: 'center' },
             },
             didParseCell: (data) => {
                 const store = findStoreData(data.row);
                 if (store && data.section === 'body' && data.column.index > 0) {
                     data.cell.styles.fontStyle = 'bold';
                     data.cell.styles.halign = 'center';
+                    data.cell.styles.textColor = '#000000';
                 }
             },
             willDrawCell: (data) => {
@@ -872,6 +873,10 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         });
 
         doc.save(`shc_compliance_report_${selectedRdc}_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    const handlePrint = () => {
+        window.print();
     };
 
     return (
@@ -1137,7 +1142,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             )}
             
             {complianceReportData && isComplianceDataReady && (
-                <div class={styles['results-section']}>
+                <div class={`${styles['results-section']} ${styles['printable-area']}`}>
                     <div class={styles['results-header']}>
                         <h3>{t('shcReport.complianceReport.title')}</h3>
                          <div class={styles['results-header-actions']}>
@@ -1146,6 +1151,9 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                             </button>
                             <button class={sharedStyles['button-primary']} onClick={handleExportCompliancePdf} style={{backgroundColor: 'var(--success-color)'}}>
                                 {t('shcReport.complianceReport.exportPdf')}
+                            </button>
+                            <button class={sharedStyles['button-secondary']} onClick={handlePrint} style={{backgroundColor: '#6c757d'}}>
+                                {t('shcReport.complianceReport.printReport')}
                             </button>
                         </div>
                     </div>
