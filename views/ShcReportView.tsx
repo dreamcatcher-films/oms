@@ -421,7 +421,6 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 docInstance.setFont('ZillaSlabHighlight-Bold', 'normal');
                 const scoreText = `Current score: ${store.discrepancyCount}`;
                 const scoreTextWidth = docInstance.getTextWidth(scoreText);
-                docInstance.setFillColor(0, 0, 0);
                 docInstance.rect(pageWidth - margin - scoreTextWidth - 4, 85, scoreTextWidth + 8, 12, 'F');
                 docInstance.setTextColor(255, 255, 255);
                 docInstance.text(scoreText, pageWidth - margin, 95, { align: 'right' });
