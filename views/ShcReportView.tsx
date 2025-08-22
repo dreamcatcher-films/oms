@@ -9,14 +9,14 @@ import JSZip from 'jszip';
 import styles from './ShcReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
+const SHC_CONFIG_KEY = 'shcSectionConfig';
+
 type Props = {
     counts: { [key in ShcDataType | 'orgStructure']: number };
     rdcList: RDC[];
     exclusionList: Set<string>;
     onUpdateExclusionList: (newList: Set<string>) => void;
 };
-
-const SHC_CONFIG_KEY = 'shcSectionConfig';
 
 const getWeekNumber = (d: Date) => {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -735,18 +735,18 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
 
         // Try to load and add custom fonts
         try {
-            // It's better to fetch fonts once and reuse, but for this self-contained function, we fetch here.
-            // NOTE: Font files must be available in the /public/fonts/ directory.
-            const alumniSansResponse = await fetch('/fonts/AlumniSans-Regular.ttf');
+            const alumniSansResponse = await fetch('/fonts/AlumniSansSC-SemiBold.ttf');
+            if (!alumniSansResponse.ok) throw new Error('AlumniSansSC-SemiBold.ttf not found');
             const alumniSansFont = await alumniSansResponse.arrayBuffer();
-            doc.addFileToVFS('AlumniSans-Regular.ttf', arrayBufferToBase64(alumniSansFont));
-            doc.addFont('AlumniSans-Regular.ttf', 'AlumniSans', 'normal');
-            headerFont = 'AlumniSans';
+            doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', arrayBufferToBase64(alumniSansFont));
+            doc.addFont('AlumniSansSC-SemiBold.ttf', 'AlumniSansSC', 'normal');
+            headerFont = 'AlumniSansSC';
 
-            const sourceCodeProResponse = await fetch('/fonts/SourceCodePro-Regular.ttf');
+            const sourceCodeProResponse = await fetch('/fonts/SourceCodePro-Light.ttf');
+            if (!sourceCodeProResponse.ok) throw new Error('SourceCodePro-Light.ttf not found');
             const sourceCodeProFont = await sourceCodeProResponse.arrayBuffer();
-            doc.addFileToVFS('SourceCodePro-Regular.ttf', arrayBufferToBase64(sourceCodeProFont));
-            doc.addFont('SourceCodePro-Regular.ttf', 'SourceCodePro', 'normal');
+            doc.addFileToVFS('SourceCodePro-Light.ttf', arrayBufferToBase64(sourceCodeProFont));
+            doc.addFont('SourceCodePro-Light.ttf', 'SourceCodePro', 'normal');
             bodyFont = 'SourceCodePro';
 
         } catch (error) {
