@@ -446,6 +446,23 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         });
     }, [results, exclusionList]);
 
+    const excludedStoresCount = useMemo(() => {
+        if (!processedResults) return 0;
+        let count = 0;
+        processedResults.forEach(warehouse => {
+            warehouse.hos.forEach(hos => {
+                hos.managers.forEach(manager => {
+                    manager.stores.forEach(store => {
+                        if (store.isExcluded) {
+                            count++;
+                        }
+                    });
+                });
+            });
+        });
+        return count;
+    }, [processedResults]);
+
     const handleExportStorePdf = async (store: ShcStoreResult) => {
         let logoData: string | null = null;
         try {
@@ -891,7 +908,14 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             {processedResults && (
                 <div class={styles['results-section']}>
                     <div class={styles['results-header']}>
-                        <h3>{t('shcReport.results.title')}</h3>
+                        <h3>
+                            {t('shcReport.results.title')}
+                            {excludedStoresCount > 0 && (
+                                <span class={styles['excluded-count']}>
+                                    {t('shcReport.results.excludedCount', { count: excludedStoresCount })}
+                                </span>
+                            )}
+                        </h3>
                         <div class={styles['results-header-actions']}>
                             {storeCounts && <span class={styles['store-count-summary']}>{t('shcReport.results.storeCountSummary', storeCounts)}</span>}
                             <button class={sharedStyles['button-primary']} onClick={handleDownloadAllPdfsAsZip} disabled={isLoading}>
