@@ -134,9 +134,11 @@ const App = () => {
             for (const [key, value] of settings.entries()) {
                 if (key.startsWith('linkedFile:')) {
                     const dataType = key.split(':')[1] as DataType;
-                    const permission = await (value as any).queryPermission({ mode: 'read' });
-                    if (permission === 'granted') {
-                      fileHandles.set(dataType, value as FileSystemFileHandle);
+                    if (value) {
+                      const permission = await (value as any).queryPermission({ mode: 'read' });
+                      if (permission === 'granted') {
+                        fileHandles.set(dataType, value as FileSystemFileHandle);
+                      }
                     }
                 } else if (key === 'autoRefreshConfig') {
                     refreshConfig = value;
@@ -512,10 +514,25 @@ const App = () => {
 
   useEffect(() => {
     shcParsingWorkerRef.current = new Worker(new URL('./shc-parsing.worker.ts', import.meta.url), { type: 'module' });
+    
     const savedSession = localStorage.getItem('oms-session');
-    if(savedSession) {
-        setUserSession(JSON.parse(savedSession));
+    if (savedSession) {
+        try {
+            const parsed = JSON.parse(savedSession);
+            // Validate the parsed session to ensure it has the required properties
+            if (parsed && typeof parsed.mode === 'string' && (parsed.mode === 'hq' || (parsed.mode === 'rdc' && parsed.rdc && typeof parsed.rdc.id === 'string'))) {
+                setUserSession(parsed);
+            } else {
+                // If session data is invalid or incomplete, clear it
+                console.warn("Invalid session data found in localStorage. Clearing.");
+                localStorage.removeItem('oms-session');
+            }
+        } catch (e) {
+            console.error("Failed to parse session from localStorage. Clearing.", e);
+            localStorage.removeItem('oms-session');
+        }
     }
+    
     loadSettings();
     performInitialCheck();
     clearOutdatedShcData();
