@@ -55,6 +55,8 @@ self.onmessage = async (e: MessageEvent<ShcParsingWorkerRequest>) => {
         Papa.parse(file, {
             worker: false, // We are already in a worker
             skipEmptyLines: true,
+            quoteChar: '"',
+            escapeChar: '"',
             chunk: (results, parser) => {
                 chunkCount++;
                 const chunkData = results.data as string[][];
