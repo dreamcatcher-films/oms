@@ -487,7 +487,7 @@
 }
 .compliance-table td {
     position: relative;
-    text-align: right;
+    text-align: center;
 }
 .compliance-table td:first-child {
     text-align: left;
@@ -501,6 +501,10 @@
     opacity: 0.3;
     z-index: 0;
     width: calc(var(--value, 0));
+}
+.compliance-table .change-bar {
+    background-color: #4CAF50; /* Green */
+    opacity: 0.5;
 }
 .compliance-table td {
     position: relative;
