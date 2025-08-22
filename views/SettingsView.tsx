@@ -23,6 +23,8 @@ type SettingsViewProps = {
     onImportShcExclusionList: () => void;
     onExportShcExclusionList: () => void;
     onClearShcExclusionList: () => void;
+    onImportShcBaselineData: () => void;
+    onImportShcPreviousWeekData: () => void;
 };
 
 export const SettingsView = (props: SettingsViewProps) => {
@@ -45,6 +47,8 @@ export const SettingsView = (props: SettingsViewProps) => {
         onImportShcExclusionList,
         onExportShcExclusionList,
         onClearShcExclusionList,
+        onImportShcBaselineData,
+        onImportShcPreviousWeekData,
     } = props;
     const { t } = useTranslation();
     const [newRdc, setNewRdc] = useState({ id: '', name: '' });
@@ -134,6 +138,27 @@ export const SettingsView = (props: SettingsViewProps) => {
                             })}
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <div class={styles['settings-section']}>
+                <h3>{t('settings.shcCompliance.title')}</h3>
+                <p>{t('settings.shcCompliance.description')}</p>
+                <div class={styles['compliance-data-importers']}>
+                    <div class={styles['importer-section']}>
+                        <h4>{t('settings.shcCompliance.baseline.title')}</h4>
+                        <p>{t('settings.shcCompliance.baseline.description')}</p>
+                        <button class={sharedStyles['button-primary']} onClick={onImportShcBaselineData}>
+                            {t('settings.shcCompliance.baseline.button')}
+                        </button>
+                    </div>
+                    <div class={styles['importer-section']}>
+                        <h4>{t('settings.shcCompliance.previousWeek.title')}</h4>
+                        <p>{t('settings.shcCompliance.previousWeek.description')}</p>
+                        <button class={sharedStyles['button-primary']} onClick={onImportShcPreviousWeekData}>
+                            {t('settings.shcCompliance.previousWeek.button')}
+                        </button>
+                    </div>
                 </div>
             </div>
 
