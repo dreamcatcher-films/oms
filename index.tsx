@@ -668,6 +668,33 @@ const App = () => {
 
           await addDbFn(batch);
           processedCount += batch.length;
+
+          if (totalRowsToImport > 0 && processedCount >= totalRowsToImport) {
+            // This is the final batch, finalize the import.
+            await updateImportMetadata(dataType);
+            const finalDbStatus = await checkDBStatus();
+            const finalMetadata = await getImportMetadata();
+            const finalCounts = {
+                products: finalDbStatus.productsCount,
+                goodsReceipts: finalDbStatus.goodsReceiptsCount,
+                openOrders: finalDbStatus.openOrdersCount,
+                sales: finalDbStatus.salesCount,
+                shc: finalDbStatus.shcCount,
+                planogram: finalDbStatus.planogramCount,
+                orgStructure: finalDbStatus.orgStructureCount,
+                categoryRelation: finalDbStatus.categoryRelationCount
+            };
+            setCounts(finalCounts);
+            setImportMetadata(finalMetadata);
+            setStatusMessage({ 
+                text: t('status.import.complete', { processedCount: finalCounts[dataType].toLocaleString(language), dataTypeName }), 
+                type: 'success',
+                progress: 100
+            });
+            setIsLoading(false);
+            worker.terminate();
+            break; 
+          }
           
           const runningTotal = (dataType === 'shc' ? initialCountForDisplay : 0) + processedCount;
           const savingProgress = totalRowsToImport > 0 ? (processedCount / totalRowsToImport) * 100 : 0;
@@ -682,7 +709,7 @@ const App = () => {
 
         case 'complete':
           totalRowsToImport = payload.totalRows;
-          if (totalRowsToImport === 0 && processedCount === 0) {
+          if (totalRowsToImport === 0) {
             // This handles the case where parsing is done but no data was sent (e.g., all filtered out)
             await updateImportMetadata(dataType);
             const finalDbStatus = await checkDBStatus();
@@ -702,7 +729,7 @@ const App = () => {
           // The saving process will continue via 'data' messages. The final 'complete' comes after the last 'data' message.
           break;
         
-        case 'save_complete':
+        case 'save_complete': // This case is primarily for non-CSV (Excel) files now
           await updateImportMetadata(dataType);
           
           const finalDbStatus = await checkDBStatus();
