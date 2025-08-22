@@ -482,6 +482,9 @@
 }
 
 /* Compliance Report Table */
+.compliance-table th {
+    text-align: center;
+}
 .compliance-table td {
     position: relative;
     text-align: right;
