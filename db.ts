@@ -1,4 +1,4 @@
-import { RDC, DataType, ShcDataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcSectionConfig, ShcSectionGroup } from './utils/types';
+import { RDC, DataType, ShcDataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcSectionConfig, ShcSectionGroup, ShcSnapshot } from './utils/types';
 
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
@@ -16,6 +16,9 @@ const DB_VERSION = 14;
 const RDC_LIST_KEY = 'rdcList';
 const EXCLUSION_LIST_KEY = 'exclusionList'; // For Status Report
 const SHC_EXCLUSION_LIST_KEY = 'shcExclusionList'; // For SHC Report
+const SHC_BASELINE_DATA_KEY = 'shcBaselineData'; // For Compliance Report
+const SHC_PREVIOUS_WEEK_DATA_KEY = 'shcPreviousWeekData'; // For Compliance Report
+
 const DEFAULT_RDC_LIST: RDC[] = [
     { id: '220', name: 'RUN' },
     { id: '250', name: 'BEL' },
@@ -1055,5 +1058,13 @@ export const loadShcExclusionList = async (): Promise<Set<string>> => {
     return new Set(list || []);
 };
 export const clearShcExclusionList = (): Promise<void> => deleteSetting(SHC_EXCLUSION_LIST_KEY);
+
+// --- SHC Compliance Report Data Functions ---
+export const saveShcBaselineData = (data: ShcSnapshot): Promise<void> => saveSetting(SHC_BASELINE_DATA_KEY, data);
+export const loadShcBaselineData = (): Promise<ShcSnapshot | null> => loadSetting<ShcSnapshot>(SHC_BASELINE_DATA_KEY);
+
+export const saveShcPreviousWeekData = (data: ShcSnapshot): Promise<void> => saveSetting(SHC_PREVIOUS_WEEK_DATA_KEY, data);
+export const loadShcPreviousWeekData = (): Promise<ShcSnapshot | null> => loadSetting<ShcSnapshot>(SHC_PREVIOUS_WEEK_DATA_KEY);
+
 
 export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest, ShcSectionConfig } from './utils/types';
