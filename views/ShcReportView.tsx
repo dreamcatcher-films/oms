@@ -336,40 +336,8 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
     const handleExportStorePdf = async (store: ShcStoreResult) => {
         const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
     
-        try {
-            const fetchFontAsBase64 = async (url: string) => {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`Failed to fetch font: ${url}`);
-                const buffer = await response.arrayBuffer();
-                return arrayBufferToBase64(buffer);
-            };
+        // Custom fonts have been removed to reduce file size. Using standard PDF fonts.
     
-            const [
-                alumniSansBase64,
-                zillaSlabBase64,
-                sourceCodeProBase64,
-                oswaldBase64,
-            ] = await Promise.all([
-                fetchFontAsBase64('/fonts/AlumniSansSC-SemiBold.ttf'),
-                fetchFontAsBase64('/fonts/ZillaSlabHighlight-Bold.ttf'),
-                fetchFontAsBase64('/fonts/SourceCodePro-Light.ttf'),
-                fetchFontAsBase64('/fonts/Oswald-Bold.ttf'),
-            ]);
-    
-            doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', alumniSansBase64);
-            doc.addFileToVFS('ZillaSlabHighlight-Bold.ttf', zillaSlabBase64);
-            doc.addFileToVFS('SourceCodePro-Light.ttf', sourceCodeProBase64);
-            doc.addFileToVFS('Oswald-Bold.ttf', oswaldBase64);
-    
-            doc.addFont('AlumniSansSC-SemiBold.ttf', 'AlumniSansSC-SemiBold', 'normal');
-            doc.addFont('ZillaSlabHighlight-Bold.ttf', 'ZillaSlabHighlight-Bold', 'normal');
-            doc.addFont('SourceCodePro-Light.ttf', 'SourceCodePro-Light', 'normal');
-            doc.addFont('Oswald-Bold.ttf', 'Oswald-Bold', 'normal');
-    
-        } catch (error) {
-            console.error("Font loading failed, falling back to standard fonts.", error);
-        }
-
         let logoData: string | null = null;
         try {
             const response = await fetch('/logo/logo.png');
@@ -394,40 +362,34 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const addPageHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
             if (pageNumber === 1) {
                 if (logoData) {
-                    docInstance.addImage(logoData, 'PNG', margin, 30, 50, 50);
+                    docInstance.addImage(logoData, 'PNG', margin, 30, 50, 50, undefined, 'FAST');
                 } else {
                     docInstance.setFillColor(211, 211, 211); // Light gray placeholder
                     docInstance.rect(margin, 30, 50, 50, 'F');
                 }
 
-                docInstance.setFont('AlumniSansSC-SemiBold', 'normal');
+                docInstance.setFont('helvetica', 'bold');
                 docInstance.setFontSize(20);
                 docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', pageWidth / 2, 40, { align: 'center' });
         
-                docInstance.setFont('SourceCodePro-Light', 'normal');
+                docInstance.setFont('helvetica', 'normal');
                 docInstance.setFontSize(6);
                 docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
         
-                docInstance.setFont('SourceCodePro-Light', 'normal');
                 docInstance.setFontSize(8);
-
-                // Centered RDC/Store info
                 const rdcStoreText = `RDC: ${rdc?.name || ''}   STORE: ${store.storeNumber}`;
                 docInstance.text(rdcStoreText, pageWidth / 2, 88, { align: 'center' });
+                docInstance.text(`Target score: > 100`, pageWidth - margin, 80, { align: 'right' });
 
-                // Right-aligned scores
-                docInstance.text(`Target score < 100`, pageWidth - margin, 80, { align: 'right' });
-
-                docInstance.setFont('ZillaSlabHighlight-Bold', 'normal');
+                // Updated "Current score" rendering without background
+                docInstance.setFont('helvetica', 'bold');
+                docInstance.setFontSize(9);
                 const scoreText = `Current score: ${store.discrepancyCount}`;
-                const scoreTextWidth = docInstance.getTextWidth(scoreText);
-                docInstance.rect(pageWidth - margin - scoreTextWidth - 4, 85, scoreTextWidth + 8, 12, 'F');
                 docInstance.setTextColor(0, 0, 0);
                 docInstance.text(scoreText, pageWidth - margin, 95, { align: 'right' });
-                docInstance.setTextColor(0, 0, 0);
             }
 
-            docInstance.setFont('SourceCodePro-Light', 'normal');
+            docInstance.setFont('helvetica', 'normal');
             docInstance.setFontSize(8);
             docInstance.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, pageHeight - 30, { align: 'center' });
             docInstance.text(`RDC: ${rdc?.id || ''} ${rdc?.name || ''}   Store: ${store.storeNumber}`, pageWidth - margin, pageHeight - 20, { align: 'right' });
@@ -443,10 +405,10 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                         content: `${item.generalStoreArea} - ${item.settingSpecificallyFor} - ${item.settingWidth}`.toUpperCase(),
                         colSpan: 7, 
                         styles: { 
-                            font: 'Oswald-Bold',
-                            fontStyle: 'normal',
+                            font: 'helvetica',
+                            fontStyle: 'bold',
                             textColor: [255, 255, 255], 
-                            fillColor: [64, 64, 64],
+                            fillColor: [0, 0, 0],
                             halign: 'left', 
                             fontSize: 7, 
                             cellPadding: 2 
@@ -473,8 +435,8 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             body: mainTableBody,
             theme: 'grid',
             startY: 120,
-            styles: { font: 'SourceCodePro-Light', fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
-            headStyles: { font: 'SourceCodePro-Light', fontStyle: 'bold', fillColor: '#e0e0e0', textColor: '#333', minCellHeight: 20, valign: 'middle' },
+            styles: { font: 'helvetica', fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
+            headStyles: { font: 'helvetica', fontStyle: 'bold', fillColor: '#e0e0e0', textColor: '#333', minCellHeight: 20, valign: 'middle' },
             columnStyles: {
                 0: { cellWidth: 55 },
                 1: { cellWidth: 'auto' },
