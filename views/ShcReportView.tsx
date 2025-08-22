@@ -754,10 +754,10 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         }
         
         doc.setFont(headerFont, 'normal');
-        doc.setFontSize(18);
+        doc.setFontSize(16);
         doc.text("SHC Compliance Report", margin, 30);
 
-        doc.setFontSize(14);
+        doc.setFontSize(12);
         doc.text(`RDC: ${rdcId} - ${rdcName}`, margin, 45);
 
         const body: any[] = [];
@@ -776,9 +776,9 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         ]);
 
         hosData.forEach(hos => {
-            body.push([{ content: hos.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'normal', fillColor: '#6c757d', textColor: '#fff', fontSize: 9 } }]);
+            body.push([{ content: hos.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'normal', fillColor: '#6c757d', textColor: '#fff', fontSize: 14 } }]);
             hos.managers.forEach(am => {
-                body.push([{ content: am.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'normal', fillColor: '#adb5bd', fontSize: 8 } }]);
+                body.push([{ content: am.name, colSpan: 5, styles: { font: headerFont, fontStyle: 'normal', fillColor: '#adb5bd', fontSize: 14 } }]);
                 am.stores.forEach(store => {
                     body.push([
                         `${store.storeNumber} - ${store.storeName}`,
@@ -811,7 +811,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             body: body,
             startY: 60,
             theme: 'grid',
-            headStyles: { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff', fontSize: 8, halign: 'center' },
+            headStyles: { font: headerFont, fontStyle: 'normal', fillColor: '#343a40', textColor: '#fff', fontSize: 14, halign: 'center' },
             styles: { font: bodyFont, valign: 'middle', halign: 'right', fontSize: 7 },
             columnStyles: { 0: { halign: 'left' } },
             willDrawCell: (data) => {
