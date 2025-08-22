@@ -328,13 +328,13 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         // Add fonts to VFS
         doc.addFileToVFS('AlumniSansSC-SemiBold.ttf', fonts.alumniSansSCSemiBold);
         doc.addFileToVFS('ZillaSlabHighlight-Bold.ttf', fonts.zillaSlabHighlightBold);
-        doc.addFileToVFS('RobotoMono-Light.ttf', fonts.robotoMonoLight);
+        doc.addFileToVFS('SourceCodePro-Light.ttf', fonts.sourceCodeProLight);
         doc.addFileToVFS('Oswald-Bold.ttf', fonts.oswaldBold);
         
         // Add fonts to jsPDF
         doc.addFont('AlumniSansSC-SemiBold.ttf', 'AlumniSansSC-SemiBold', 'normal');
         doc.addFont('ZillaSlabHighlight-Bold.ttf', 'ZillaSlabHighlight-Bold', 'normal');
-        doc.addFont('RobotoMono-Light.ttf', 'RobotoMono-Light', 'normal');
+        doc.addFont('SourceCodePro-Light.ttf', 'SourceCodePro-Light', 'normal');
         doc.addFont('Oswald-Bold.ttf', 'Oswald-Bold', 'normal');
 
         const now = new Date();
@@ -353,7 +353,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 docInstance.setFontSize(14);
                 docInstance.text('Store SHC vs Planogram Report / FLOP - Only Unders', pageWidth / 2, 40, { align: 'center' });
         
-                docInstance.setFont('RobotoMono-Light', 'normal');
+                docInstance.setFont('SourceCodePro-Light', 'normal');
                 docInstance.setFontSize(8);
                 docInstance.text('Use Retail Viewer Feedback Form for sumbitting any feedback on the SHC Report.', pageWidth / 2, 60, { align: 'center' });
         
@@ -364,7 +364,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                 docInstance.text(`Current score: ${store.discrepancyCount}`, pageWidth - margin, 95, { align: 'right' });
             }
 
-            docInstance.setFont('RobotoMono-Light', 'normal');
+            docInstance.setFont('SourceCodePro-Light', 'normal');
             docInstance.setFontSize(8);
             docInstance.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, pageHeight - 30, { align: 'center' });
             docInstance.text(`RDC: ${rdc?.id || ''} ${rdc?.name || ''}   Store: ${store.storeNumber}`, pageWidth - margin, pageHeight - 20, { align: 'right' });
@@ -409,8 +409,8 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
             body: mainTableBody,
             theme: 'grid',
             startY: 110,
-            styles: { font: 'RobotoMono-Light', fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
-            headStyles: { font: 'RobotoMono-Light', fontStyle: 'bold', fillColor: '#e0e0e0', textColor: '#333', minCellHeight: 20, valign: 'middle' },
+            styles: { font: 'SourceCodePro-Light', fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: '#333' },
+            headStyles: { font: 'SourceCodePro-Light', fontStyle: 'bold', fillColor: '#e0e0e0', textColor: '#333', minCellHeight: 20, valign: 'middle' },
             columnStyles: {
                 0: { cellWidth: 55 },
                 1: { cellWidth: 'auto' },
