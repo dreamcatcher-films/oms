@@ -137,6 +137,8 @@ export type WriteOffsMetrics = {
   turnover: number;
   writeOffsValue: number;
   writeOffsPercent: number;
+  writeOffsTotalValue: number;
+  writeOffsTotalPercent: number;
   discountsValue: number;
   discountsPercent: number;
   damagesValue: number;
@@ -148,7 +150,7 @@ export type WriteOffsMetrics = {
 export type ReportRow = {
   id: string;
   name: string;
-  level: 0 | 1 | 2 | 3; // 0: RDC, 1: HoS, 2: AM, 3: Store
+  level: 0 | 1 | 2 | 3 | 4; // 0: All Regions, 1: RDC, 2: HoS, 3: AM, 4: Store
   metrics: WriteOffsMetrics;
   children: ReportRow[];
 };
