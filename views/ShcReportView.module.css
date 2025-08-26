@@ -605,7 +605,7 @@
     .compliance-table td.data-bar + td,
     .compliance-table td.change-bar,
     .compliance-table th:nth-child(n+2) {
-        border-left: 2px solid #ffffff; /* Biała linia tworząca przerwę */
+        border-left: 6px solid #ffffff; /* Biała linia tworząca przerwę */
     }
     
     /* Usuwa podwójną krawędź z komórki 'change', jeśli ma już styl paska danych */
