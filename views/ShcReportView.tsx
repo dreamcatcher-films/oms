@@ -488,7 +488,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const now = new Date();
         const year = now.getFullYear().toString().slice(-2);
         const week = getWeekNumber(now);
-        const filename = `SHC_${selectedRdc}_${store.storeNumber}_SHC_vs_Planogram_Report_${year}W35.pdf`; //${week}
+        const filename = `SHC_${selectedRdc}_${store.storeNumber}_SHC_vs_Planogram_Report_${year}W${week}.pdf`; //${week}
         
         doc.save(filename);
     };
@@ -550,7 +550,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
         const now = new Date();
         const year = now.getFullYear().toString().slice(-2);
         const week = getWeekNumber(now);
-        const zipFilename = `SHC_Reports_${selectedRdc}_${year}W${week}.zip`;
+        const zipFilename = `SHC_Reports_${selectedRdc}_${year}W35.zip`; //${week}
 
         const link = document.createElement('a');
         link.href = URL.createObjectURL(zipBlob);
