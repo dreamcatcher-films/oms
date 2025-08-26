@@ -206,7 +206,6 @@ export const saleRowMapper = (row: string[]): Sale | null => {
 
 export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null => {
     // Handles CSV with no headers and potentially empty columns, based on fixed positions.
-    // A=0: Metric, B=1: Period, C=2: StoreNo, D=3: StoreName, E=4: GroupNo, F=5: GroupName, G=6: Value
     if (row.length < 7) {
         return null;
     }
@@ -217,13 +216,12 @@ export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null 
     const storeName = row[3]?.trim() || '';
     const itemGroupNumber = row[4]?.trim() || '';
     const itemGroupName = row[5]?.trim() || '';
-    const valueRaw = row[6]?.trim() || '';
+    const valueRaw = row[6]?.trim().replace(/,/g, '') || ''; // Remove thousand separators
     
     const value = parseFloat(valueRaw);
 
-    // A valid data row must have a metric containing '|', a store number, a group number, and a valid numeric value.
-    // This will filter out header-like rows such as "Metrics,..."
-    if (!metricRaw.includes('|') || !storeNumber || !itemGroupNumber || isNaN(value)) {
+    // A valid data row must have a metric, a store number, a group number, and a valid numeric value.
+    if (!metricRaw || !storeNumber || !itemGroupNumber || isNaN(value)) {
         return null;
     }
 
