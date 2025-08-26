@@ -314,7 +314,7 @@ const App = () => {
     };
 
     return new Promise<void>((resolve, reject) => {
-        const papaConfig: Papa.ParseConfig<any> = {
+        const papaConfig: any = {
             header: options.hasHeader,
             skipEmptyLines: true,
             chunk: async (results: Papa.ParseResult<any>) => {
@@ -331,7 +331,7 @@ const App = () => {
                 await performInitialCheck();
                 resolve();
             },
-            error: (error) => {
+            error: (error: any) => {
                 console.error("Parsing error:", error);
                 setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
                 setIsLoading(false);
@@ -341,7 +341,7 @@ const App = () => {
 
         if (options.doubleHeader) {
             papaConfig.worker = false; // beforeFirstChunk doesn't work with worker: true
-            papaConfig.beforeFirstChunk = (chunk) => {
+            papaConfig.beforeFirstChunk = (chunk: string) => {
                 const firstNewline = chunk.indexOf('\n');
                 if (firstNewline !== -1) {
                     return chunk.substring(firstNewline + 1);
