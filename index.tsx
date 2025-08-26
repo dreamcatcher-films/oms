@@ -297,24 +297,75 @@ const App = () => {
     }
     
     setStatusMessage({ text: t('status.import.starting', { dataTypeName }), type: 'info' });
-
     let processedCount = 0;
-    const batch: T[] = [];
 
-    const processBatch = async () => {
-      if (batch.length > 0) {
-        await addFunction(batch);
-        processedCount += batch.length;
-        batch.length = 0; 
-        setStatusMessage({
-          text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }),
-          type: 'info',
+    // Use a more robust, non-streaming approach for double-header files.
+    // This avoids `beforeFirstChunk` and worker compatibility issues and correctly parses the format.
+    if (options.doubleHeader) {
+        return new Promise<void>((resolve, reject) => {
+            Papa.parse(file, {
+                header: false, // We'll manually handle headers.
+                skipEmptyLines: true,
+                complete: async (results: Papa.ParseResult<string[]>) => {
+                    try {
+                        if (results.data.length < 2) {
+                            throw new Error("File format error: expected at least two header rows.");
+                        }
+
+                        const headers = results.data[1].map(h => h.trim()); // Real headers are on the second line.
+                        const dataRows = results.data.slice(2);
+
+                        const mappedData = dataRows
+                            .map(rowArray => {
+                                const rowObject: { [key: string]: string } = {};
+                                headers.forEach((header, i) => {
+                                    if (header) { // Guard against empty header cells
+                                        rowObject[header] = rowArray[i];
+                                    }
+                                });
+                                return rowObject;
+                            })
+                            .map(rowMapper)
+                            .filter((item): item is T => item !== null);
+                        
+                        // Batch add to DB
+                        for (let i = 0; i < mappedData.length; i += BATCH_SIZE) {
+                            const batch = mappedData.slice(i, i + BATCH_SIZE);
+                            await addFunction(batch);
+                            processedCount += batch.length;
+                            setStatusMessage({
+                                text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }),
+                                type: 'info',
+                            });
+                        }
+
+                        await updateImportMetadata(dataType);
+                        setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
+                        await performInitialCheck();
+                        resolve();
+
+                    } catch (e) {
+                        console.error("Error processing double-header file:", e);
+                        setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
+                        setIsLoading(false);
+                        reject(e);
+                    }
+                },
+                error: (error: Papa.ParseError) => {
+                    console.error("Parsing error:", error);
+                    setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
+                    setIsLoading(false);
+                    reject(error);
+                }
+            });
         });
-      }
-    };
+    }
 
+
+    // Use efficient streaming with a worker for standard files.
     return new Promise<void>((resolve, reject) => {
-        const papaConfig: any = {
+        Papa.parse(file, {
+            worker: true,
             header: options.hasHeader,
             skipEmptyLines: true,
             chunk: async (results: Papa.ParseResult<any>) => {
@@ -331,28 +382,13 @@ const App = () => {
                 await performInitialCheck();
                 resolve();
             },
-            error: (error: any) => {
+            error: (error: Papa.ParseError) => {
                 console.error("Parsing error:", error);
                 setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
                 setIsLoading(false);
                 reject(error);
             }
-        };
-
-        if (options.doubleHeader) {
-            papaConfig.worker = false; // beforeFirstChunk doesn't work with worker: true
-            papaConfig.beforeFirstChunk = (chunk: string) => {
-                const firstNewline = chunk.indexOf('\n');
-                if (firstNewline !== -1) {
-                    return chunk.substring(firstNewline + 1);
-                }
-                return chunk;
-            };
-        } else {
-            papaConfig.worker = true;
-        }
-
-        Papa.parse(file, papaConfig);
+        });
     });
   }, [t, language, performInitialCheck]);
 
@@ -681,9 +717,17 @@ const App = () => {
               multiple: false,
           });
           await saveSetting(`linkedFile:${dataType}`, handle);
-          setLinkedFiles(prev => new Map(prev).set(dataType, handle));
+          const newLinkedFiles = new Map(linkedFiles).set(dataType, handle);
+          setLinkedFiles(newLinkedFiles);
           setStatusMessage({ text: t('settings.linkSuccess'), type: 'success' });
-          await handleReloadFile(dataType);
+          
+          // Use the new handle directly instead of relying on state which might not be updated yet
+          const file = await handle.getFile();
+          if(dataType === 'products') await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true, doubleHeader: true });
+          if(dataType === 'goodsReceipts') await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true, doubleHeader: true });
+          if(dataType === 'openOrders') await processFile(file, 'openOrders', openOrderRowMapper, addOpenOrders, clearOpenOrders, { hasHeader: true });
+          if(dataType === 'sales') await processFile(file, 'sales', saleRowMapper, addSales, clearSales, { hasHeader: false });
+
       } catch(e) {
           if ((e as DOMException).name !== 'AbortError') {
               console.error("Error linking file:", e);
