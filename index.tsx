@@ -303,12 +303,11 @@ const App = () => {
     let processedCount = 0;
 
     // Use a more robust, non-streaming approach for double-header files.
-    // This avoids `beforeFirstChunk` and worker compatibility issues and correctly parses the format.
     if (options.doubleHeader) {
         console.log(`[App] Using double-header logic for ${dataTypeName}.`);
         return new Promise<void>((resolve, reject) => {
             Papa.parse<string[]>(file, {
-                header: false, // We'll manually handle headers.
+                header: false,
                 skipEmptyLines: true,
                 complete: async (results: Papa.ParseResult<string[]>, _file: File) => {
                     try {
@@ -323,14 +322,19 @@ const App = () => {
                         if (results.data.length < 2) {
                             throw new Error("File format error: expected at least two header rows.");
                         }
-
-                        const headers = results.data[1].map(h => h.trim());
-                        let dataRows = results.data.slice(2);
                         
-                        // Filter out rows that are essentially empty (e.g., from trailing newlines)
+                        const headerRow1 = results.data[0];
+                        const headerRow2 = results.data[1];
+                        const headers = headerRow1.map((h1, i) => {
+                            const h2 = headerRow2[i] || '';
+                            return (h1.trim() + ' ' + h2.trim()).trim();
+                        });
+                        
+                        console.log('[App] Combined headers:', headers);
+                        
+                        let dataRows = results.data.slice(2);
                         dataRows = dataRows.filter(row => row.some(cell => cell && cell.trim() !== ''));
-
-                        console.log('[App] Extracted headers:', headers);
+                        
                         console.log(`[App] Found ${dataRows.length} data rows to process after filtering.`);
 
                         if (dataRows.length === 0) {
@@ -366,7 +370,6 @@ const App = () => {
                         
                         console.log(`[App] Total valid mapped rows for ${dataTypeName}: ${mappedData.length}`);
                         
-                        // Batch add to DB
                         for (let i = 0; i < mappedData.length; i += BATCH_SIZE) {
                             const batch = mappedData.slice(i, i + BATCH_SIZE);
                             await addFunction(batch);
