@@ -1201,7 +1201,7 @@ export const ShcReportView = ({ counts, rdcList, exclusionList, onUpdateExclusio
                                             
                                             const changeCellStyle: { [key: string]: string } = {};
                                             if (change !== null && change < 0 && complianceReportData.bestRdcChange && complianceReportData.bestRdcChange < 0) {
-                                                changeCellStyle['--value'] = `${(change / complianceReportData.bestRdcChange) * 100}%`;
+                                                changeCellStyle['--value'] = `${((change / complianceReportData.bestRdcChange) * 100) - 5}%`;
                                             }
 
                                             return (
