@@ -550,6 +550,9 @@ export default {
       "change": "Change (curr/start)"
     }
   },
+   "writeOffsReport": {
+    "chooseWeek": "Choose week"
+  },
   "columns": {
     "product": {
       "warehouseId": "Warehouse",
@@ -655,6 +658,20 @@ export default {
         "settingSpecificallyFor": "Setting Specifically For",
         "settingWidth": "Setting Width",
         "storeNumber": "Store Number"
+    },
+    "writeOffs": {
+        "regionManagerStore": "Region / Manager / Store",
+        "turnover": "Turnover",
+        "writeOffsValue": "Write-offs Value",
+        "writeOffsPercent": "Write-offs %",
+        "writeOffsTotalValue": "Write-offs Total Value",
+        "writeOffsTotalPercent": "Write-offs Total %",
+        "discountsValue": "Discounts Value",
+        "discountsPercent": "Discounts %",
+        "damagesValue": "Damages Value",
+        "damagesPercent": "Damages %",
+        "targetPercent": "Target %",
+        "deviation": "Deviation p.p."
     }
   }
 }
