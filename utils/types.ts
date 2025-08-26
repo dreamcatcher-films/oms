@@ -4,9 +4,9 @@ export type Status = {
   progress?: number;
 };
 
-export type View = 'import' | 'threat-report' | 'dashboard' | 'simulations' | 'data-preview' | 'settings' | 'status-report' | 'shc-report' | 'shc-compliance-report';
+export type View = 'import' | 'threat-report' | 'dashboard' | 'simulations' | 'data-preview' | 'settings' | 'status-report' | 'shc-report' | 'write-offs-report' | 'shc-compliance-report';
 
-export type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales';
+export type DataType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales' | 'writeOffsWeekly' | 'writeOffsYTD';
 export type ShcDataType = 'shc' | 'planogram' | 'orgStructure' | 'categoryRelation';
 
 export type ManualDelivery = {
@@ -111,6 +111,48 @@ export type Sale = {
     quantity: number;
     resaleDateSortable: string;
 };
+
+export type WriteOffsActual = {
+    id: string; // composite key e.g. `${storeNumber}-${itemGroupNumber}-${metricId}`
+    metricName: string;
+    metricId: string;
+    period: string;
+    storeNumber: string;
+    storeName: string;
+    itemGroupNumber: string;
+    itemGroupName: string;
+    value: number;
+};
+
+export type WriteOffsTarget = {
+    id: string; // composite key e.g. `${storeNumber}-${itemGroupNumber}`
+    storeNumber: string;
+    itemGroupNumber: string;
+    monthlyTarget?: number;
+    yearlyTarget?: number;
+};
+
+// --- Write-Offs Report ---
+export type WriteOffsMetrics = {
+  turnover: number;
+  writeOffsValue: number;
+  writeOffsPercent: number;
+  discountsValue: number;
+  discountsPercent: number;
+  damagesValue: number;
+  damagesPercent: number;
+  target: number | null;
+  deviation: number | null;
+};
+
+export type ReportRow = {
+  id: string;
+  name: string;
+  level: 0 | 1 | 2 | 3; // 0: RDC, 1: HoS, 2: AM, 3: Store
+  metrics: WriteOffsMetrics;
+  children: ReportRow[];
+};
+
 
 export type ImportMeta = {
     dataType: DataType | ShcDataType;
