@@ -304,7 +304,7 @@ const App = () => {
     rowMapper: (row: any) => T | null,
     addFunction: (data: T[]) => Promise<void>,
     clearFunction: () => Promise<void>,
-    options: { hasHeader: boolean }
+    options: { hasHeader: boolean; delimiter?: string }
   ) => {
     setIsLoading(true);
     const dataTypeName = t(`dataType.${dataType}`);
@@ -436,6 +436,7 @@ const App = () => {
             worker: true,
             header: options.hasHeader,
             skipEmptyLines: true,
+            delimiter: options.delimiter,
             chunk: async (results: Papa.ParseResult<any>) => {
                 console.log(`[App] Received chunk for ${dataTypeName}. Rows: ${results.data.length}, Errors: ${results.errors.length}`);
                 if (results.errors.length > 0) {
@@ -495,10 +496,10 @@ const App = () => {
                 await processFile(file, 'sales', saleRowMapper, addSales, clearSales, { hasHeader: false });
                 break;
             case 'writeOffsWeekly':
-                await processFile(file, 'writeOffsWeekly', writeOffsActualRowMapper, addWriteOffsWeekly, clearWriteOffsWeekly, { hasHeader: false });
+                await processFile(file, 'writeOffsWeekly', writeOffsActualRowMapper, addWriteOffsWeekly, clearWriteOffsWeekly, { hasHeader: false, delimiter: ';' });
                 break;
             case 'writeOffsYTD':
-                await processFile(file, 'writeOffsYTD', writeOffsActualRowMapper, addWriteOffsYTD, clearWriteOffsYTD, { hasHeader: false });
+                await processFile(file, 'writeOffsYTD', writeOffsActualRowMapper, addWriteOffsYTD, clearWriteOffsYTD, { hasHeader: false, delimiter: ';' });
                 break;
         }
     } finally {
@@ -960,10 +961,49 @@ const App = () => {
       }
   };
   
+  const handleImportWriteOffsTargets = async (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    setStatusMessage({ text: t('status.import.preparing', { dataTypeName: t('dataType.writeOffsTargets') }), type: 'info' });
+
+    try {
+      await clearWriteOffsTargets();
+      const text = await file.text();
+      const data: Omit<WriteOffsTarget, 'id'>[] = JSON.parse(text);
+      const dataWithIds = data.map(item => ({
+          ...item,
+          id: `${item.storeNumber}-${item.itemGroupNumber}`
+      }));
+      await saveWriteOffsTargets(dataWithIds);
+      setStatusMessage({ text: t('status.import.complete', { processedCount: data.length, dataTypeName: t('dataType.writeOffsTargets') }), type: 'success' });
+      await performInitialCheck();
+    } catch (e) {
+      console.error("Error importing Write-Offs Targets", e);
+      setStatusMessage({ text: t('status.import.parseError', { dataTypeName: t('dataType.writeOffsTargets') }), type: 'error' });
+    } finally {
+      setIsLoading(false);
+      if (writeOffsTargetsInputRef.current) writeOffsTargetsInputRef.current.value = '';
+    }
+  };
+
+  const handleClearWriteOffsTargets = async () => {
+    const dataTypeName = t('dataType.writeOffsTargets');
+    setStatusMessage({ text: t('status.clear.clearing', { dataTypeName }), type: 'info' });
+    try {
+      await clearWriteOffsTargets();
+      setStatusMessage({ text: t('status.clear.cleared', { dataTypeName }), type: 'success' });
+      await performInitialCheck();
+    } catch (e) {
+      setStatusMessage({ text: t('status.clear.clearError', { dataTypeName }), type: 'error' });
+    }
+  };
+  
   const renderView = () => {
     switch (currentView) {
         case 'import':
-            return <ImportView isLoading={isLoading} importMetadata={importMetadata} counts={counts} onFileSelect={handleFileSelect} onClear={handleClearData} onClearShcFile={handleClearShcFile} onShcFileSelect={handleShcFileSelect} linkedFiles={linkedFiles} onReload={handleReloadFile} userSession={userSession} onLinkFile={handleLinkFile} onClearLink={handleClearLink} onClearAll={handleClearAll} />;
+            return <ImportView isLoading={isLoading} importMetadata={importMetadata} counts={counts} onFileSelect={handleFileSelect} onClear={handleClearData} onClearShcFile={handleClearShcFile} onShcFileSelect={handleShcFileSelect} linkedFiles={linkedFiles} onReload={handleReloadFile} userSession={userSession} onLinkFile={handleLinkFile} onClearLink={handleClearLink} onClearAll={handleClearAll} onImportWriteOffsTargetsClick={() => writeOffsTargetsInputRef.current?.click()} onClearWriteOffsTargets={handleClearWriteOffsTargets} />;
         case 'data-preview':
             return <DataPreview userSession={userSession} />;
         case 'threat-report':
@@ -1010,7 +1050,7 @@ const App = () => {
               <input type="file" ref={configImportInputRef} onChange={handleImportConfig} accept=".json" />
               <input type="file" ref={shcBaselineInputRef} onChange={(e) => handleImportShcSnapshot(e, 'baseline')} accept=".json" />
               <input type="file" ref={shcPreviousWeekInputRef} onChange={(e) => handleImportShcSnapshot(e, 'previousWeek')} accept=".json" />
-              <input type="file" ref={writeOffsTargetsInputRef} accept=".json" />
+              <input type="file" ref={writeOffsTargetsInputRef} onChange={handleImportWriteOffsTargets} accept=".json" />
           </div>
           {!userSession && <LoginModal onLogin={handleLogin} rdcList={rdcList} />}
           {isIdle && <IdleSplashScreen onContinue={handleContinueFromIdle} />}
