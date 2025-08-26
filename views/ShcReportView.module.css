@@ -494,10 +494,10 @@
 .compliance-table td.data-bar {
     background-repeat: no-repeat;
     background-size: var(--value, 0%) 100%;
-    background-image: linear-gradient(to right, rgba(255, 193, 7, 0.3), rgba(255, 193, 7, 0.3));
+    background-image: linear-gradient(to right, rgba(255, 193, 7, 0.6), rgba(255, 193, 7, 0.6));
 }
 .compliance-table td.change-bar {
-    background-image: linear-gradient(to right, rgba(76, 175, 80, 0.5), rgba(76, 175, 80, 0.5));
+    background-image: linear-gradient(to right, rgba(76, 175, 80, 0.8), rgba(76, 175, 80, 0.8));
 }
 .compliance-table .level-0 > td {
     background-color: #343a40; /* Darker Gray for RDC */
