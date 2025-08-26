@@ -285,10 +285,13 @@ const App = () => {
   ) => {
     setIsLoading(true);
     const dataTypeName = t(`dataType.${dataType}`);
+    console.log(`[App] Starting file processing for: ${dataTypeName}`);
     setStatusMessage({ text: t('status.import.preparing', { dataTypeName }), type: 'info' });
 
     try {
+      console.log(`[App] Clearing old data for ${dataTypeName}...`);
       await clearFunction();
+      console.log(`[App] Old data for ${dataTypeName} cleared.`);
     } catch (error) {
       console.error("Failed to clear old data", error);
       setStatusMessage({ text: t('status.clear.clearError', { dataTypeName }), type: 'error' });
@@ -302,31 +305,66 @@ const App = () => {
     // Use a more robust, non-streaming approach for double-header files.
     // This avoids `beforeFirstChunk` and worker compatibility issues and correctly parses the format.
     if (options.doubleHeader) {
+        console.log(`[App] Using double-header logic for ${dataTypeName}.`);
         return new Promise<void>((resolve, reject) => {
             Papa.parse<string[]>(file, {
                 header: false, // We'll manually handle headers.
                 skipEmptyLines: true,
                 complete: async (results: Papa.ParseResult<string[]>, _file: File) => {
                     try {
+                        console.log(`[App] PapaParse complete for ${dataTypeName}. Received ${results.data.length} total rows.`);
+                        if (results.errors.length > 0) {
+                            console.error('[App] PapaParse encountered errors:', results.errors);
+                        }
+                        if (results.data.length > 3) {
+                            console.log('[App] First 3 raw rows from parser:', JSON.stringify(results.data.slice(0, 3)));
+                        }
+
                         if (results.data.length < 2) {
                             throw new Error("File format error: expected at least two header rows.");
                         }
 
-                        const headers = results.data[1].map(h => h.trim()); // Real headers are on the second line.
-                        const dataRows = results.data.slice(2);
+                        const headers = results.data[1].map(h => h.trim());
+                        let dataRows = results.data.slice(2);
+                        
+                        // Filter out rows that are essentially empty (e.g., from trailing newlines)
+                        dataRows = dataRows.filter(row => row.some(cell => cell && cell.trim() !== ''));
+
+                        console.log('[App] Extracted headers:', headers);
+                        console.log(`[App] Found ${dataRows.length} data rows to process after filtering.`);
+
+                        if (dataRows.length === 0) {
+                            console.warn('[App] No data rows found after headers.');
+                            await updateImportMetadata(dataType);
+                            setStatusMessage({ text: t('status.import.complete', { processedCount: 0, dataTypeName }), type: 'success' });
+                            await performInitialCheck();
+                            resolve();
+                            return;
+                        }
 
                         const mappedData = dataRows
-                            .map(rowArray => {
+                            .map((rowArray, rowIndex) => {
                                 const rowObject: { [key: string]: string } = {};
                                 headers.forEach((header, i) => {
-                                    if (header) { // Guard against empty header cells
+                                    if (header) { 
                                         rowObject[header] = rowArray[i];
                                     }
                                 });
+                                if (rowIndex === 0) {
+                                    console.log('[App] First constructed row object:', rowObject);
+                                }
                                 return rowObject;
                             })
-                            .map(rowMapper)
+                            .map((rowObject, rowIndex) => {
+                                const mappedRow = rowMapper(rowObject);
+                                if (rowIndex === 0) {
+                                    console.log('[App] First row object after mapping:', mappedRow);
+                                }
+                                return mappedRow;
+                            })
                             .filter((item): item is T => item !== null);
+                        
+                        console.log(`[App] Total valid mapped rows for ${dataTypeName}: ${mappedData.length}`);
                         
                         // Batch add to DB
                         for (let i = 0; i < mappedData.length; i += BATCH_SIZE) {
@@ -339,20 +377,21 @@ const App = () => {
                             });
                         }
 
+                        console.log(`[App] Finished adding data to DB for ${dataTypeName}.`);
                         await updateImportMetadata(dataType);
                         setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
                         await performInitialCheck();
                         resolve();
 
                     } catch (e) {
-                        console.error("Error processing double-header file:", e);
+                        console.error(`[App] Error processing double-header file for ${dataTypeName}:`, e);
                         setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
                         setIsLoading(false);
                         reject(e);
                     }
                 },
                 error: (error: Error, _file: File) => {
-                    console.error("Parsing error:", error);
+                    console.error(`[App] PapaParse critical error for ${dataTypeName}:`, error);
                     setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
                     setIsLoading(false);
                     reject(error);
@@ -364,12 +403,28 @@ const App = () => {
 
     // Use efficient streaming with a worker for standard files.
     return new Promise<void>((resolve, reject) => {
+        console.log(`[App] Using streaming logic for ${dataTypeName}.`);
         Papa.parse<any>(file, {
             worker: true,
             header: options.hasHeader,
             skipEmptyLines: true,
             chunk: async (results: Papa.ParseResult<any>) => {
-                const mappedBatch = results.data.map(rowMapper).filter((item): item is T => item !== null);
+                console.log(`[App] Received chunk for ${dataTypeName}. Rows: ${results.data.length}, Errors: ${results.errors.length}`);
+                if (results.errors.length > 0) {
+                    console.error('[App] PapaParse chunk errors:', results.errors.slice(0, 5));
+                }
+
+                const mappedBatch = results.data.map((row, rowIndex) => {
+                    const mappedRow = rowMapper(row);
+                    if (rowIndex === 0) {
+                        console.log('[App] First row in chunk (raw):', row);
+                        console.log('[App] First row in chunk (mapped):', mappedRow);
+                    }
+                    return mappedRow;
+                }).filter((item): item is T => item !== null);
+
+                console.log(`[App] Mapped chunk to ${mappedBatch.length} valid items.`);
+
                 if (mappedBatch.length > 0) {
                   await addFunction(mappedBatch);
                   processedCount += mappedBatch.length;
@@ -377,13 +432,14 @@ const App = () => {
                 }
             },
             complete: async () => {
+                console.log(`[App] Streaming complete for ${dataTypeName}. Total processed: ${processedCount}`);
                 await updateImportMetadata(dataType);
                 setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
                 await performInitialCheck();
                 resolve();
             },
             error: (error: Error) => {
-                console.error("Parsing error:", error);
+                console.error(`[App] PapaParse critical streaming error for ${dataTypeName}:`, error);
                 setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
                 setIsLoading(false);
                 reject(error);
