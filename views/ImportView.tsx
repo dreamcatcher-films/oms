@@ -14,7 +14,7 @@ const isDateToday = (someDate: Date) => {
 type ImportViewProps = {
     isLoading: boolean;
     importMetadata: ImportMetadata;
-    counts: { [key in DataType | ShcDataType]: number };
+    counts: { [key in DataType | ShcDataType | 'writeOffsTargets']: number };
     onFileSelect: (type: DataType, event: Event) => void;
     onClear: (type: DataType) => void;
     onClearShcFile: (type: ShcDataType) => void;
@@ -66,8 +66,8 @@ export const ImportView = (props: ImportViewProps) => {
         { key: 'categoryRelation', titleKey: 'import.shc.categoryRelation.title', accept: '.xls' },
     ];
 
-    const renderStatusAndCount = (type: DataType | ShcDataType) => {
-        const meta = importMetadata[type];
+    const renderStatusAndCount = (type: DataType | ShcDataType | 'writeOffsTargets') => {
+        const meta = (importMetadata as any)[type];
         const count = counts[type] || 0;
         const statusIcon = count > 0 ? '✓' : '✗';
         const statusClass = count > 0 ? styles.success : styles.error;
@@ -178,6 +178,49 @@ export const ImportView = (props: ImportViewProps) => {
                         </div>
                     );
                 })}
+                </div>
+            </div>
+
+            <div class={styles['shc-section-container']}>
+                <div class={styles['shc-section-header-main']}>
+                    <h2>{t('import.writeOffs.title')}</h2>
+                </div>
+                <div class={styles['import-container']}>
+                    <div class={`${styles['import-section']} ${styles['shc-import-section']}`}>
+                        <div class={styles['import-section-header']}>
+                            <h2>{t('import.writeOffs.weekly')}</h2>
+                            {renderStatusAndCount('writeOffsWeekly')}
+                        </div>
+                        <div class={styles['import-section-footer']}>
+                             <div class={styles['import-actions']}>
+                                <input id="writeOffsWeekly-file-input" type="file" style={{ display: 'none' }} accept=".csv" onChange={(e) => onFileSelect('writeOffsWeekly', e)} disabled={isLoading} />
+                                <label htmlFor="writeOffsWeekly-file-input" class={`${sharedStyles.buttonPrimary} ${isLoading ? sharedStyles.disabled : ''}`}>{t('import.buttons.selectFile')}</label>
+                                {counts.writeOffsWeekly > 0 && <button onClick={() => onClear('writeOffsWeekly')} class={sharedStyles.buttonSecondary} disabled={isLoading}>{t('import.buttons.clear')}</button>}
+                            </div>
+                        </div>
+                    </div>
+                     <div class={`${styles['import-section']} ${styles['shc-import-section']}`}>
+                        <div class={styles['import-section-header']}>
+                            <h2>{t('import.writeOffs.ytd')}</h2>
+                            {renderStatusAndCount('writeOffsYTD')}
+                        </div>
+                        <div class={styles['import-section-footer']}>
+                             <div class={styles['import-actions']}>
+                                <input id="writeOffsYTD-file-input" type="file" style={{ display: 'none' }} accept=".csv" onChange={(e) => onFileSelect('writeOffsYTD', e)} disabled={isLoading} />
+                                <label htmlFor="writeOffsYTD-file-input" class={`${sharedStyles.buttonPrimary} ${isLoading ? sharedStyles.disabled : ''}`}>{t('import.buttons.selectFile')}</label>
+                                {counts.writeOffsYTD > 0 && <button onClick={() => onClear('writeOffsYTD')} class={sharedStyles.buttonSecondary} disabled={isLoading}>{t('import.buttons.clear')}</button>}
+                            </div>
+                        </div>
+                    </div>
+                     <div class={`${styles['import-section']} ${styles['shc-import-section']}`}>
+                        <div class={styles['import-section-header']}>
+                            <h2>{t('import.writeOffs.targets')}</h2>
+                            {renderStatusAndCount('writeOffsTargets')}
+                        </div>
+                        <div class={styles['import-section-footer']}>
+                            {/* This will be handled in index.tsx with a ref */}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
