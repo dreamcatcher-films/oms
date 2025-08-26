@@ -306,7 +306,7 @@ const App = () => {
             Papa.parse<string[]>(file, {
                 header: false, // We'll manually handle headers.
                 skipEmptyLines: true,
-                complete: async (results: Papa.ParseResult<string[]>) => {
+                complete: async (results: Papa.ParseResult<string[]>, _file: File) => {
                     try {
                         if (results.data.length < 2) {
                             throw new Error("File format error: expected at least two header rows.");
@@ -351,7 +351,7 @@ const App = () => {
                         reject(e);
                     }
                 },
-                error: (error: Papa.ParseError) => {
+                error: (error: Papa.ParseError, _file: File) => {
                     console.error("Parsing error:", error);
                     setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
                     setIsLoading(false);
@@ -382,7 +382,7 @@ const App = () => {
                 await performInitialCheck();
                 resolve();
             },
-            error: (error: Papa.ParseError) => {
+            error: (error: Papa.ParseError, _file: File) => {
                 console.error("Parsing error:", error);
                 setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
                 setIsLoading(false);
