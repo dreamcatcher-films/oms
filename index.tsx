@@ -351,7 +351,7 @@ const App = () => {
                         reject(e);
                     }
                 },
-                error: (error: Papa.ParseError, _file: File) => {
+                error: (error: Error, _file: File) => {
                     console.error("Parsing error:", error);
                     setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
                     setIsLoading(false);
@@ -382,7 +382,7 @@ const App = () => {
                 await performInitialCheck();
                 resolve();
             },
-            error: (error: Papa.ParseError, _file: File) => {
+            error: (error: Error) => {
                 console.error("Parsing error:", error);
                 setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
                 setIsLoading(false);
