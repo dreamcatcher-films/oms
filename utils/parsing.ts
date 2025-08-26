@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { Product, GoodsReceipt, OpenOrder, Sale, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow } from '../db';
+import { Product, GoodsReceipt, OpenOrder, Sale, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, WriteOffsActual } from '../db';
 import { ShcDataType } from './types';
 
 export const parseDateToObj = (dateStr: string | undefined): Date | null => {
@@ -203,6 +203,44 @@ export const saleRowMapper = (row: string[]): Sale | null => {
         resaleDateSortable: parseDateToSortableFormat(resaleDate),
     };
 };
+
+export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null => {
+    if (row.length < 7) return null;
+
+    const metricRaw = row[0]?.trim() || '';
+    const period = row[1]?.trim() || '';
+    const storeNumber = row[2]?.trim() || '';
+    const storeName = row[3]?.trim() || '';
+    const itemGroupNumber = row[4]?.trim() || '';
+    const itemGroupName = row[5]?.trim() || '';
+    const valueRaw = row[6]?.trim() || '';
+    
+    const value = parseFloat(valueRaw);
+
+    if (!metricRaw || !storeNumber || !itemGroupNumber || isNaN(value)) {
+        return null;
+    }
+
+    const metricParts = metricRaw.split('|');
+    const metricName = metricParts[0]?.trim() || 'Unknown Metric';
+    const metricIdMatch = metricRaw.match(/\(([^)]+)\)/);
+    const metricId = metricIdMatch ? metricIdMatch[1] : `unknown-${Date.now()}`;
+
+    const id = `${storeNumber}-${itemGroupNumber}-${metricId}`;
+
+    return {
+        id,
+        metricName,
+        metricId,
+        period,
+        storeNumber,
+        storeName,
+        itemGroupNumber,
+        itemGroupName,
+        value,
+    };
+};
+
 
 // --- SHC vs Planogram Parsers ---
 
