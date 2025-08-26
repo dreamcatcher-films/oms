@@ -385,3 +385,14 @@
     max-height: 500px;
     padding: 1rem 1.5rem;
 }
+/* Dodaje przerwę między paskami danych w Raporcie Zgodności */
+.compliance-table td.data-bar + td,
+.compliance-table td.change-bar,
+.compliance-table th:nth-child(n+2) {
+    border-left: 2px solid #ffffff; /* Biała linia tworząca przerwę */
+}
+
+/* Usuwa podwójną krawędź z komórki 'change', jeśli ma już styl paska danych */
+.compliance-table td.data-bar.change-bar {
+    border-left: none; /* Zapobiega podwójnej krawędzi */
+}
