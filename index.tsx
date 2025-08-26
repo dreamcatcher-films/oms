@@ -40,11 +40,19 @@ import {
   saveShcPreviousWeekData,
   Product,
   GoodsReceipt,
-  OpenOrder
+  OpenOrder,
+  addWriteOffsWeekly,
+  clearWriteOffsWeekly,
+  addWriteOffsYTD,
+  clearWriteOffsYTD,
+  saveWriteOffsTargets,
+  clearWriteOffsTargets,
+  WriteOffsTarget,
+  WriteOffsActual
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
-import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper } from './utils/parsing';
+import { productRowMapper, goodsReceiptRowMapper, openOrderRowMapper, saleRowMapper, writeOffsActualRowMapper } from './utils/parsing';
 import { Status, View, DataType, RDC, UserSession, ReportResultItem, ExclusionListData, ShcDataType, ShcParsingWorkerMessage, ShcSnapshot } from './utils/types';
 
 import { LanguageSelector } from './components/LanguageSelector';
@@ -56,6 +64,7 @@ import { SettingsView } from './views/SettingsView';
 import { ThreatReportView } from './views/ThreatReportView';
 import { StatusReportView } from './views/StatusReportView';
 import { ShcReportView } from './views/ShcReportView';
+import { WriteOffsReportView } from './views/WriteOffsReportView';
 import { AutoRefreshControl } from './components/AutoRefreshControl';
 import { RefreshCountdownModal } from './components/RefreshCountdownModal';
 import { IdleSplashScreen } from './components/IdleSplashScreen';
@@ -73,8 +82,8 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<Status | null>({ text: 'Inicjalizacja aplikacji...', type: 'info' });
   
-  const [counts, setCounts] = useState({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0, shc: 0, planogram: 0, orgStructure: 0, categoryRelation: 0 });
-  const [importMetadata, setImportMetadata] = useState<ImportMetadata>({ products: null, goodsReceipts: null, openOrders: null, sales: null, shc: null, planogram: null, orgStructure: null, categoryRelation: null });
+  const [counts, setCounts] = useState({ products: 0, goodsReceipts: 0, openOrders: 0, sales: 0, shc: 0, planogram: 0, orgStructure: 0, categoryRelation: 0, writeOffsWeekly: 0, writeOffsYTD: 0, writeOffsTargets: 0 });
+  const [importMetadata, setImportMetadata] = useState<ImportMetadata>({ products: null, goodsReceipts: null, openOrders: null, sales: null, shc: null, planogram: null, orgStructure: null, categoryRelation: null, writeOffsWeekly: null, writeOffsYTD: null });
   const [linkedFiles, setLinkedFiles] = useState<Map<DataType, FileSystemFileHandle>>(new Map());
   
   const [currentView, setCurrentView] = useState<View>('import');
@@ -100,6 +109,7 @@ const App = () => {
   const configImportInputRef = useRef<HTMLInputElement>(null);
   const shcBaselineInputRef = useRef<HTMLInputElement>(null);
   const shcPreviousWeekInputRef = useRef<HTMLInputElement>(null);
+  const writeOffsTargetsInputRef = useRef<HTMLInputElement>(null);
   const idleTimerRef = useRef<number | null>(null);
   const refreshIntervalRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
@@ -225,14 +235,26 @@ const App = () => {
     setIsLoading(true);
     setStatusMessage({ text: t('status.checkingDb'), type: 'info' });
     try {
-      const [{ productsCount, goodsReceiptsCount, openOrdersCount, salesCount, shcCount, planogramCount, orgStructureCount, categoryRelationCount }, metadata] = await Promise.all([
+      const [dbStatus, metadata] = await Promise.all([
           checkDBStatus(),
           getImportMetadata()
       ]);
-      setCounts({ products: productsCount, goodsReceipts: goodsReceiptsCount, openOrders: openOrdersCount, sales: salesCount, shc: shcCount, planogram: planogramCount, orgStructure: orgStructureCount, categoryRelation: categoryRelationCount });
+      setCounts({
+        products: dbStatus.productsCount,
+        goodsReceipts: dbStatus.goodsReceiptsCount,
+        openOrders: dbStatus.openOrdersCount,
+        sales: dbStatus.salesCount,
+        shc: dbStatus.shcCount,
+        planogram: dbStatus.planogramCount,
+        orgStructure: dbStatus.orgStructureCount,
+        categoryRelation: dbStatus.categoryRelationCount,
+        writeOffsWeekly: dbStatus.writeOffsWeeklyCount,
+        writeOffsYTD: dbStatus.writeOffsYTDCount,
+        writeOffsTargets: dbStatus.writeOffsTargetsCount,
+      });
       setImportMetadata(metadata);
 
-      if (productsCount > 0 || goodsReceiptsCount > 0 || openOrdersCount > 0 || salesCount > 0) {
+      if (dbStatus.productsCount > 0 || dbStatus.goodsReceiptsCount > 0 || dbStatus.openOrdersCount > 0 || dbStatus.salesCount > 0) {
         setStatusMessage({ text: t('status.dbOk'), type: 'success' });
       } else {
         setStatusMessage({ text: t('status.dbEmpty'), type: 'info' });
@@ -276,7 +298,7 @@ const App = () => {
   }, [t]);
 
   // --- File Processing Logic ---
-  const processFile = useCallback(async <T extends Product | Sale | GoodsReceipt | OpenOrder>(
+  const processFile = useCallback(async <T extends Product | Sale | GoodsReceipt | OpenOrder | WriteOffsActual>(
     file: File,
     dataType: DataType,
     rowMapper: (row: any) => T | null,
@@ -471,6 +493,12 @@ const App = () => {
                 break;
             case 'sales':
                 await processFile(file, 'sales', saleRowMapper, addSales, clearSales, { hasHeader: false });
+                break;
+            case 'writeOffsWeekly':
+                await processFile(file, 'writeOffsWeekly', writeOffsActualRowMapper, addWriteOffsWeekly, clearWriteOffsWeekly, { hasHeader: false });
+                break;
+            case 'writeOffsYTD':
+                await processFile(file, 'writeOffsYTD', writeOffsActualRowMapper, addWriteOffsYTD, clearWriteOffsYTD, { hasHeader: false });
                 break;
         }
     } finally {
@@ -689,7 +717,9 @@ const App = () => {
         'products': clearProducts,
         'goodsReceipts': clearGoodsReceipts,
         'openOrders': clearOpenOrders,
-        'sales': clearSales
+        'sales': clearSales,
+        'writeOffsWeekly': clearWriteOffsWeekly,
+        'writeOffsYTD': clearWriteOffsYTD,
     }[type];
     const dataTypeName = t(`dataType.${type}`);
     setStatusMessage({ text: t('status.clear.clearing', { dataTypeName }), type: 'info' });
@@ -943,6 +973,9 @@ const App = () => {
              return <StatusReportView rdcList={rdcList} exclusionList={exclusionList} onUpdateExclusionList={() => { if(exclusionFileInputRef.current) exclusionFileInputRef.current.click() }}/>;
         case 'shc-report':
             return <ShcReportView counts={counts} rdcList={rdcList} exclusionList={shcExclusionList} onUpdateExclusionList={(newList) => { saveShcExclusionList(Array.from(newList)); setShcExclusionList(newList); }} />;
+        case 'write-offs-report':
+            if (userSession?.mode !== 'hq') return <div class={sharedStyles['placeholder-view']}><h3>{t('placeholders.report.title')}</h3><p>{t('placeholders.report.accessDenied')}</p></div>;
+            return <WriteOffsReportView />;
         case 'simulations':
             return <SimulationView userSession={userSession} initialParams={simulationContext} onSimulationStart={() => setSimulationContext(null)} watchlist={watchlist} watchlistIndex={watchlistIndex} onNavigateWatchlist={handleNavigateWatchlist} onClearWatchlist={() => { setWatchlist([]); setWatchlistIndex(null); }} />;
         case 'settings':
@@ -959,7 +992,8 @@ const App = () => {
     { view: 'simulations', labelKey: 'sidebar.simulations' },
     { view: 'threat-report', labelKey: 'sidebar.threatReport', hqOnly: true },
     { view: 'status-report', labelKey: 'sidebar.statusReport' },
-    { view: 'shc-report', labelKey: 'sidebar.shcReport' },
+    { view: 'shc-report', labelKey: 'sidebar.shcReport', hqOnly: true },
+    { view: 'write-offs-report', labelKey: 'sidebar.writeOffsReport', hqOnly: true },
     { view: 'settings', labelKey: 'sidebar.settings' },
   ];
 
@@ -976,6 +1010,7 @@ const App = () => {
               <input type="file" ref={configImportInputRef} onChange={handleImportConfig} accept=".json" />
               <input type="file" ref={shcBaselineInputRef} onChange={(e) => handleImportShcSnapshot(e, 'baseline')} accept=".json" />
               <input type="file" ref={shcPreviousWeekInputRef} onChange={(e) => handleImportShcSnapshot(e, 'previousWeek')} accept=".json" />
+              <input type="file" ref={writeOffsTargetsInputRef} accept=".json" />
           </div>
           {!userSession && <LoginModal onLogin={handleLogin} rdcList={rdcList} />}
           {isIdle && <IdleSplashScreen onContinue={handleContinueFromIdle} />}
