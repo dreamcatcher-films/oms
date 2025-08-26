@@ -302,34 +302,36 @@ const App = () => {
         const papaConfig: Papa.ParseConfig<any, File> = {
             header: options.hasHeader,
             skipEmptyLines: true,
-            complete: async (results: Papa.ParseResult<any>) => {
-                const mappedData = results.data.map(rowMapper).filter((item): item is T => item !== null);
-                const processedCount = mappedData.length;
+        };
 
-                if (mappedData.length > 0) {
-                  setStatusMessage({ text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }), type: 'info' });
-                  // Process in batches to avoid overwhelming IndexedDB with a single large transaction, though addFunction handles this internally.
-                   for (let i = 0; i < mappedData.length; i += BATCH_SIZE) {
-                        const batch = mappedData.slice(i, i + BATCH_SIZE);
-                        await addFunction(batch);
-                    }
+        papaConfig.complete = async (results: Papa.ParseResult<any>, _file: File) => {
+            const mappedData = results.data.map(rowMapper).filter((item): item is T => item !== null);
+            const processedCount = mappedData.length;
+
+            if (mappedData.length > 0) {
+              setStatusMessage({ text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }), type: 'info' });
+              // Process in batches to avoid overwhelming IndexedDB with a single large transaction, though addFunction handles this internally.
+               for (let i = 0; i < mappedData.length; i += BATCH_SIZE) {
+                    const batch = mappedData.slice(i, i + BATCH_SIZE);
+                    await addFunction(batch);
                 }
-                
-                await updateImportMetadata(dataType);
-                setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
-                await performInitialCheck();
-                resolve();
-            },
-            error: (error: any, _file: File) => {
-                console.error("Parsing error:", error);
-                setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
-                setIsLoading(false);
-                reject(error);
             }
+            
+            await updateImportMetadata(dataType);
+            setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
+            await performInitialCheck();
+            resolve();
+        };
+
+        papaConfig.error = (error: Papa.ParseError, _file: File) => {
+            console.error("Parsing error:", error);
+            setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
+            setIsLoading(false);
+            reject(error);
         };
 
         if (options.headerRowsToSkip && options.headerRowsToSkip > 0) {
-            (papaConfig as any).beforeFirstChunk = (chunk: string) => {
+            papaConfig.beforeFirstChunk = (chunk: string) => {
                 const lines = chunk.split(/\r\n|\n|\r/);
                 const newChunk = lines.slice(options.headerRowsToSkip).join('\n');
                 return newChunk;
