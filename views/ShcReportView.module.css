@@ -599,6 +599,7 @@
     .compliance-table td, .compliance-table th {
         padding: 4px;
     }
+}
 
     /* Dodaje przerwę między paskami danych w Raporcie Zgodności */
     .compliance-table td.data-bar + td,
