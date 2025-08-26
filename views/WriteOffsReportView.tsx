@@ -11,21 +11,24 @@ import {
 import styles from './WriteOffsReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
 
-// Constants to map metric IDs from CSV to meaningful keys
-const METRIC_MAPPING = {
-    TURNOVER: 'R1104.005',
-    WRITE_OFFS_VALUE: '1104501.002',
-    WRITE_OFFS_PERCENT: '1104501.003',
-    DISCOUNTS_VALUE: '1104012.002',
-    DISCOUNTS_PERCENT: '1104012.003',
-    DAMAGES_VALUE: '1104015.002',
-    DAMAGES_PERCENT: '1104015.003',
+const METRIC_NAME_MATCHERS = {
+    TURNOVER: (name: string) => name.includes('Net Turnover'),
+    WRITE_OFFS_VALUE: (name: string) => name.includes('Write Offs Store (value)'),
+    WRITE_OFFS_PERCENT: (name: string) => name.includes('Store write offs (%)'),
+    WRITE_OFFS_TOTAL_VALUE: (name: string) => name.includes('Write Offs Total (value)'),
+    WRITE_OFFS_TOTAL_PERCENT: (name: string) => name.includes('Write Offs Total (%)'),
+    DISCOUNTS_VALUE: (name: string) => name.includes('Discounts (value)'),
+    DISCOUNTS_PERCENT: (name: string) => name.includes('Discounts (%)'),
+    DAMAGES_VALUE: (name: string) => name.includes('Damages Store (value)'),
+    DAMAGES_PERCENT: (name: string) => name.includes('Damages Store (%)'),
 };
 
 const createEmptyMetrics = (): WriteOffsMetrics => ({
     turnover: 0,
     writeOffsValue: 0,
     writeOffsPercent: 0,
+    writeOffsTotalValue: 0,
+    writeOffsTotalPercent: 0,
     discountsValue: 0,
     discountsPercent: 0,
     damagesValue: 0,
@@ -55,6 +58,8 @@ const ReportRowComponent = ({ row, expandedRows, onToggle, level }: { row: Repor
                 <td>{formatValue(row.metrics.turnover)}</td>
                 <td>{formatValue(row.metrics.writeOffsValue)}</td>
                 <td>{formatPercent(row.metrics.writeOffsPercent)}</td>
+                <td>{formatValue(row.metrics.writeOffsTotalValue)}</td>
+                <td>{formatPercent(row.metrics.writeOffsTotalPercent)}</td>
                 <td>{formatValue(row.metrics.discountsValue)}</td>
                 <td>{formatPercent(row.metrics.discountsPercent)}</td>
                 <td>{formatValue(row.metrics.damagesValue)}</td>
@@ -75,17 +80,17 @@ export const WriteOffsReportView = () => {
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
   
-  // Raw data from DB
   const [weeklyActuals, setWeeklyActuals] = useState<WriteOffsActual[]>([]);
   const [ytdActuals, setYtdActuals] = useState<WriteOffsActual[]>([]);
   const [targets, setTargets] = useState<WriteOffsTarget[]>([]);
   const [orgStructure, setOrgStructure] = useState<OrgStructureRow[]>([]);
 
-  // UI State
   const [viewMode, setViewMode] = useState<'weekly' | 'ytd'>('weekly');
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [availableGroups, setAvailableGroups] = useState<string[]>([]);
+  const [availableWeeks, setAvailableWeeks] = useState<string[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState<string>('');
   
   useEffect(() => {
     const fetchData = async () => {
@@ -106,6 +111,12 @@ export const WriteOffsReportView = () => {
             const groups = [...new Set(allActuals.map(a => `${a.itemGroupNumber} - ${a.itemGroupName}`))];
             setAvailableGroups(groups.sort());
 
+            const weeks = [...new Set(weekly.map(a => a.period))].sort((a,b) => b.localeCompare(a));
+            setAvailableWeeks(weeks);
+            if (weeks.length > 0) {
+                setSelectedWeek(weeks[0]);
+            }
+
         } catch (error) {
             console.error("Failed to fetch data for Write-Offs Report", error);
         } finally {
@@ -118,11 +129,13 @@ export const WriteOffsReportView = () => {
   const reportData = useMemo<ReportRow | null>(() => {
     if (isLoading || orgStructure.length === 0) return null;
 
-    const actuals = viewMode === 'weekly' ? weeklyActuals : ytdActuals;
-    const periodIdentifier = viewMode === 'weekly' ? 'Wk' : 'FY';
+    let actuals = viewMode === 'weekly' ? weeklyActuals : ytdActuals;
+
+    if (viewMode === 'weekly' && selectedWeek) {
+        actuals = actuals.filter(a => a.period === selectedWeek);
+    }
     
     const filteredActuals = actuals.filter(a => 
-        a.period.includes(periodIdentifier) &&
         (selectedGroup === 'all' || `${a.itemGroupNumber} - ${a.itemGroupName}` === selectedGroup)
     );
     
@@ -139,23 +152,26 @@ export const WriteOffsReportView = () => {
         targetsByStoreAndGroup.set(`${target.storeNumber}-${target.itemGroupNumber}`, target);
     }
     
-    const getMetric = (storeActuals: WriteOffsActual[], metricId: string): number => {
-        return storeActuals.find(a => a.metricId.includes(metricId))?.value || 0;
+    const getMetric = (storeActuals: WriteOffsActual[], matcher: (name: string) => boolean): number => {
+        return storeActuals.find(a => matcher(a.metricName))?.value || 0;
     };
     
     const calculateMetricsForRows = (rows: ReportRow[]): WriteOffsMetrics => {
         const aggregated = createEmptyMetrics();
         let totalWeightedPercent = 0;
+        let totalWeightedTotalPercent = 0;
         let totalWeightedTarget = 0;
         let totalTurnoverForTarget = 0;
 
         for (const row of rows) {
             aggregated.turnover += row.metrics.turnover;
             aggregated.writeOffsValue += row.metrics.writeOffsValue;
+            aggregated.writeOffsTotalValue += row.metrics.writeOffsTotalValue;
             aggregated.discountsValue += row.metrics.discountsValue;
             aggregated.damagesValue += row.metrics.damagesValue;
             if (row.metrics.turnover > 0) {
                 totalWeightedPercent += row.metrics.writeOffsPercent * row.metrics.turnover;
+                totalWeightedTotalPercent += row.metrics.writeOffsTotalPercent * row.metrics.turnover;
                 if (row.metrics.target !== null) {
                     totalWeightedTarget += row.metrics.target * row.metrics.turnover;
                     totalTurnoverForTarget += row.metrics.turnover;
@@ -164,6 +180,7 @@ export const WriteOffsReportView = () => {
         }
         
         aggregated.writeOffsPercent = aggregated.turnover > 0 ? totalWeightedPercent / aggregated.turnover : 0;
+        aggregated.writeOffsTotalPercent = aggregated.turnover > 0 ? totalWeightedTotalPercent / aggregated.turnover : 0;
         aggregated.discountsPercent = aggregated.turnover > 0 ? aggregated.discountsValue / aggregated.turnover : 0;
         aggregated.damagesPercent = aggregated.turnover > 0 ? aggregated.damagesValue / aggregated.turnover : 0;
         
@@ -186,12 +203,12 @@ export const WriteOffsReportView = () => {
         hos.ams.get(store.areaManager)!.push(store);
     }
 
-    const allRegionsRow: ReportRow = { id: 'all-regions', name: 'All Regions', level: 0 as any, metrics: createEmptyMetrics(), children: [] };
+    const allRegionsRow: ReportRow = { id: 'all-regions', name: t('columns.writeOffs.regionManagerStore').split('/')[0].trim(), level: 0, metrics: createEmptyMetrics(), children: [] };
     const sortedRdcs = Array.from(rdcHierarchy.keys()).sort();
 
     for (const rdcId of sortedRdcs) {
         const { hoss } = rdcHierarchy.get(rdcId)!;
-        const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `Region ${rdcId}`, level: 1 as any, metrics: createEmptyMetrics(), children: [] };
+        const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `Region ${rdcId}`, level: 1, metrics: createEmptyMetrics(), children: [] };
 
         const sortedHoss = Array.from(hoss.keys()).sort();
         for (const hosName of sortedHoss) {
@@ -208,13 +225,15 @@ export const WriteOffsReportView = () => {
                     if (storeActuals.length === 0) continue;
 
                     const storeMetrics = createEmptyMetrics();
-                    storeMetrics.turnover = getMetric(storeActuals, METRIC_MAPPING.TURNOVER);
-                    storeMetrics.writeOffsValue = getMetric(storeActuals, METRIC_MAPPING.WRITE_OFFS_VALUE);
-                    storeMetrics.discountsValue = getMetric(storeActuals, METRIC_MAPPING.DISCOUNTS_VALUE);
-                    storeMetrics.damagesValue = getMetric(storeActuals, METRIC_MAPPING.DAMAGES_VALUE);
-                    storeMetrics.writeOffsPercent = getMetric(storeActuals, METRIC_MAPPING.WRITE_OFFS_PERCENT);
-                    storeMetrics.discountsPercent = getMetric(storeActuals, METRIC_MAPPING.DISCOUNTS_PERCENT);
-                    storeMetrics.damagesPercent = getMetric(storeActuals, METRIC_MAPPING.DAMAGES_PERCENT);
+                    storeMetrics.turnover = getMetric(storeActuals, METRIC_NAME_MATCHERS.TURNOVER);
+                    storeMetrics.writeOffsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_VALUE);
+                    storeMetrics.writeOffsPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_PERCENT);
+                    storeMetrics.writeOffsTotalValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_VALUE);
+                    storeMetrics.writeOffsTotalPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_PERCENT);
+                    storeMetrics.discountsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_VALUE);
+                    storeMetrics.discountsPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_PERCENT);
+                    storeMetrics.damagesValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_VALUE);
+                    storeMetrics.damagesPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_PERCENT);
                     
                     const targetKey = selectedGroup === 'all' 
                         ? targets.find(t => t.storeNumber === store.storeNumber)?.id 
@@ -227,7 +246,7 @@ export const WriteOffsReportView = () => {
                         storeMetrics.deviation = storeMetrics.writeOffsPercent - targetValue;
                     }
                     
-                    amRow.children.push({ id: store.storeNumber, name: `${store.storeNumber} - ${store.storeName}`, level: 4 as any, metrics: storeMetrics, children: [] });
+                    amRow.children.push({ id: store.storeNumber, name: `${store.storeNumber} - ${store.storeName}`, level: 4, metrics: storeMetrics, children: [] });
                 }
                 if (amRow.children.length > 0) {
                      amRow.children.sort((a,b) => (a.metrics.deviation ?? Infinity) - (b.metrics.deviation ?? Infinity));
@@ -250,7 +269,7 @@ export const WriteOffsReportView = () => {
     allRegionsRow.metrics = calculateMetricsForRows(allRegionsRow.children);
     return allRegionsRow;
     
-  }, [isLoading, orgStructure, weeklyActuals, ytdActuals, targets, viewMode, selectedGroup]);
+  }, [isLoading, orgStructure, weeklyActuals, ytdActuals, targets, viewMode, selectedGroup, selectedWeek, t]);
   
   const handleToggleRow = (id: string) => {
     setExpandedRows(prev => {
@@ -286,6 +305,14 @@ export const WriteOffsReportView = () => {
                     <button onClick={() => setViewMode('ytd')} class={viewMode === 'ytd' ? styles.active : ''}>YTD</button>
                 </div>
             </div>
+            {viewMode === 'weekly' && availableWeeks.length > 1 && (
+                <div class={styles['control-group']}>
+                    <label for="week-select">{t('writeOffsReport.chooseWeek')}</label>
+                    <select id="week-select" value={selectedWeek} onChange={e => setSelectedWeek((e.target as HTMLSelectElement).value)}>
+                        {availableWeeks.map(week => <option key={week} value={week}>{week}</option>)}
+                    </select>
+                </div>
+            )}
             <div class={styles['control-group']}>
                 <label for="group-select">Item Group</label>
                 <select id="group-select" value={selectedGroup} onChange={e => setSelectedGroup((e.target as HTMLSelectElement).value)}>
@@ -298,16 +325,18 @@ export const WriteOffsReportView = () => {
             <table class={styles['report-table']}>
                 <thead>
                     <tr>
-                        <th class={styles['indent-cell']}>Region / Manager / Store</th>
-                        <th>Turnover</th>
-                        <th>Write-offs Value</th>
-                        <th>Write-offs %</th>
-                        <th>Discounts Value</th>
-                        <th>Discounts %</th>
-                        <th>Damages Value</th>
-                        <th>Damages %</th>
-                        <th>Target %</th>
-                        <th>Deviation p.p.</th>
+                        <th class={styles['indent-cell']}>{t('columns.writeOffs.regionManagerStore')}</th>
+                        <th>{t('columns.writeOffs.turnover')}</th>
+                        <th>{t('columns.writeOffs.writeOffsValue')}</th>
+                        <th>{t('columns.writeOffs.writeOffsPercent')}</th>
+                        <th>{t('columns.writeOffs.writeOffsTotalValue')}</th>
+                        <th>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
+                        <th>{t('columns.writeOffs.discountsValue')}</th>
+                        <th>{t('columns.writeOffs.discountsPercent')}</th>
+                        <th>{t('columns.writeOffs.damagesValue')}</th>
+                        <th>{t('columns.writeOffs.damagesPercent')}</th>
+                        <th>{t('columns.writeOffs.targetPercent')}</th>
+                        <th>{t('columns.writeOffs.deviation')}</th>
                     </tr>
                 </thead>
                 <tbody>
