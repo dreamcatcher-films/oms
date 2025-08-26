@@ -303,7 +303,7 @@ const App = () => {
     // This avoids `beforeFirstChunk` and worker compatibility issues and correctly parses the format.
     if (options.doubleHeader) {
         return new Promise<void>((resolve, reject) => {
-            Papa.parse(file, {
+            Papa.parse<string[]>(file, {
                 header: false, // We'll manually handle headers.
                 skipEmptyLines: true,
                 complete: async (results: Papa.ParseResult<string[]>) => {
@@ -364,7 +364,7 @@ const App = () => {
 
     // Use efficient streaming with a worker for standard files.
     return new Promise<void>((resolve, reject) => {
-        Papa.parse(file, {
+        Papa.parse<any>(file, {
             worker: true,
             header: options.hasHeader,
             skipEmptyLines: true,
