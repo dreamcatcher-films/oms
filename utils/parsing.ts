@@ -205,7 +205,11 @@ export const saleRowMapper = (row: string[]): Sale | null => {
 };
 
 export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null => {
-    if (row.length < 7) return null;
+    // Handles CSV with no headers and potentially empty columns, based on fixed positions.
+    // A=0: Metric, B=1: Period, C=2: StoreNo, D=3: StoreName, E=4: GroupNo, F=5: GroupName, G=6: Value
+    if (row.length < 7) {
+        return null;
+    }
 
     const metricRaw = row[0]?.trim() || '';
     const period = row[1]?.trim() || '';
@@ -217,7 +221,9 @@ export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null 
     
     const value = parseFloat(valueRaw);
 
-    if (!metricRaw || !storeNumber || !itemGroupNumber || isNaN(value)) {
+    // A valid data row must have a metric containing '|', a store number, a group number, and a valid numeric value.
+    // This will filter out header-like rows such as "Metrics,..."
+    if (!metricRaw.includes('|') || !storeNumber || !itemGroupNumber || isNaN(value)) {
         return null;
     }
 
@@ -226,7 +232,8 @@ export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null 
     const metricIdMatch = metricRaw.match(/\(([^)]+)\)/);
     const metricId = metricIdMatch ? metricIdMatch[1] : `unknown-${Date.now()}`;
 
-    const id = `${storeNumber}-${itemGroupNumber}-${metricId}`;
+    // Make ID more unique to avoid collisions in the DB.
+    const id = `${storeNumber}-${itemGroupNumber}-${metricId}-${period}-${metricName.replace(/\s/g, '')}`;
 
     return {
         id,
