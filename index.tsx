@@ -281,7 +281,7 @@ const App = () => {
     rowMapper: (row: any) => T | null,
     addFunction: (data: T[]) => Promise<void>,
     clearFunction: () => Promise<void>,
-    options: { hasHeader: boolean; headerRowsToSkip?: number }
+    options: { hasHeader: boolean }
   ) => {
     setIsLoading(true);
     const dataTypeName = t(`dataType.${dataType}`);
@@ -298,45 +298,47 @@ const App = () => {
     
     setStatusMessage({ text: t('status.import.starting', { dataTypeName }), type: 'info' });
 
+    let processedCount = 0;
+    const batch: T[] = [];
+
+    const processBatch = async () => {
+      if (batch.length > 0) {
+        await addFunction(batch);
+        processedCount += batch.length;
+        batch.length = 0; 
+        setStatusMessage({
+          text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }),
+          type: 'info',
+        });
+      }
+    };
+
     return new Promise<void>((resolve, reject) => {
-        const papaConfig: Papa.ParseConfig<any> = {
+        Papa.parse(file, {
             header: options.hasHeader,
             skipEmptyLines: true,
-            complete: async (results: Papa.ParseResult<any>) => {
-                const mappedData = results.data.map(rowMapper).filter((item): item is T => item !== null);
-                const processedCount = mappedData.length;
-
-                if (mappedData.length > 0) {
+            worker: true,
+            chunk: async (results: Papa.ParseResult<any>) => {
+                const mappedBatch = results.data.map(rowMapper).filter((item): item is T => item !== null);
+                if (mappedBatch.length > 0) {
+                  await addFunction(mappedBatch);
+                  processedCount += mappedBatch.length;
                   setStatusMessage({ text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }), type: 'info' });
-                  // Process in batches to avoid overwhelming IndexedDB with a single large transaction, though addFunction handles this internally.
-                   for (let i = 0; i < mappedData.length; i += BATCH_SIZE) {
-                        const batch = mappedData.slice(i, i + BATCH_SIZE);
-                        await addFunction(batch);
-                    }
                 }
-                
+            },
+            complete: async () => {
                 await updateImportMetadata(dataType);
                 setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
                 await performInitialCheck();
                 resolve();
             },
-            error: (error: any) => {
+            error: (error) => {
                 console.error("Parsing error:", error);
                 setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
                 setIsLoading(false);
                 reject(error);
             }
-        };
-
-        if (options.headerRowsToSkip && options.headerRowsToSkip > 0) {
-            papaConfig.beforeFirstChunk = (chunk) => {
-                const lines = chunk.split(/\r\n|\n|\r/);
-                const newChunk = lines.slice(options.headerRowsToSkip).join('\n');
-                return newChunk;
-            };
-        }
-
-        Papa.parse(file, papaConfig);
+        });
     });
   }, [t, language, performInitialCheck]);
 
@@ -347,10 +349,10 @@ const App = () => {
     try {
         switch (dataType) {
             case 'products':
-                await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true, headerRowsToSkip: 1 });
+                await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true });
                 break;
             case 'goodsReceipts':
-                await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true, headerRowsToSkip: 1 });
+                await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true });
                 break;
             case 'openOrders':
                 await processFile(file, 'openOrders', openOrderRowMapper, addOpenOrders, clearOpenOrders, { hasHeader: true });
@@ -427,9 +429,8 @@ const App = () => {
     if (input) input.value = '';
   }, [t, language, performInitialCheck]);
 
-  const handleReloadFile = useCallback(async (dataType: DataType, options: { isAutoRefresh?: boolean; fileHandle?: FileSystemFileHandle } = {}) => {
-    const { isAutoRefresh = false, fileHandle } = options;
-    const handle = fileHandle || linkedFiles.get(dataType);
+  const handleReloadFile = useCallback(async (dataType: DataType, isAutoRefresh = false) => {
+    const handle = linkedFiles.get(dataType);
     if (!handle) {
         if (!isAutoRefresh) setStatusMessage({ text: t('settings.reloadError'), type: 'error' });
         throw new Error("File handle not found");
@@ -438,10 +439,10 @@ const App = () => {
         const file = await handle.getFile();
         switch (dataType) {
             case 'products':
-                await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true, headerRowsToSkip: 1 });
+                await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true });
                 break;
             case 'goodsReceipts':
-                await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true, headerRowsToSkip: 1 });
+                await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true });
                 break;
             case 'openOrders':
                 await processFile(file, 'openOrders', openOrderRowMapper, addOpenOrders, clearOpenOrders, { hasHeader: true });
@@ -498,7 +499,7 @@ const App = () => {
     let allRefreshed = true;
     for (const dataType of linkedFiles.keys()) {
         try {
-            await handleReloadFile(dataType, { isAutoRefresh: true });
+            await handleReloadFile(dataType, true);
         } catch (e) {
             allRefreshed = false;
         }
@@ -668,7 +669,7 @@ const App = () => {
           await saveSetting(`linkedFile:${dataType}`, handle);
           setLinkedFiles(prev => new Map(prev).set(dataType, handle));
           setStatusMessage({ text: t('settings.linkSuccess'), type: 'success' });
-          await handleReloadFile(dataType, { fileHandle: handle });
+          await handleReloadFile(dataType);
       } catch(e) {
           if ((e as DOMException).name !== 'AbortError') {
               console.error("Error linking file:", e);
@@ -812,7 +813,7 @@ const App = () => {
   const renderView = () => {
     switch (currentView) {
         case 'import':
-            return <ImportView isLoading={isLoading} importMetadata={importMetadata} counts={counts} onFileSelect={handleFileSelect} onClear={handleClearData} onClearShcFile={handleClearShcFile} onShcFileSelect={handleShcFileSelect} linkedFiles={linkedFiles} onReload={(type) => handleReloadFile(type)} userSession={userSession} onLinkFile={handleLinkFile} onClearLink={handleClearLink} onClearAll={handleClearAll} />;
+            return <ImportView isLoading={isLoading} importMetadata={importMetadata} counts={counts} onFileSelect={handleFileSelect} onClear={handleClearData} onClearShcFile={handleClearShcFile} onShcFileSelect={handleShcFileSelect} linkedFiles={linkedFiles} onReload={handleReloadFile} userSession={userSession} onLinkFile={handleLinkFile} onClearLink={handleClearLink} onClearAll={handleClearAll} />;
         case 'data-preview':
             return <DataPreview userSession={userSession} />;
         case 'threat-report':
@@ -825,7 +826,7 @@ const App = () => {
         case 'simulations':
             return <SimulationView userSession={userSession} initialParams={simulationContext} onSimulationStart={() => setSimulationContext(null)} watchlist={watchlist} watchlistIndex={watchlistIndex} onNavigateWatchlist={handleNavigateWatchlist} onClearWatchlist={() => { setWatchlist([]); setWatchlistIndex(null); }} />;
         case 'settings':
-            return <SettingsView linkedFiles={linkedFiles} onLinkFile={handleLinkFile} onReloadFile={(type) => handleReloadFile(type)} onClearLink={handleClearLink} isLoading={isLoading} userSession={userSession} rdcList={rdcList} onAddRdc={handleAddRdc} onDeleteRdc={handleDeleteRdc} onExportConfig={handleExportConfig} onImportClick={() => configImportInputRef.current?.click()} exclusionList={exclusionList} onImportExclusionListClick={() => exclusionFileInputRef.current?.click()} onClearExclusionList={handleClearExclusionList} shcExclusionList={shcExclusionList} onImportShcExclusionList={() => shcExclusionFileInputRef.current?.click()} onExportShcExclusionList={handleExportShcExclusionList} onClearShcExclusionList={handleClearShcExclusionList} onImportShcBaselineData={() => shcBaselineInputRef.current?.click()} onImportShcPreviousWeekData={() => shcPreviousWeekInputRef.current?.click()} />;
+            return <SettingsView linkedFiles={linkedFiles} onLinkFile={handleLinkFile} onReloadFile={handleReloadFile} onClearLink={handleClearLink} isLoading={isLoading} userSession={userSession} rdcList={rdcList} onAddRdc={handleAddRdc} onDeleteRdc={handleDeleteRdc} onExportConfig={handleExportConfig} onImportClick={() => configImportInputRef.current?.click()} exclusionList={exclusionList} onImportExclusionListClick={() => exclusionFileInputRef.current?.click()} onClearExclusionList={handleClearExclusionList} shcExclusionList={shcExclusionList} onImportShcExclusionList={() => shcExclusionFileInputRef.current?.click()} onExportShcExclusionList={handleExportShcExclusionList} onClearShcExclusionList={handleClearShcExclusionList} onImportShcBaselineData={() => shcBaselineInputRef.current?.click()} onImportShcPreviousWeekData={() => shcPreviousWeekInputRef.current?.click()} />;
         case 'dashboard':
         default:
             return <div class={sharedStyles['placeholder-view']}><h3>{t('placeholders.dashboard.title')}</h3><p>{t('placeholders.dashboard.description')}</p></div>;
