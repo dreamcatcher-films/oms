@@ -25,6 +25,8 @@ type ImportViewProps = {
     onLinkFile: (dataType: DataType) => void;
     onClearLink: (dataType: DataType) => void;
     onClearAll: () => void;
+    onImportWriteOffsTargetsClick: () => void;
+    onClearWriteOffsTargets: () => void;
 };
 
 export const ImportView = (props: ImportViewProps) => {
@@ -33,7 +35,8 @@ export const ImportView = (props: ImportViewProps) => {
     
     const {
         isLoading, importMetadata, counts, onFileSelect, onClear, onClearShcFile, onShcFileSelect,
-        linkedFiles, onReload, userSession, onLinkFile, onClearLink, onClearAll
+        linkedFiles, onReload, userSession, onLinkFile, onClearLink, onClearAll,
+        onImportWriteOffsTargetsClick, onClearWriteOffsTargets
     } = props;
 
     const formatStatusDate = (date: Date): string => {
@@ -218,7 +221,10 @@ export const ImportView = (props: ImportViewProps) => {
                             {renderStatusAndCount('writeOffsTargets')}
                         </div>
                         <div class={styles['import-section-footer']}>
-                            {/* This will be handled in index.tsx with a ref */}
+                           <div class={styles['import-actions']}>
+                                <button onClick={onImportWriteOffsTargetsClick} class={`${sharedStyles.buttonPrimary} ${isLoading ? sharedStyles.disabled : ''}`}>{t('import.buttons.selectFile')}</button>
+                                {counts.writeOffsTargets > 0 && <button onClick={onClearWriteOffsTargets} class={sharedStyles.buttonSecondary} disabled={isLoading}>{t('import.buttons.clear')}</button>}
+                            </div>
                         </div>
                     </div>
                 </div>
