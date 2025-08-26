@@ -1,4 +1,4 @@
-import { RDC, DataType, ShcDataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcSectionConfig, ShcSectionGroup, ShcSnapshot } from './utils/types';
+import { RDC, DataType, ShcDataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcSectionConfig, ShcSectionGroup, ShcSnapshot, WriteOffsActual, WriteOffsTarget } from './utils/types';
 
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
@@ -9,9 +9,12 @@ const SHC_STORE_NAME = 'shc';
 const PLANOGRAM_STORE_NAME = 'planogram';
 const ORG_STRUCTURE_STORE_NAME = 'orgStructure';
 const CATEGORY_RELATION_STORE_NAME = 'categoryRelation';
+const WRITE_OFFS_WEEKLY_STORE_NAME = 'writeOffsWeekly';
+const WRITE_OFFS_YTD_STORE_NAME = 'writeOffsYTD';
+const WRITE_OFFS_TARGETS_STORE_NAME = 'writeOffsTargets';
 const METADATA_STORE_NAME = 'importMetadata';
 const SETTINGS_STORE_NAME = 'settings';
-const DB_VERSION = 14; 
+const DB_VERSION = 15; 
 
 const RDC_LIST_KEY = 'rdcList';
 const EXCLUSION_LIST_KEY = 'exclusionList'; // For Status Report
@@ -46,6 +49,9 @@ export type DBStatus = {
   planogramCount: number;
   orgStructureCount: number;
   categoryRelationCount: number;
+  writeOffsWeeklyCount: number;
+  writeOffsYTDCount: number;
+  writeOffsTargetsCount: number;
 };
 
 const openDB = (): Promise<IDBDatabase> => {
@@ -186,6 +192,20 @@ const openDB = (): Promise<IDBDatabase> => {
           shcStore.createIndex('storeNumberIndex', 'storeNumber');
         }
       }
+
+      if (oldVersion < 15) {
+        if (!db.objectStoreNames.contains(WRITE_OFFS_WEEKLY_STORE_NAME)) {
+            const store = db.createObjectStore(WRITE_OFFS_WEEKLY_STORE_NAME, { keyPath: 'id' });
+            store.createIndex('storeAndGroupIndex', ['storeNumber', 'itemGroupNumber']);
+        }
+        if (!db.objectStoreNames.contains(WRITE_OFFS_YTD_STORE_NAME)) {
+            const store = db.createObjectStore(WRITE_OFFS_YTD_STORE_NAME, { keyPath: 'id' });
+            store.createIndex('storeAndGroupIndex', ['storeNumber', 'itemGroupNumber']);
+        }
+        if (!db.objectStoreNames.contains(WRITE_OFFS_TARGETS_STORE_NAME)) {
+            db.createObjectStore(WRITE_OFFS_TARGETS_STORE_NAME, { keyPath: 'id' });
+        }
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -218,6 +238,9 @@ export const addShcData = (data: ShcDataRow[]) => addDataInBatches(SHC_STORE_NAM
 export const addPlanogramData = (data: PlanogramRow[]) => addDataInBatches(PLANOGRAM_STORE_NAME, data);
 export const addOrgStructureData = (data: OrgStructureRow[]) => addDataInBatches(ORG_STRUCTURE_STORE_NAME, data);
 export const addCategoryRelationData = (data: CategoryRelationRow[]) => addDataInBatches(CATEGORY_RELATION_STORE_NAME, data);
+export const addWriteOffsWeekly = (data: WriteOffsActual[]) => addDataInBatches(WRITE_OFFS_WEEKLY_STORE_NAME, data);
+export const addWriteOffsYTD = (data: WriteOffsActual[]) => addDataInBatches(WRITE_OFFS_YTD_STORE_NAME, data);
+export const saveWriteOffsTargets = (data: WriteOffsTarget[]) => addDataInBatches(WRITE_OFFS_TARGETS_STORE_NAME, data);
 
 const clearStore = async (storeName: string) => {
     const db = await openDB();
@@ -250,13 +273,17 @@ export const clearShcData = () => clearDataAndMetadata(SHC_STORE_NAME, 'shc');
 export const clearPlanogramData = () => clearDataAndMetadata(PLANOGRAM_STORE_NAME, 'planogram');
 export const clearOrgStructureData = () => clearDataAndMetadata(ORG_STRUCTURE_STORE_NAME, 'orgStructure');
 export const clearCategoryRelationData = () => clearDataAndMetadata(CATEGORY_RELATION_STORE_NAME, 'categoryRelation');
+export const clearWriteOffsWeekly = () => clearDataAndMetadata(WRITE_OFFS_WEEKLY_STORE_NAME, 'writeOffsWeekly');
+export const clearWriteOffsYTD = () => clearDataAndMetadata(WRITE_OFFS_YTD_STORE_NAME, 'writeOffsYTD');
+export const clearWriteOffsTargets = () => clearStore(WRITE_OFFS_TARGETS_STORE_NAME);
 
 export const checkDBStatus = async (): Promise<DBStatus> => {
     try {
         const db = await openDB();
         const storeNames = [
             PRODUCTS_STORE_NAME, GOODS_RECEIPTS_STORE_NAME, OPEN_ORDERS_STORE_NAME, SALES_STORE_NAME,
-            SHC_STORE_NAME, PLANOGRAM_STORE_NAME, ORG_STRUCTURE_STORE_NAME, CATEGORY_RELATION_STORE_NAME
+            SHC_STORE_NAME, PLANOGRAM_STORE_NAME, ORG_STRUCTURE_STORE_NAME, CATEGORY_RELATION_STORE_NAME,
+            WRITE_OFFS_WEEKLY_STORE_NAME, WRITE_OFFS_YTD_STORE_NAME, WRITE_OFFS_TARGETS_STORE_NAME
         ];
         const transaction = db.transaction(storeNames, 'readonly');
         
@@ -277,12 +304,16 @@ export const checkDBStatus = async (): Promise<DBStatus> => {
             planogramCount: counts[5],
             orgStructureCount: counts[6],
             categoryRelationCount: counts[7],
+            writeOffsWeeklyCount: counts[8],
+            writeOffsYTDCount: counts[9],
+            writeOffsTargetsCount: counts[10],
         };
 
     } catch (e) {
         return { 
             productsCount: 0, goodsReceiptsCount: 0, openOrdersCount: 0, salesCount: 0,
-            shcCount: 0, planogramCount: 0, orgStructureCount: 0, categoryRelationCount: 0 
+            shcCount: 0, planogramCount: 0, orgStructureCount: 0, categoryRelationCount: 0,
+            writeOffsWeeklyCount: 0, writeOffsYTDCount: 0, writeOffsTargetsCount: 0
         };
     }
 };
@@ -296,6 +327,9 @@ export const clearAllData = async (): Promise<void> => {
     await clearStore(PLANOGRAM_STORE_NAME);
     await clearStore(ORG_STRUCTURE_STORE_NAME);
     await clearStore(CATEGORY_RELATION_STORE_NAME);
+    await clearStore(WRITE_OFFS_WEEKLY_STORE_NAME);
+    await clearStore(WRITE_OFFS_YTD_STORE_NAME);
+    await clearStore(WRITE_OFFS_TARGETS_STORE_NAME);
     await clearStore(METADATA_STORE_NAME);
     // Note: This does NOT clear the SETTINGS_STORE_NAME to preserve RDC list, etc.
     // We only clear linked files.
@@ -786,6 +820,9 @@ export const getAllShcData = (): Promise<ShcDataRow[]> => getAllFromStore<ShcDat
 export const getAllPlanogramData = (): Promise<PlanogramRow[]> => getAllFromStore<PlanogramRow>(PLANOGRAM_STORE_NAME);
 export const getAllOrgStructureData = (): Promise<OrgStructureRow[]> => getAllFromStore<OrgStructureRow>(ORG_STRUCTURE_STORE_NAME);
 export const getAllCategoryRelationData = (): Promise<CategoryRelationRow[]> => getAllFromStore<CategoryRelationRow>(CATEGORY_RELATION_STORE_NAME);
+export const getAllWriteOffsWeekly = (): Promise<WriteOffsActual[]> => getAllFromStore<WriteOffsActual>(WRITE_OFFS_WEEKLY_STORE_NAME);
+export const getAllWriteOffsYTD = (): Promise<WriteOffsActual[]> => getAllFromStore<WriteOffsActual>(WRITE_OFFS_YTD_STORE_NAME);
+export const getAllWriteOffsTargets = (): Promise<WriteOffsTarget[]> => getAllFromStore<WriteOffsTarget>(WRITE_OFFS_TARGETS_STORE_NAME);
 
 
 export const getAllGoodsReceiptsForProduct = (warehouseId: string, fullProductId: string): Promise<GoodsReceipt[]> => {
@@ -829,6 +866,8 @@ export const getImportMetadata = async (): Promise<ImportMetadata> => {
                 planogram: null,
                 orgStructure: null,
                 categoryRelation: null,
+                writeOffsWeekly: null,
+                writeOffsYTD: null,
             };
             const allMeta = request.result as ImportMeta[];
             allMeta.forEach(meta => {
@@ -1067,4 +1106,4 @@ export const saveShcPreviousWeekData = (data: ShcSnapshot): Promise<void> => sav
 export const loadShcPreviousWeekData = (): Promise<ShcSnapshot | null> => loadSetting<ShcSnapshot>(SHC_PREVIOUS_WEEK_DATA_KEY);
 
 
-export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest, ShcSectionConfig } from './utils/types';
+export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest, ShcSectionConfig, WriteOffsActual, WriteOffsTarget } from './utils/types';
