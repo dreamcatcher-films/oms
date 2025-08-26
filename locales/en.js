@@ -18,6 +18,7 @@ export default {
     "threatReport": "Threat Report",
     "statusReport": "Status Report",
     "shcReport": "SHC Report",
+    "writeOffsReport": "Write-offs Report",
     "dashboard": "Dashboard",
     "simulations": "Simulations",
     "settings": "Settings",
@@ -92,6 +93,12 @@ export default {
       "categoryRelation": {
         "title": "Category-Store Relation"
       }
+    },
+    "writeOffs": {
+        "title": "Write-offs Report Data",
+        "weekly": "Weekly Actuals (.csv)",
+        "ytd": "YTD Actuals (.csv)",
+        "targets": "Targets (.json)"
     },
     "status": {
         "updated": "Updated",
@@ -354,7 +361,10 @@ export default {
     "shc": "Store Data (SHC)",
     "planogram": "Planogram",
     "orgStructure": "Org Structure",
-    "categoryRelation": "Category Relation"
+    "categoryRelation": "Category Relation",
+    "writeOffsWeekly": "Write-Offs (Weekly)",
+    "writeOffsYTD": "Write-Offs (YTD)",
+    "writeOffsTargets": "Write-Offs (Targets)"
   },
   "threatReport": {
     "title": "Threat Report",
