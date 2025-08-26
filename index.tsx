@@ -282,7 +282,7 @@ const App = () => {
     rowMapper: (row: any) => T | null,
     addFunction: (data: T[]) => Promise<void>,
     clearFunction: () => Promise<void>,
-    options: { hasHeader: boolean, doubleHeader?: boolean }
+    options: { hasHeader: boolean }
   ) => {
     setIsLoading(true);
     const dataTypeName = t(`dataType.${dataType}`);
@@ -303,8 +303,10 @@ const App = () => {
     setStatusMessage({ text: t('status.import.starting', { dataTypeName }), type: 'info' });
     let processedCount = 0;
 
+    const isDoubleHeader = dataType === 'products' || dataType === 'goodsReceipts' || dataType === 'openOrders';
+
     // Use a more robust, non-streaming approach for double-header files.
-    if (options.doubleHeader) {
+    if (isDoubleHeader) {
         console.log(`[App] Using double-header logic for ${dataTypeName}.`);
         return new Promise<void>((resolve, reject) => {
             Papa.parse<string[]>(file, {
@@ -459,13 +461,13 @@ const App = () => {
     try {
         switch (dataType) {
             case 'products':
-                await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true, doubleHeader: true });
+                await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true });
                 break;
             case 'goodsReceipts':
-                await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true, doubleHeader: true });
+                await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true });
                 break;
             case 'openOrders':
-                await processFile(file, 'openOrders', openOrderRowMapper, addOpenOrders, clearOpenOrders, { hasHeader: true, doubleHeader: true });
+                await processFile(file, 'openOrders', openOrderRowMapper, addOpenOrders, clearOpenOrders, { hasHeader: true });
                 break;
             case 'sales':
                 await processFile(file, 'sales', saleRowMapper, addSales, clearSales, { hasHeader: false });
@@ -549,13 +551,13 @@ const App = () => {
         const file = await handle.getFile();
         switch (dataType) {
             case 'products':
-                await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true, doubleHeader: true });
+                await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true });
                 break;
             case 'goodsReceipts':
-                await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true, doubleHeader: true });
+                await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true });
                 break;
             case 'openOrders':
-                await processFile(file, 'openOrders', openOrderRowMapper, addOpenOrders, clearOpenOrders, { hasHeader: true, doubleHeader: true });
+                await processFile(file, 'openOrders', openOrderRowMapper, addOpenOrders, clearOpenOrders, { hasHeader: true });
                 break;
             case 'sales':
                 await processFile(file, 'sales', saleRowMapper, addSales, clearSales, { hasHeader: false });
@@ -783,9 +785,9 @@ const App = () => {
           
           // Use the new handle directly instead of relying on state which might not be updated yet
           const file = await handle.getFile();
-          if(dataType === 'products') await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true, doubleHeader: true });
-          if(dataType === 'goodsReceipts') await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true, doubleHeader: true });
-          if(dataType === 'openOrders') await processFile(file, 'openOrders', openOrderRowMapper, addOpenOrders, clearOpenOrders, { hasHeader: true, doubleHeader: true });
+          if(dataType === 'products') await processFile(file, 'products', productRowMapper, addProducts, clearProducts, { hasHeader: true });
+          if(dataType === 'goodsReceipts') await processFile(file, 'goodsReceipts', goodsReceiptRowMapper, addGoodsReceipts, clearGoodsReceipts, { hasHeader: true });
+          if(dataType === 'openOrders') await processFile(file, 'openOrders', openOrderRowMapper, addOpenOrders, clearOpenOrders, { hasHeader: true });
           if(dataType === 'sales') await processFile(file, 'sales', saleRowMapper, addSales, clearSales, { hasHeader: false });
 
       } catch(e) {
