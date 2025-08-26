@@ -18,6 +18,7 @@ export default {
     "threatReport": "Raport Zagrożeń",
     "statusReport": "Raport Statusów",
     "shcReport": "Raport SHC",
+    "writeOffsReport": "Raport Odpisów",
     "dashboard": "Dashboard",
     "simulations": "Symulacje",
     "settings": "Ustawienia",
@@ -92,6 +93,12 @@ export default {
       "categoryRelation": {
         "title": "Relacja Kategoria-Sklep"
       }
+    },
+    "writeOffs": {
+        "title": "Dane do Raportu Odpisów",
+        "weekly": "Dane rzeczywiste tygodniowe (.csv)",
+        "ytd": "Dane rzeczywiste skumulowane (.csv)",
+        "targets": "Dane planowane (.json)"
     },
     "status": {
         "updated": "Zaktualizowano",
@@ -299,6 +306,24 @@ export default {
       "clearSuccess": "Lista wykluczeń SHC została wyczyszczona.",
       "clearConfirm": "Czy na pewno chcesz wyczyścić całą listę wykluczeń SHC?"
     },
+    "shcCompliance": {
+      "title": "Dane Raportu Zgodności SHC",
+      "description": "Importuj pliki z danymi historycznymi wymaganymi do wygenerowania Raportu Zgodności SHC.",
+      "baseline": {
+        "title": "Dane Bazowe",
+        "description": "Zaimportuj jednorazowy plik JSON z początkowymi wynikami rozbieżności dla każdego sklepu na początku projektu.",
+        "button": "Importuj Dane Bazowe (.json)",
+        "downloadTemplate": "Pobierz Szablon"
+      },
+      "previousWeek": {
+        "title": "Dane z Poprzedniego Tygodnia",
+        "description": "Zaimportuj plik JSON z wynikami rozbieżności z poprzedniego tygodnia. Ten plik można wygenerować z samego raportu zgodności.",
+        "button": "Importuj Poprzedni Tydzień (.json)",
+        "downloadTemplate": "Pobierz Szablon"
+      },
+      "importSuccess": "Pomyślnie zaimportowano i zapisano dane typu: {{type}}.",
+      "importError": "Błąd importu pliku. Upewnij się, że jest to prawidłowy plik JSON o właściwej strukturze."
+    },
     "watchlists": {
         "title": "Listy Obserwacyjne",
         "description": "Twórz i zarządzaj listami produktów do monitorowania. (Funkcjonalność w budowie)"
@@ -336,7 +361,10 @@ export default {
     "shc": "Dane ze Sklepów (SHC)",
     "planogram": "Planogram",
     "orgStructure": "Struktura Org.",
-    "categoryRelation": "Relacje Kategorii"
+    "categoryRelation": "Relacje Kategorii",
+    "writeOffsWeekly": "Odpisy (Tygodniowe)",
+    "writeOffsYTD": "Odpisy (YTD)",
+    "writeOffsTargets": "Odpisy (Cele)"
   },
   "threatReport": {
     "title": "Raport Zagrożeń",
@@ -456,10 +484,12 @@ export default {
     },
     "results": {
       "title": "Wyniki Analizy",
+      "excludedCount": "({{count}} wykluczonych)",
       "placeholder": "Uruchom analizę, aby zobaczyć wyniki.",
       "mismatchesTitle": "Niezgodności Danych",
       "storeCountSummary": "Dostępne sklepy w danych SHC: {{shcStoreCount}} / Całkowita liczba sklepów w RDC: {{orgStoreCount}}",
-      "downloadAllPdf": "Pobierz pliki PDF dla wszystkich dostępnych sklepów"
+      "downloadAllPdf": "Pobierz pliki PDF dla wszystkich dostępnych sklepów",
+      "generateComplianceReport": "Generuj Raport Zgodności"
     },
     "config": {
       "title": "Konfiguracja Sekcji",
@@ -505,7 +535,23 @@ export default {
         "toggleExclusion": "Przełącz wykluczenie",
         "exportPdf": "Eksportuj sklep do PDF"
       }
+    },
+    "complianceReport": {
+      "title": "Raport Zgodności SHC",
+      "exportPdf": "Pobierz PDF Zgodności",
+      "exportSnapshot": "Eksportuj Dane Bieżącego Tygodnia",
+      "printReport": "Drukuj Raport",
+      "exportSnapshotSuccess": "Dane bieżącego tygodnia wyeksportowane pomyślnie.",
+      "noData": "Nie można wygenerować raportu. Proszę zaimportować dane bazowe i z poprzedniego tygodnia w Ustawieniach.",
+      "storeName": "Nazwa sklepu",
+      "currently": "Obecnie",
+      "weekMinus1": "Tydzień -1",
+      "start": "Start",
+      "change": "Zmiana (obecnie/start)"
     }
+  },
+  "writeOffsReport": {
+    "chooseWeek": "Wybierz tydzień"
   },
   "columns": {
     "product": {
@@ -612,6 +658,20 @@ export default {
         "settingSpecificallyFor": "Ustawienie dla",
         "settingWidth": "Szerokość ustawienia",
         "storeNumber": "Numer sklepu"
+    },
+    "writeOffs": {
+        "regionManagerStore": "Region / Manager / Sklep",
+        "turnover": "Obrót",
+        "writeOffsValue": "Wartość odpisów",
+        "writeOffsPercent": "% odpisów",
+        "writeOffsTotalValue": "Wartość odpisów całkowita",
+        "writeOffsTotalPercent": "% odpisów całkowity",
+        "discountsValue": "Wartość rabatów",
+        "discountsPercent": "% rabatów",
+        "damagesValue": "Wartość uszkodzeń",
+        "damagesPercent": "% uszkodzeń",
+        "targetPercent": "Cel %",
+        "deviation": "Odchylenie p.p."
     }
   }
 }
