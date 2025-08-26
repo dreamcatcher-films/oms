@@ -298,27 +298,29 @@ const App = () => {
     
     setStatusMessage({ text: t('status.import.starting', { dataTypeName }), type: 'info' });
 
-    let processedCount = 0;
-
     return new Promise<void>((resolve, reject) => {
         const papaConfig: Papa.ParseConfig<any> = {
             header: options.hasHeader,
             skipEmptyLines: true,
-            chunk: async (results: Papa.ParseResult<any>) => {
-                const mappedBatch = results.data.map(rowMapper).filter((item): item is T => item !== null);
-                if (mappedBatch.length > 0) {
-                  await addFunction(mappedBatch);
-                  processedCount += mappedBatch.length;
+            complete: async (results: Papa.ParseResult<any>) => {
+                const mappedData = results.data.map(rowMapper).filter((item): item is T => item !== null);
+                const processedCount = mappedData.length;
+
+                if (mappedData.length > 0) {
                   setStatusMessage({ text: t('status.import.processing', { processedCount: processedCount.toLocaleString(language) }), type: 'info' });
+                  // Process in batches to avoid overwhelming IndexedDB with a single large transaction, though addFunction handles this internally.
+                   for (let i = 0; i < mappedData.length; i += BATCH_SIZE) {
+                        const batch = mappedData.slice(i, i + BATCH_SIZE);
+                        await addFunction(batch);
+                    }
                 }
-            },
-            complete: async () => {
+                
                 await updateImportMetadata(dataType);
                 setStatusMessage({ text: t('status.import.complete', { processedCount: processedCount.toLocaleString(language), dataTypeName }), type: 'success' });
                 await performInitialCheck();
                 resolve();
             },
-            error: (error) => {
+            error: (error: any) => {
                 console.error("Parsing error:", error);
                 setStatusMessage({ text: t('status.import.parseError', { dataTypeName }), type: 'error' });
                 setIsLoading(false);
