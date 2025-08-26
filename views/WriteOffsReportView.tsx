@@ -142,30 +142,24 @@ export const WriteOffsReportView = () => {
     const getMetric = (storeActuals: WriteOffsActual[], metricId: string): number => {
         return storeActuals.find(a => a.metricId.includes(metricId))?.value || 0;
     };
-
-    const hierarchy = new Map<string, { ams: Map<string, OrgStructureRow[]> }>();
-    for (const store of orgStructure) {
-        if (!hierarchy.has(store.headOfSales)) {
-            hierarchy.set(store.headOfSales, { ams: new Map() });
-        }
-        const hos = hierarchy.get(store.headOfSales)!;
-        if (!hos.ams.has(store.areaManager)) {
-            hos.ams.set(store.areaManager, []);
-        }
-        hos.ams.get(store.areaManager)!.push(store);
-    }
-
+    
     const calculateMetricsForRows = (rows: ReportRow[]): WriteOffsMetrics => {
         const aggregated = createEmptyMetrics();
         let totalWeightedPercent = 0;
+        let totalWeightedTarget = 0;
+        let totalTurnoverForTarget = 0;
 
         for (const row of rows) {
             aggregated.turnover += row.metrics.turnover;
             aggregated.writeOffsValue += row.metrics.writeOffsValue;
             aggregated.discountsValue += row.metrics.discountsValue;
             aggregated.damagesValue += row.metrics.damagesValue;
-            if(row.metrics.turnover > 0){
+            if (row.metrics.turnover > 0) {
                 totalWeightedPercent += row.metrics.writeOffsPercent * row.metrics.turnover;
+                if (row.metrics.target !== null) {
+                    totalWeightedTarget += row.metrics.target * row.metrics.turnover;
+                    totalTurnoverForTarget += row.metrics.turnover;
+                }
             }
         }
         
@@ -173,68 +167,88 @@ export const WriteOffsReportView = () => {
         aggregated.discountsPercent = aggregated.turnover > 0 ? aggregated.discountsValue / aggregated.turnover : 0;
         aggregated.damagesPercent = aggregated.turnover > 0 ? aggregated.damagesValue / aggregated.turnover : 0;
         
-        // Target and deviation are averaged for higher levels, could be improved if needed
-        const validDeviations = rows.map(r => r.metrics.deviation).filter((d): d is number => d !== null);
-        if(validDeviations.length > 0){
-             aggregated.deviation = validDeviations.reduce((a, b) => a + b, 0) / validDeviations.length;
+        aggregated.target = totalTurnoverForTarget > 0 ? totalWeightedTarget / totalTurnoverForTarget : null;
+
+        if (aggregated.target !== null) {
+            aggregated.deviation = aggregated.writeOffsPercent - aggregated.target;
         }
 
         return aggregated;
     };
     
-    const root: ReportRow = { id: 'rdc', name: 'RDC Total', level: 0, metrics: createEmptyMetrics(), children: [] };
-    
-    for (const [hosName, { ams }] of hierarchy.entries()) {
-        const hosRow: ReportRow = { id: hosName, name: hosName, level: 1, metrics: createEmptyMetrics(), children: [] };
-        
-        for (const [amName, stores] of ams.entries()) {
-            const amRow: ReportRow = { id: `${hosName}-${amName}`, name: amName, level: 2, metrics: createEmptyMetrics(), children: [] };
+    const rdcHierarchy = new Map<string, { hoss: Map<string, { ams: Map<string, OrgStructureRow[]> }> }>();
+    for (const store of orgStructure) {
+        if (!rdcHierarchy.has(store.warehouseId)) rdcHierarchy.set(store.warehouseId, { hoss: new Map() });
+        const rdc = rdcHierarchy.get(store.warehouseId)!;
+        if (!rdc.hoss.has(store.headOfSales)) rdc.hoss.set(store.headOfSales, { ams: new Map() });
+        const hos = rdc.hoss.get(store.headOfSales)!;
+        if (!hos.ams.has(store.areaManager)) hos.ams.set(store.areaManager, []);
+        hos.ams.get(store.areaManager)!.push(store);
+    }
+
+    const allRegionsRow: ReportRow = { id: 'all-regions', name: 'All Regions', level: 0 as any, metrics: createEmptyMetrics(), children: [] };
+    const sortedRdcs = Array.from(rdcHierarchy.keys()).sort();
+
+    for (const rdcId of sortedRdcs) {
+        const { hoss } = rdcHierarchy.get(rdcId)!;
+        const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `Region ${rdcId}`, level: 1 as any, metrics: createEmptyMetrics(), children: [] };
+
+        const sortedHoss = Array.from(hoss.keys()).sort();
+        for (const hosName of sortedHoss) {
+            const { ams } = hoss.get(hosName)!;
+            const hosRow: ReportRow = { id: `${rdcId}-${hosName}`, name: hosName, level: 2, metrics: createEmptyMetrics(), children: [] };
             
-            for (const store of stores) {
-                const storeActuals = actualsByStore.get(store.storeNumber) || [];
-                const storeMetrics = createEmptyMetrics();
+            const sortedAms = Array.from(ams.keys()).sort();
+            for (const amName of sortedAms) {
+                const stores = ams.get(amName)!;
+                const amRow: ReportRow = { id: `${rdcId}-${hosName}-${amName}`, name: amName, level: 3, metrics: createEmptyMetrics(), children: [] };
                 
-                storeMetrics.turnover = getMetric(storeActuals, METRIC_MAPPING.TURNOVER);
-                storeMetrics.writeOffsValue = getMetric(storeActuals, METRIC_MAPPING.WRITE_OFFS_VALUE);
-                storeMetrics.discountsValue = getMetric(storeActuals, METRIC_MAPPING.DISCOUNTS_VALUE);
-                storeMetrics.damagesValue = getMetric(storeActuals, METRIC_MAPPING.DAMAGES_VALUE);
+                for (const store of stores) {
+                    const storeActuals = actualsByStore.get(store.storeNumber) || [];
+                    if (storeActuals.length === 0) continue;
 
-                storeMetrics.writeOffsPercent = getMetric(storeActuals, METRIC_MAPPING.WRITE_OFFS_PERCENT);
-                storeMetrics.discountsPercent = getMetric(storeActuals, METRIC_MAPPING.DISCOUNTS_PERCENT);
-                storeMetrics.damagesPercent = getMetric(storeActuals, METRIC_MAPPING.DAMAGES_PERCENT);
-                
-                // For simplicity, we assume one target per store if "all groups" is selected.
-                // This could be refined to handle multiple group targets.
-                const targetKey = selectedGroup === 'all' 
-                    ? targets.find(t => t.storeNumber === store.storeNumber)?.id 
-                    : `${store.storeNumber}-${selectedGroup.split(' - ')[0]}`;
+                    const storeMetrics = createEmptyMetrics();
+                    storeMetrics.turnover = getMetric(storeActuals, METRIC_MAPPING.TURNOVER);
+                    storeMetrics.writeOffsValue = getMetric(storeActuals, METRIC_MAPPING.WRITE_OFFS_VALUE);
+                    storeMetrics.discountsValue = getMetric(storeActuals, METRIC_MAPPING.DISCOUNTS_VALUE);
+                    storeMetrics.damagesValue = getMetric(storeActuals, METRIC_MAPPING.DAMAGES_VALUE);
+                    storeMetrics.writeOffsPercent = getMetric(storeActuals, METRIC_MAPPING.WRITE_OFFS_PERCENT);
+                    storeMetrics.discountsPercent = getMetric(storeActuals, METRIC_MAPPING.DISCOUNTS_PERCENT);
+                    storeMetrics.damagesPercent = getMetric(storeActuals, METRIC_MAPPING.DAMAGES_PERCENT);
+                    
+                    const targetKey = selectedGroup === 'all' 
+                        ? targets.find(t => t.storeNumber === store.storeNumber)?.id 
+                        : `${store.storeNumber}-${selectedGroup.split(' - ')[0]}`;
+                    const targetData = targetsByStoreAndGroup.get(targetKey || '');
+                    const targetValue = viewMode === 'weekly' ? targetData?.monthlyTarget : targetData?.yearlyTarget;
 
-                const targetData = targetsByStoreAndGroup.get(targetKey || '');
-                const targetValue = viewMode === 'weekly' ? targetData?.monthlyTarget : targetData?.yearlyTarget;
-
-                if (targetValue !== undefined) {
-                    storeMetrics.target = targetValue;
-                    storeMetrics.deviation = storeMetrics.writeOffsPercent - targetValue;
+                    if (targetValue !== undefined) {
+                        storeMetrics.target = targetValue;
+                        storeMetrics.deviation = storeMetrics.writeOffsPercent - targetValue;
+                    }
+                    
+                    amRow.children.push({ id: store.storeNumber, name: `${store.storeNumber} - ${store.storeName}`, level: 4 as any, metrics: storeMetrics, children: [] });
                 }
-                
-                amRow.children.push({ id: store.storeNumber, name: `${store.storeNumber} - ${store.storeName}`, level: 3, metrics: storeMetrics, children: [] });
+                if (amRow.children.length > 0) {
+                     amRow.children.sort((a,b) => (a.metrics.deviation ?? Infinity) - (b.metrics.deviation ?? Infinity));
+                     amRow.metrics = calculateMetricsForRows(amRow.children);
+                     hosRow.children.push(amRow);
+                }
             }
-            if(amRow.children.length > 0) {
-                 amRow.children.sort((a,b) => (b.metrics.deviation ?? -Infinity) - (a.metrics.deviation ?? -Infinity));
-                 amRow.metrics = calculateMetricsForRows(amRow.children);
-                 hosRow.children.push(amRow);
+            if (hosRow.children.length > 0) {
+                hosRow.children.sort((a,b) => (a.metrics.deviation ?? Infinity) - (b.metrics.deviation ?? Infinity));
+                hosRow.metrics = calculateMetricsForRows(hosRow.children);
+                rdcRow.children.push(hosRow);
             }
         }
-        if(hosRow.children.length > 0) {
-            hosRow.children.sort((a,b) => (b.metrics.deviation ?? -Infinity) - (a.metrics.deviation ?? -Infinity));
-            hosRow.metrics = calculateMetricsForRows(hosRow.children);
-            root.children.push(hosRow);
+        if (rdcRow.children.length > 0) {
+            rdcRow.metrics = calculateMetricsForRows(rdcRow.children);
+            allRegionsRow.children.push(rdcRow);
         }
     }
     
-    root.metrics = calculateMetricsForRows(root.children);
-    
-    return root;
+    allRegionsRow.metrics = calculateMetricsForRows(allRegionsRow.children);
+    return allRegionsRow;
     
   }, [isLoading, orgStructure, weeklyActuals, ytdActuals, targets, viewMode, selectedGroup]);
   
