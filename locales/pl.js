@@ -127,7 +127,8 @@ export default {
           "orgStructure": "Struktura Org.",
           "categoryRelation": "Relacje Kategorii",
           "writeOffsWeekly": "Odpisy (Tygodniowe)",
-          "writeOffsYTD": "Odpisy (YTD)"
+          "writeOffsYTD": "Odpisy (YTD)",
+          "writeOffsTargets": "Odpisy (Cele)"
       },
       "filters": {
           "warehouse": "Magazyn",
@@ -700,6 +701,12 @@ export default {
       "itemGroupNumber": "Nr Grupy Towarowej",
       "itemGroupName": "Nazwa Grupy Towarowej",
       "value": "Wartość"
+    },
+    "writeOffsTargets": {
+      "storeNumber": "Numer Sklepu",
+      "itemGroupNumber": "Nr Grupy Towarowej",
+      "monthlyTarget": "Cel Miesięczny (%)",
+      "yearlyTarget": "Cel Roczny (%)"
     }
   }
 }
