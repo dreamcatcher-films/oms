@@ -18,6 +18,7 @@ export default {
     "threatReport": "Risikobericht",
     "statusReport": "Statusbericht",
     "shcReport": "SHC-Bericht",
+    "writeOffsReport": "Abschreibungsbericht",
     "dashboard": "Dashboard",
     "simulations": "Simulationen",
     "settings": "Einstellungen",
@@ -93,6 +94,12 @@ export default {
         "title": "Kategorie-Filial-Beziehung"
       }
     },
+    "writeOffs": {
+        "title": "Daten für Abschreibungsbericht",
+        "weekly": "Ist-Daten Wöchentlich (.csv)",
+        "ytd": "Ist-Daten Kumuliert (.csv)",
+        "targets": "Plandaten (.json)"
+    },
     "status": {
         "updated": "Aktualisiert",
         "todayAt": "heute um",
@@ -118,7 +125,9 @@ export default {
           "shc": "SHC-Daten",
           "planogram": "Planogramm",
           "orgStructure": "Org-Struktur",
-          "categoryRelation": "Kategorie-Beziehung"
+          "categoryRelation": "Kategorie-Beziehung",
+          "writeOffsWeekly": "Abschreibungen (Wöchentlich)",
+          "writeOffsYTD": "Abschreibungen (YTD)"
       },
       "filters": {
           "warehouse": "Lager",
@@ -276,6 +285,16 @@ export default {
         "deleteSuccess": "RDC erfolgreich gelöscht.",
         "deleteConfirm": "Möchten Sie dieses RDC wirklich löschen?"
     },
+    "dooManagement": {
+        "title": "Verwaltung der Directors of Operations",
+        "description": "Importieren Sie eine JSON-Datei, um zu definieren, welcher Director of Operations für welche RDCs verantwortlich ist.",
+        "importButton": "DoO-Liste importieren (.json)",
+        "clearButton": "DoO-Liste löschen",
+        "importSuccess": "DoO-Liste erfolgreich importiert. {{count}} Direktoren geladen.",
+        "importError": "Fehler beim Importieren der DoO-Liste.",
+        "clearSuccess": "DoO-Liste wurde gelöscht.",
+        "clearConfirm": "Möchten Sie die Liste der Directors of Operations wirklich löschen?"
+    },
     "exclusionList": {
       "title": "Ausschlusslisten-Verwaltung",
       "description": "Importieren Sie eine Liste von Artikelnummern, die von den Berechnungen der 'Verdächtigen Status' im Statusbericht ausgeschlossen werden sollen. Die Produkte werden im Bericht weiterhin sichtbar, aber hervorgehoben sein.",
@@ -288,8 +307,8 @@ export default {
       "clearConfirm": "Möchten Sie die gesamte Ausschlussliste wirklich löschen?"
     },
     "shcExclusionList": {
-      "title": "SHC-Filialausschlüsse",
-      "description": "Importieren oder exportieren Sie eine Liste von Filialnummern, um sie vorübergehend von den Berechnungen im SHC-Bericht auszuschließen. Ausgeschlossene Filialen werden hervorgehoben und nicht in den Gesamtsummen berücksichtigt.",
+      "title": "SHC-Filialausschlussliste",
+      "description": "Importieren oder exportieren Sie eine Liste von Filialnummern, um sie vorübergehend von den Berechnungen des SHC-Berichts auszuschließen. Ausgeschlossene Filialen werden hervorgehoben und nicht in den Summen berücksichtigt.",
       "importButton": "Liste importieren (.txt)",
       "exportButton": "Liste exportieren",
       "clearButton": "Liste löschen",
@@ -299,24 +318,42 @@ export default {
       "clearSuccess": "SHC-Ausschlussliste wurde gelöscht.",
       "clearConfirm": "Möchten Sie die gesamte SHC-Ausschlussliste wirklich löschen?"
     },
+     "shcCompliance": {
+      "title": "SHC-Konformitätsberichtsdaten",
+      "description": "Importieren Sie historische Datendateien, die zur Erstellung des SHC-Konformitätsberichts erforderlich sind.",
+      "baseline": {
+        "title": "Basisdaten",
+        "description": "Importieren Sie eine einmalige JSON-Datei mit den anfänglichen Abweichungswerten für jede Filiale zu Beginn des Projekts.",
+        "button": "Basisdaten importieren (.json)",
+        "downloadTemplate": "Vorlage herunterladen"
+      },
+      "previousWeek": {
+        "title": "Daten der Vorwoche",
+        "description": "Importieren Sie die JSON-Datei mit den Abweichungswerten aus der Vorwoche. Diese Datei kann aus dem Konformitätsbericht selbst generiert werden.",
+        "button": "Vorwoche importieren (.json)",
+        "downloadTemplate": "Vorlage herunterladen"
+      },
+      "importSuccess": "{{type}}-Daten erfolgreich importiert und gespeichert.",
+      "importError": "Fehler beim Importieren der Datei. Stellen Sie sicher, dass es sich um eine gültige JSON-Datei mit der richtigen Struktur handelt."
+    },
     "watchlists": {
-        "title": "Watchlists",
-        "description": "Erstellen und verwalten Sie Produktlisten zur Überwachung. (Funktion in Entwicklung)"
+        "title": "Beobachtungslisten",
+        "description": "Erstellen und verwalten Sie Listen von Produkten zur Überwachung. (Funktion in Entwicklung)"
     }
   },
-  "loginModal": {
+   "loginModal": {
       "title": "Betriebsmodus auswählen",
       "hqButton": "Zentrale (HQ)",
       "rdcButton": "Lager (RDC)",
       "password": "Passwort",
       "selectRdc": "Lager auswählen",
       "loginButton": "Anmelden",
-      "invalidPassword": "Passwort ist falsch."
+      "invalidPassword": "Das Passwort ist falsch."
   },
   "modals": {
     "refresh": {
         "title": "Automatische Datenaktualisierung",
-        "message": "Daten werden in {{seconds}} Sekunden neu geladen.",
+        "message": "Die Daten werden in {{seconds}} Sekunden neu geladen.",
         "cancel": "Aktualisierung abbrechen"
     },
     "idle": {
@@ -325,8 +362,8 @@ export default {
     }
   },
   "common": {
-      "yesShort": "J",
-      "noShort": "N"
+    "yesShort": "J",
+    "noShort": "N"
   },
   "dataType": {
     "products": "Stammdaten",
@@ -335,8 +372,11 @@ export default {
     "sales": "Verkaufsdaten",
     "shc": "Filialdaten (SHC)",
     "planogram": "Planogramm",
-    "orgStructure": "Org-Struktur",
-    "categoryRelation": "Kategorie-Beziehung"
+    "orgStructure": "Organisationsstruktur",
+    "categoryRelation": "Kategorie-Beziehung",
+    "writeOffsWeekly": "Abschreibungen (Woche)",
+    "writeOffsYTD": "Abschreibungen (YTD)",
+    "writeOffsTargets": "Abschreibungen (Ziele)"
   },
   "threatReport": {
     "title": "Risikobericht",
@@ -344,43 +384,43 @@ export default {
     "controls": {
       "title": "Berichtsparameter",
       "warehouses": "Lager",
-      "itemGroups": "Artikelgruppen",
+      "itemGroups": "Warengruppen",
       "statuses": "Status",
-      "runReport": "Bericht erstellen",
+      "runReport": "Bericht starten",
       "selectAll": "Alle auswählen",
       "deselectAll": "Alle abwählen",
       "runningTitle": "Bericht wird erstellt...",
-      "runningDescription": "Analysiere {{processed}} von {{total}} Produkten. Dies kann einen Moment dauern."
+      "runningDescription": "{{processed}} von {{total}} Produkten analysiert. Dies kann einen Moment dauern."
     },
     "results": {
       "title": "Berichtsergebnisse",
-      "noResults": "Keine Produkte entsprechen den ausgewählten Kriterien, oder es wurden keine Risiken gefunden.",
+      "noResults": "Keine Produkte entsprechen den ausgewählten Kriterien oder es wurden keine Risiken gefunden.",
       "goToSimulation": "Analysieren",
       "analyzeSelected": "Ausgewählte analysieren ({{count}})",
       "warehouseId": "Lager",
       "productId": "Artikel",
       "caseSize": "VE-Größe",
       "palletFactor": "Pal.-Faktor",
-      "daysOfStock": "Reichweite",
+      "daysOfStock": "Lagerreichweite",
       "aldValue": "ALD-Wert",
       "avgDailySales": "Ø Verkauf",
-      "nonCompliantReceipts": "N-konf. Eing.",
+      "nonCompliantReceipts": "Regelw. Eingänge",
       "writeOffValue": "Abschr.-Wert"
     }
   },
   "statusReport": {
-    "title": "Status-Konsistenzbericht",
-    "description": "Führen Sie einen Bericht aus, um Produkte mit inkonsistenten Status in verschiedenen Lagern zu finden. Der Bericht zeigt nur Produkte an, bei denen eine Statusabweichung festgestellt wurde.",
-    "runReport": "Bericht erstellen",
+    "title": "Statuskonsistenzbericht",
+    "description": "Führen Sie einen Bericht aus, um Produkte mit inkonsistenten Status in verschiedenen Lagern zu finden. Der Bericht zeigt nur Produkte an, bei denen eine Statusinkonsistenz festgestellt wurde.",
+    "runReport": "Bericht starten",
     "runningTitle": "Bericht wird erstellt...",
-    "runningDescription": "Analysiere {{processed}} von {{total}} Produktgruppen.",
-     "filters": {
+    "runningDescription": "{{processed}} von {{total}} Produktgruppen werden analysiert.",
+    "filters": {
       "title": "Filter",
       "productId": "Artikel-Nr.",
       "dominantStatus": "Status",
-      "excludeNoStock": "Artikel ohne Lagerbestand ausschließen",
+      "excludeNoStock": "Artikel ohne Bestand ausschließen",
       "showOnlyUndetermined": "Nur Artikel ohne dominanten Status anzeigen",
-      "includeConsistent": "Konsistente Artikel einbeziehen",
+      "includeConsistent": "Auch konsistente Artikel anzeigen",
       "excludeWhenDominantIs": "Ausschließen, wenn dominanter Status:",
       "apply": "Filter anwenden",
       "clear": "Filter löschen",
@@ -396,7 +436,7 @@ export default {
       "warehouse": "Lager",
       "itemsChecked": "Geprüfte Artikel",
       "suspiciousStatuses": "Verdächtige Status",
-      "excluded": "Ausgen.",
+      "excluded": "Ausgeschlossen",
       "status8Items": "Artikel mit Status 8"
     },
     "statusTypes": {
@@ -406,8 +446,8 @@ export default {
     },
     "results": {
       "title": "Inkonsistente Produkte",
-      "titleWithConsistent": "Ergebnisse ({{count}}) inkl. konsistenter Artikel",
-      "noResults": "Es wurden keine Produkte mit inkonsistenten Status gefunden.",
+      "titleWithConsistent": "Ergebnisse ({{count}}) inkl. konsistenter",
+      "noResults": "Keine Produkte mit inkonsistenten Status gefunden.",
       "productId": "Artikel-Nr.",
       "productName": "Produktname",
       "caseSize": "VE-Größe",
@@ -418,27 +458,27 @@ export default {
       "excluded": "Von der Analyse ausgeschlossen"
     },
     "pdf": {
-      "summaryTitle": "Zusammenfassung pro Lager",
+      "summaryTitle": "Lagerzusammenfassung",
       "inconsistentProductsTitle": "Inkonsistente Produkte",
       "groupedByStatus": "Gruppiert nach verdächtigem Status: {{status}}",
       "exportOptionsTitle": "Exportoptionen",
-      "selectWarehouse": "Lager für den Export auswählen",
+      "selectWarehouse": "Lager zum Exportieren auswählen",
       "allWarehouses": "Alle Lager",
       "exportButton": "Exportieren",
       "cancelButton": "Abbrechen",
       "reportForWarehouse": "Bericht für Lager",
-      "noInconsistencies": "Für dieses Lager wurden in den aktuellen gefilterten Ergebnissen keine Inkonsistenzen gefunden.",
+      "noInconsistencies": "Für dieses Lager wurden in den aktuellen Ergebnissen keine Inkonsistenzen gefunden.",
       "statusIn": "Status in",
       "generatedOn": "Erstellt am",
       "activeFilters": "Aktive Filter",
       "format": "Berichtsformat",
-      "summaryFormat": "Detaillierte Zusammenfassung (pro Lager)",
+      "summaryFormat": "Detaillierte Zusammenfassung (nach Lager)",
       "comparativeFormat": "Vergleichstabelle (wie auf dem Bildschirm)",
       "filterByStatus": "Nach verdächtigem Status filtern",
       "allStatuses": "Alle verdächtigen Status"
     }
   },
-   "shcReport": {
+  "shcReport": {
     "description": "Führen Sie eine Analyse durch, um die Konsistenz der SHC-Daten im System mit den Planogrammdaten zu überprüfen.",
     "status": {
       "readingFiles": "Dateien werden gelesen..."
@@ -447,79 +487,104 @@ export default {
       "allFilesRequired": "Alle 4 Datensätze müssen importiert und ein RDC ausgewählt werden, um die Analyse zu starten.",
       "fileReadError": "Beim Lesen einer der verknüpften Dateien ist ein Fehler aufgetreten."
     },
-    "validation": {
+     "validation": {
       "title": "Datenkonsistenzprüfung",
-      "message": "{{count}} Filialen wurden in der Organisationsstruktur gefunden, fehlen aber in den heutigen SHC-Daten.",
+      "message": "{{count}} Filialen in der Organisationsstruktur gefunden, die in den heutigen SHC-Daten fehlen.",
       "listHeader": "Fehlende Filialen:",
       "continue": "Trotzdem fortfahren",
       "cancel": "Abbrechen"
     },
     "results": {
       "title": "Analyseergebnisse",
-      "placeholder": "Führen Sie die Analyse aus, um die Ergebnisse hier anzuzeigen.",
-      "mismatchesTitle": "Daten-Inkonsistenzen",
-      "storeCountSummary": "Verfügbare Filialen in SHC-Daten: {{shcStoreCount}} / Gesamtfilialen im RDC: {{orgStoreCount}}",
-      "downloadAllPdf": "PDFs für verfügbare Filialen herunterladen"
+      "excludedCount": "({{count}} ausgeschlossen)",
+      "placeholder": "Führen Sie die Analyse aus, um die Ergebnisse hier zu sehen.",
+      "mismatchesTitle": "Dateninkonsistenzen",
+      "storeCountSummary": "Verfügbare Filialen in SHC-Daten: {{shcStoreCount}} / Gesamtanzahl Filialen im RDC: {{orgStoreCount}}",
+      "downloadAllPdf": "PDFs für verfügbare Filialen herunterladen",
+      "generateComplianceReport": "Konformitätsbericht erstellen"
     },
     "config": {
-      "title": "Abschnittskonfiguration",
-      "description": "Wählen und ordnen Sie die Abschnitte an, die in die Analyse einbezogen werden sollen. Zum Ändern der Reihenfolge ziehen und ablegen.",
+      "title": "Bereichskonfiguration",
+      "description": "Wählen und ordnen Sie die Bereiche an, die in die Analyse einbezogen werden sollen. Ziehen und ablegen, um die Reihenfolge zu ändern.",
       "save": "Konfiguration speichern",
       "import": "Importieren",
       "export": "Exportieren",
-      "importSuccess": "Abschnittskonfiguration erfolgreich importiert.",
-      "exportSuccess": "Abschnittskonfiguration erfolgreich exportiert.",
-      "importError": "Fehler beim Importieren der Abschnittskonfiguration.",
+      "importSuccess": "Bereichskonfiguration erfolgreich importiert.",
+      "exportSuccess": "Bereichskonfiguration erfolgreich exportiert.",
+      "importError": "Fehler beim Importieren der Bereichskonfiguration.",
       "saved": "Konfiguration gespeichert.",
-      "unsaved": "Sie haben ungespeicherte Änderungen.",
-      "addNew": "Alle neuen Abschnitte hinzufügen",
-      "removeStale": "Alle veralteten Abschnitte entfernen",
+      "unsaved": "Sie haben nicht gespeicherte Änderungen.",
+      "addNew": "Alle neuen Bereiche hinzufügen",
+      "removeStale": "Alle veralteten Bereiche entfernen",
       "new": "Neu",
       "stale": "Veraltet",
       "selectAll": "Alle auswählen",
       "deselectAll": "Alle abwählen",
       "activeSectionsSummary": "{{active}} aktiv von {{total}} verfügbar",
-      "refreshOrder": "Reihenfolge im Abschnitt aktualisieren"
+      "refreshOrder": "Reihenfolge im Bereich aktualisieren"
     },
     "rdcSelector": {
       "label": "RDC auswählen",
-      "placeholder": "Ein RDC auswählen..."
+      "placeholder": "RDC auswählen..."
     },
     "table": {
       "warehouse": "Lager",
       "hos": "Verkaufsleiter",
-      "am": "Bereichsleiter",
+      "am": "Gebietsleiter",
       "store": "Filiale",
       "discrepancies": "Abweichungen",
       "avgPerStore": "Ø pro Filiale",
-      "itemNumber": "Artikel-Nr.",
+      "itemNumber": "Artikelnummer",
       "itemName": "Artikelname",
       "planShc": "Plan-SHC",
       "storeShc": "Filial-SHC",
       "diff": "Differenz",
-      "section": "Abschnitt",
+      "section": "Bereich",
       "itemGroup": "Warengruppe",
-      "sectionWidth": "Einstellungsbreite",
-      "excluded": "(Von Summen ausgeschlossen)",
+      "sectionWidth": "Bereichsbreite",
+      "excluded": "(Aus Summen ausgeschlossen)",
       "tooltip": {
         "toggleExclusion": "Ausschluss umschalten",
         "exportPdf": "Filiale als PDF exportieren"
       }
+    },
+    "complianceReport": {
+      "title": "SHC-Konformitätsbericht",
+      "exportPdf": "Konformitäts-PDF herunterladen",
+      "exportSnapshot": "Daten der aktuellen Woche exportieren",
+      "printReport": "Bericht drucken",
+      "exportSnapshotSuccess": "Daten der aktuellen Woche erfolgreich exportiert.",
+      "noData": "Bericht kann nicht erstellt werden. Bitte importieren Sie Basisdaten und Daten der Vorwoche in den Einstellungen.",
+      "storeName": "Filialname",
+      "currently": "Aktuell",
+      "weekMinus1": "Woche -1",
+      "start": "Start",
+      "change": "Änderung (aktuell/start)"
     }
+  },
+  "writeOffsReport": {
+    "chooseWeek": "Woche wählen",
+    "expandToDoO": "Bis DoO erweitern",
+    "expandToRdc": "Bis RDC erweitern",
+    "expandToHos": "Bis VL erweitern",
+    "expandToAm": "Bis GL erweitern",
+    "collapseAll": "Alle einklappen",
+    "sortByTurnover": "Nach Umsatz sortieren",
+    "sortByDeviation": "Nach Abweichung sortieren"
   },
   "columns": {
     "product": {
       "warehouseId": "Lager",
       "dispoGroup": "Dispo-Gruppe",
-      "itemGroup": "Art.-Gruppe",
+      "itemGroup": "Warengr.",
       "orderArea": "Bestellber.",
-      "productId": "Artikel-Nr. (Kurz)",
-      "fullProductId": "Artikel-Nr. (Voll)",
+      "productId": "Art.-Nr. (Kurz)",
+      "fullProductId": "Art.-Nr. (Lang)",
       "name": "Name",
-      "caseSize": "Stk./Karton",
-      "cartonsPerLayer": "Kart./Lage",
+      "caseSize": "Stk./VE",
+      "cartonsPerLayer": "VE/Lage",
       "duessFactor": "DD",
-      "cartonsPerPallet": "Kart./Palette",
+      "cartonsPerPallet": "VE/Palette",
       "shelfLifeAtReceiving": "W-DATE Tage",
       "shelfLifeAtStore": "S-DATE Tage",
       "customerShelfLife": "C-DATE Tage",
@@ -527,49 +592,49 @@ export default {
       "status": "Status",
       "itemLocked": "Gesperrt",
       "slotNr": "Slot",
-      "unprocessedDeliveryQty": "Unbearb. Menge",
-      "supplierId": "Lieferanten-ID",
+      "unprocessedDeliveryQty": "Unverarb. Lief.",
+      "supplierId": "Lief.-ID",
       "supplierName": "Lieferantenname",
       "stockOnHand": "Lagerbestand",
-      "storeAllocationToday": "Heutige Zuordnung",
-      "storeAllocationTotal": "Gesamtzuordnung",
-      "promoDate": "Promo-Datum",
-      "estimatedReceivings": "Erw. Eingänge"
+      "storeAllocationToday": "Zuteil. Heute",
+      "storeAllocationTotal": "Zuteil. Gesamt",
+      "promoDate": "Aktionsdatum",
+      "estimatedReceivings": "Gesch. Eingänge"
     },
     "goodsReceipt": {
       "warehouseId": "Lager",
-      "productId": "Artikel-Nr. (Kurz)",
-      "fullProductId": "Artikel-Nr. (Voll)",
+      "productId": "Art.-Nr. (Kurz)",
+      "fullProductId": "Art.-Nr. (Lang)",
       "name": "Name",
       "deliveryUnit": "Liefereinheit",
       "deliveryQtyUom": "Menge (ME)",
-      "caseSize": "Stk./Karton",
+      "caseSize": "Stk./VE",
       "deliveryQtyPcs": "Menge (Stk.)",
       "poNr": "Bestell-Nr.",
       "deliveryDate": "Lieferdatum",
       "bestBeforeDate": "MHD",
-      "supplierId": "Lieferanten-ID",
+      "supplierId": "Lief.-ID",
       "supplierName": "Lieferantenname",
       "bolNr": "BOL-Nr.",
       "deliveryNote": "Lieferschein",
-      "intSupplierNr": "Int. Liefer.-Nr.",
-      "intItemNr": "Int. Artikel-Nr.",
-      "caseGtin": "Karton-GTIN",
-      "liaReference": "LIA-Ref"
+      "intSupplierNr": "Int. Lief.-Nr.",
+      "intItemNr": "Int. Art.-Nr.",
+      "caseGtin": "VE GTIN",
+      "liaReference": "LIA-Ref."
     },
     "openOrder": {
       "warehouseId": "Lager",
-      "productId": "Artikel-Nr. (Kurz)",
-      "fullProductId": "Artikel-Nr. (Voll)",
+      "productId": "Art.-Nr. (Kurz)",
+      "fullProductId": "Art.-Nr. (Lang)",
       "name": "Name",
       "orderUnit": "Bestelleinheit",
       "orderQtyUom": "Menge (ME)",
-      "caseSize": "Stk./Karton",
+      "caseSize": "Stk./VE",
       "orderQtyPcs": "Menge (Stk.)",
       "poNr": "Bestell-Nr.",
-      "supplierId": "Lieferanten-ID",
+      "supplierId": "Lief.-ID",
       "supplierName": "Lieferantenname",
-      "deliveryDate": "Gepl. Lieferdatum",
+      "deliveryDate": "Gepl. Lief.-Datum",
       "creationDate": "Erstelldatum",
       "deliveryLeadTime": "Vorlaufzeit (Tage)"
     },
@@ -584,7 +649,7 @@ export default {
         "storeNumber": "Filialnummer",
         "itemNumber": "Artikelnummer",
         "itemDescription": "Artikelbeschreibung",
-        "piecesInBox": "Stück/Karton",
+        "piecesInBox": "Stück pro Karton",
         "itemStatus": "Artikelstatus",
         "itemGroup": "Warengruppe",
         "shelfCapacity": "Regalkapazität (SHC)",
@@ -592,7 +657,7 @@ export default {
     },
     "planogram": {
         "generalStoreArea": "Allgemeiner Filialbereich",
-        "settingSpecificallyFor": "Einstellung für",
+        "settingSpecificallyFor": "Einstellung speziell für",
         "settingWidth": "Einstellungsbreite",
         "itemNumber": "Artikelnummer",
         "itemName": "Artikelname",
@@ -604,14 +669,37 @@ export default {
         "storeNumber": "Filialnummer",
         "storeName": "Filialname",
         "warehouseId": "Lager-ID",
-        "areaManager": "Area Manager",
-        "headOfSales": "Head of Sales"
+        "areaManager": "Gebietsleiter",
+        "headOfSales": "Verkaufsleiter"
     },
     "categoryRelation": {
         "generalStoreArea": "Allgemeiner Filialbereich",
-        "settingSpecificallyFor": "Einstellung für",
+        "settingSpecificallyFor": "Einstellung speziell für",
         "settingWidth": "Einstellungsbreite",
         "storeNumber": "Filialnummer"
+    },
+    "writeOffs": {
+        "regionManagerStore": "Alle / DoO / RDC / VL / GL / Filiale",
+        "turnover": "Umsatz",
+        "writeOffsValue": "Abschreibungswert",
+        "writeOffsPercent": "Abschreibung %",
+        "writeOffsTotalValue": "Abschr.-Wert Gesamt",
+        "writeOffsTotalPercent": "Abschr. % Gesamt",
+        "discountsValue": "Rabattwert",
+        "discountsPercent": "Rabatt %",
+        "damagesValue": "Schadenswert",
+        "damagesPercent": "Schaden %",
+        "targetPercent": "Ziel %",
+        "deviation": "Abweichung p.p."
+    },
+     "writeOffsActual": {
+      "metricName": "Metrikname",
+      "period": "Zeitraum",
+      "storeNumber": "Filialnummer",
+      "storeName": "Filialname",
+      "itemGroupNumber": "Warengr.-Nr.",
+      "itemGroupName": "Warengr.-Name",
+      "value": "Wert"
     }
   }
 }
