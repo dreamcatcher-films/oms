@@ -37,13 +37,12 @@ const createEmptyMetrics = (): WriteOffsMetrics => ({
     deviation: null,
 });
 
+const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
+const formatValue = (value: number) => `£${Math.round(value).toLocaleString('en-GB')}`;
+
 const ReportRowComponent = ({ row, expandedRows, onToggle, level }: { row: ReportRow, expandedRows: Set<string>, onToggle: (id: string) => void, level: number }) => {
     const isExpanded = expandedRows.has(row.id);
     const hasChildren = row.children.length > 0;
-    const { t } = useTranslation();
-
-    const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
-    const formatValue = (value: number) => `£${value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     
     const deviationClass = row.metrics.deviation === null ? '' :
         row.metrics.deviation > 0 ? styles['deviation-positive'] : styles['deviation-negative'];
