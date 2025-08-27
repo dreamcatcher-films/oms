@@ -392,6 +392,7 @@ export const getOrgStructureDataPaginated = (page: number, pageSize: number) => 
 export const getCategoryRelationDataPaginated = (page: number, pageSize: number) => getPaginatedData<CategoryRelationRow>(CATEGORY_RELATION_STORE_NAME, page, pageSize);
 export const getWriteOffsWeeklyPaginated = (page: number, pageSize: number) => getPaginatedData<WriteOffsActual>(WRITE_OFFS_WEEKLY_STORE_NAME, page, pageSize);
 export const getWriteOffsYTDPaginated = (page: number, pageSize: number) => getPaginatedData<WriteOffsActual>(WRITE_OFFS_YTD_STORE_NAME, page, pageSize);
+export const getWriteOffsTargetsPaginated = (page: number, pageSize: number) => getPaginatedData<WriteOffsTarget>(WRITE_OFFS_TARGETS_STORE_NAME, page, pageSize);
 
 
 export const getProductsPaginatedAndFiltered = async (
