@@ -127,7 +127,8 @@ export default {
           "orgStructure": "Org Structure",
           "categoryRelation": "Category Relation",
           "writeOffsWeekly": "Write-Offs (Weekly)",
-          "writeOffsYTD": "Write-Offs (YTD)"
+          "writeOffsYTD": "Write-Offs (YTD)",
+          "writeOffsTargets": "Write-Offs (Targets)"
       },
       "filters": {
           "warehouse": "Warehouse",
@@ -700,6 +701,12 @@ export default {
       "itemGroupNumber": "Item Group Number",
       "itemGroupName": "Item Group Name",
       "value": "Value"
+    },
+    "writeOffsTargets": {
+      "storeNumber": "Store Number",
+      "itemGroupNumber": "Item Group Number",
+      "monthlyTarget": "Monthly Target (%)",
+      "yearlyTarget": "Yearly Target (%)"
     }
   }
 }
