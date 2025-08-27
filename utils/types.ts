@@ -153,6 +153,8 @@ export type ReportRow = {
   level: 0 | 1 | 2 | 3 | 4; // 0: All Regions, 1: RDC, 2: HoS, 3: AM, 4: Store
   metrics: WriteOffsMetrics;
   children: ReportRow[];
+  storeCount: number;
+  summedMetrics: WriteOffsMetrics;
   maxValuesInScope?: {
       turnover: number;
       writeOffsValue: number;
