@@ -1,4 +1,3 @@
-
 import { render } from "preact";
 import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import {
@@ -48,7 +47,10 @@ import {
   saveWriteOffsTargets,
   clearWriteOffsTargets,
   WriteOffsTarget,
-  WriteOffsActual
+  WriteOffsActual,
+  saveDooList,
+  clearDooList,
+  DirectorOfOperations
 } from "./db";
 import { LanguageProvider, useTranslation } from './i18n';
 import Papa from "papaparse";
@@ -110,6 +112,7 @@ const App = () => {
   const shcBaselineInputRef = useRef<HTMLInputElement>(null);
   const shcPreviousWeekInputRef = useRef<HTMLInputElement>(null);
   const writeOffsTargetsInputRef = useRef<HTMLInputElement>(null);
+  const dooFileInputRef = useRef<HTMLInputElement>(null);
   const idleTimerRef = useRef<number | null>(null);
   const refreshIntervalRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
@@ -1000,6 +1003,30 @@ const App = () => {
     }
   };
   
+  const handleImportDoo = async (event: Event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (file) {
+          try {
+              const text = await file.text();
+              const data: DirectorOfOperations[] = JSON.parse(text);
+              await saveDooList(data);
+              setStatusMessage({ text: t('settings.dooManagement.importSuccess', { count: data.length }), type: 'success' });
+          } catch (e) {
+              console.error("Error importing DoO list", e);
+              setStatusMessage({ text: t('settings.dooManagement.importError'), type: 'error' });
+          } finally {
+              if (dooFileInputRef.current) dooFileInputRef.current.value = '';
+          }
+      }
+  };
+
+  const handleClearDoo = async () => {
+      if (confirm(t('settings.dooManagement.clearConfirm'))) {
+          await clearDooList();
+          setStatusMessage({ text: t('settings.dooManagement.clearSuccess'), type: 'success' });
+      }
+  };
+
   const renderView = () => {
     switch (currentView) {
         case 'import':
@@ -1019,7 +1046,7 @@ const App = () => {
         case 'simulations':
             return <SimulationView userSession={userSession} initialParams={simulationContext} onSimulationStart={() => setSimulationContext(null)} watchlist={watchlist} watchlistIndex={watchlistIndex} onNavigateWatchlist={handleNavigateWatchlist} onClearWatchlist={() => { setWatchlist([]); setWatchlistIndex(null); }} />;
         case 'settings':
-            return <SettingsView linkedFiles={linkedFiles} onLinkFile={handleLinkFile} onReloadFile={handleReloadFile} onClearLink={handleClearLink} isLoading={isLoading} userSession={userSession} rdcList={rdcList} onAddRdc={handleAddRdc} onDeleteRdc={handleDeleteRdc} onExportConfig={handleExportConfig} onImportClick={() => configImportInputRef.current?.click()} exclusionList={exclusionList} onImportExclusionListClick={() => exclusionFileInputRef.current?.click()} onClearExclusionList={handleClearExclusionList} shcExclusionList={shcExclusionList} onImportShcExclusionList={() => shcExclusionFileInputRef.current?.click()} onExportShcExclusionList={handleExportShcExclusionList} onClearShcExclusionList={handleClearShcExclusionList} onImportShcBaselineData={() => shcBaselineInputRef.current?.click()} onImportShcPreviousWeekData={() => shcPreviousWeekInputRef.current?.click()} />;
+            return <SettingsView linkedFiles={linkedFiles} onLinkFile={handleLinkFile} onReloadFile={handleReloadFile} onClearLink={handleClearLink} isLoading={isLoading} userSession={userSession} rdcList={rdcList} onAddRdc={handleAddRdc} onDeleteRdc={handleDeleteRdc} onExportConfig={handleExportConfig} onImportClick={() => configImportInputRef.current?.click()} exclusionList={exclusionList} onImportExclusionListClick={() => exclusionFileInputRef.current?.click()} onClearExclusionList={handleClearExclusionList} shcExclusionList={shcExclusionList} onImportShcExclusionList={() => shcExclusionFileInputRef.current?.click()} onExportShcExclusionList={handleExportShcExclusionList} onClearShcExclusionList={handleClearShcExclusionList} onImportShcBaselineData={() => shcBaselineInputRef.current?.click()} onImportShcPreviousWeekData={() => shcPreviousWeekInputRef.current?.click()} onImportDooClick={() => dooFileInputRef.current?.click()} onClearDoo={handleClearDoo} />;
         case 'dashboard':
         default:
             return <div class={sharedStyles['placeholder-view']}><h3>{t('placeholders.dashboard.title')}</h3><p>{t('placeholders.dashboard.description')}</p></div>;
@@ -1051,6 +1078,7 @@ const App = () => {
               <input type="file" ref={shcBaselineInputRef} onChange={(e) => handleImportShcSnapshot(e, 'baseline')} accept=".json" />
               <input type="file" ref={shcPreviousWeekInputRef} onChange={(e) => handleImportShcSnapshot(e, 'previousWeek')} accept=".json" />
               <input type="file" ref={writeOffsTargetsInputRef} onChange={handleImportWriteOffsTargets} accept=".json" />
+              <input type="file" ref={dooFileInputRef} onChange={handleImportDoo} accept=".json" />
           </div>
           {!userSession && <LoginModal onLogin={handleLogin} rdcList={rdcList} />}
           {isIdle && <IdleSplashScreen onContinue={handleContinueFromIdle} />}
