@@ -128,6 +128,10 @@
     font-weight: bold;
 }
 
+.row-level-2 .storeCount {
+    color: white;
+}
+
 .clickable {
     cursor: pointer;
 }
