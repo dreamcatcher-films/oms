@@ -68,32 +68,62 @@ const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, e
                     {hasChildren && <span class={`${styles['toggle-icon']} ${isExpanded ? styles.expanded : ''}`}>▶</span>}
                     {row.name}
                 </td>
-                <DataBarCell
+                 <DataBarCell
                     value={row.metrics.turnover}
                     maxValue={row.maxValuesInScope?.turnover ?? 0}
                     formatter={formatValue}
-                    barClass={styles['turnover-bar']}
+                    barClass={styles['value-bar']}
                 />
                 <DataBarCell
                     value={row.metrics.writeOffsValue}
                     maxValue={row.maxValuesInScope?.writeOffsValue ?? 0}
                     formatter={formatValue}
-                    barClass={styles['writeoff-bar']}
+                    barClass={styles['value-bar']}
                 />
-                <td>{formatPercent(row.metrics.writeOffsPercent)}</td>
+                <DataBarCell
+                    value={row.metrics.writeOffsPercent}
+                    maxValue={row.maxValuesInScope?.writeOffsPercent ?? 0}
+                    formatter={formatPercent}
+                    barClass={styles['percent-bar']}
+                />
                 <DataBarCell
                     value={row.metrics.writeOffsTotalValue}
                     maxValue={row.maxValuesInScope?.writeOffsTotalValue ?? 0}
                     formatter={formatValue}
-                    barClass={styles['writeoff-bar']}
+                    barClass={styles['value-bar']}
                 />
-                <td>{formatPercent(row.metrics.writeOffsTotalPercent)}</td>
-                <td>{formatValue(row.metrics.discountsValue)}</td>
-                <td>{formatPercent(row.metrics.discountsPercent)}</td>
-                <td>{formatValue(row.metrics.damagesValue)}</td>
-                <td>{formatPercent(row.metrics.damagesPercent)}</td>
-                <td>{row.metrics.target !== null ? formatPercent(row.metrics.target) : '-'}</td>
-                <td class={deviationClass}>
+                <DataBarCell
+                    value={row.metrics.writeOffsTotalPercent}
+                    maxValue={row.maxValuesInScope?.writeOffsTotalPercent ?? 0}
+                    formatter={formatPercent}
+                    barClass={styles['percent-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.discountsValue}
+                    maxValue={row.maxValuesInScope?.discountsValue ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['value-bar']}
+                />
+                 <DataBarCell
+                    value={row.metrics.discountsPercent}
+                    maxValue={row.maxValuesInScope?.discountsPercent ?? 0}
+                    formatter={formatPercent}
+                    barClass={styles['percent-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.damagesValue}
+                    maxValue={row.maxValuesInScope?.damagesValue ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['value-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.damagesPercent}
+                    maxValue={row.maxValuesInScope?.damagesPercent ?? 0}
+                    formatter={formatPercent}
+                    barClass={styles['percent-bar']}
+                />
+                <td style={{textAlign: 'center'}}>{row.metrics.target !== null ? formatPercent(row.metrics.target) : '-'}</td>
+                <td class={deviationClass} style={{textAlign: 'center'}}>
                     {row.metrics.deviation !== null ? `${(row.metrics.deviation * 100).toFixed(2)} p.p.` : '-'}
                 </td>
             </tr>
@@ -302,12 +332,24 @@ export const WriteOffsReportView = () => {
         const maxTurnover = Math.max(...node.children.map(c => Math.abs(c.metrics.turnover)));
         const maxWriteOffsValue = Math.max(...node.children.map(c => Math.abs(c.metrics.writeOffsValue)));
         const maxWriteOffsTotalValue = Math.max(...node.children.map(c => Math.abs(c.metrics.writeOffsTotalValue)));
+        const maxDiscountsValue = Math.max(...node.children.map(c => Math.abs(c.metrics.discountsValue)));
+        const maxDamagesValue = Math.max(...node.children.map(c => Math.abs(c.metrics.damagesValue)));
+        const maxWriteOffsPercent = Math.max(...node.children.map(c => Math.abs(c.metrics.writeOffsPercent)));
+        const maxWriteOffsTotalPercent = Math.max(...node.children.map(c => Math.abs(c.metrics.writeOffsTotalPercent)));
+        const maxDiscountsPercent = Math.max(...node.children.map(c => Math.abs(c.metrics.discountsPercent)));
+        const maxDamagesPercent = Math.max(...node.children.map(c => Math.abs(c.metrics.damagesPercent)));
 
         node.children.forEach(child => {
             child.maxValuesInScope = {
                 turnover: maxTurnover,
                 writeOffsValue: maxWriteOffsValue,
                 writeOffsTotalValue: maxWriteOffsTotalValue,
+                discountsValue: maxDiscountsValue,
+                damagesValue: maxDamagesValue,
+                writeOffsPercent: maxWriteOffsPercent,
+                writeOffsTotalPercent: maxWriteOffsTotalPercent,
+                discountsPercent: maxDiscountsPercent,
+                damagesPercent: maxDamagesPercent,
             };
             addMaxValuesToHierarchy(child);
         });
