@@ -204,6 +204,17 @@ export const saleRowMapper = (row: string[]): Sale | null => {
     };
 };
 
+// --- SHC vs Planogram Parsers ---
+
+const normalizeNumericString = (numStr: string | undefined): string => {
+    if (!numStr) return '';
+    const trimmed = numStr.trim();
+    if (/^\d+$/.test(trimmed)) {
+        return String(parseInt(trimmed, 10));
+    }
+    return trimmed;
+};
+
 export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null => {
     // Handles CSV with no headers and potentially empty columns, based on fixed positions.
     if (row.length < 7) {
@@ -212,12 +223,14 @@ export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null 
 
     const metricRaw = row[0]?.trim() || '';
     const period = row[1]?.trim() || '';
-    const storeNumber = row[2]?.trim() || '';
+    const storeNumberRaw = row[2]?.trim() || '';
     const storeName = row[3]?.trim() || '';
-    const itemGroupNumber = row[4]?.trim() || '';
+    const itemGroupNumberRaw = row[4]?.trim() || '';
     const itemGroupName = row[5]?.trim() || '';
     const valueRaw = row[6]?.trim().replace(/,/g, '') || ''; // Remove thousand separators
     
+    const storeNumber = normalizeNumericString(storeNumberRaw);
+    const itemGroupNumber = normalizeNumericString(itemGroupNumberRaw);
     let value = parseFloat(valueRaw);
 
     // A valid data row must have a metric, a store number, a group number, and a valid numeric value.
@@ -249,18 +262,6 @@ export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null 
         itemGroupName,
         value,
     };
-};
-
-
-// --- SHC vs Planogram Parsers ---
-
-const normalizeNumericString = (numStr: string | undefined): string => {
-    if (!numStr) return '';
-    const trimmed = numStr.trim();
-    if (/^\d+$/.test(trimmed)) {
-        return String(parseInt(trimmed, 10));
-    }
-    return trimmed;
 };
 
 export const shcRowMapper = (row: string[]): ShcDataRow => ({
