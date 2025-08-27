@@ -426,8 +426,8 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
               <tr>{columns.map(col => <th key={col.key}>{t(col.labelKey)}</th>)}</tr>
             </thead>
             <tbody>
-              {data.map(row => (
-                <tr key={row.id}>
+              {data.map((row, index) => (
+                <tr key={row.id ?? index}>
                   {columns.map(col => <td key={col.key}>{String((row as any)[col.key] ?? '')}</td>)}
                 </tr>
               ))}
@@ -485,7 +485,7 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         <button class={`${sharedStyles.tab} ${activeTab === 'products' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('products')}>{t('dataPreview.tabs.products')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'goodsReceipts' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('goodsReceipts')}>{t('dataPreview.tabs.goodsReceipts')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'openOrders' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('openOrders')}>{t('dataPreview.tabs.openOrders')}</button>
-        <button class={`${sharedStyles.tab} ${activeTab === 'sales' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('sales')}</button>
+        <button class={`${sharedStyles.tab} ${activeTab === 'sales' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('sales')}>{t('dataPreview.tabs.sales')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'shc' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('shc')}>{t('dataPreview.tabs.shc')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'planogram' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('planogram')}>{t('dataPreview.tabs.planogram')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'orgStructure' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('orgStructure')}>{t('dataPreview.tabs.orgStructure')}</button>
