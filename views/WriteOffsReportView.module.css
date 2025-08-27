@@ -137,6 +137,7 @@
     width: 1em;
     transition: transform 0.2s;
     font-size: 0.8em;
+    margin-right: 0.5rem;
 }
 
 .toggle-icon.expanded {
@@ -187,6 +188,13 @@
 
 .percent-bar {
     background-color: #fde29f; /* Lighter Yellow for percentages */
+}
+
+.storeCount {
+    font-weight: bold;
+    color: var(--text-light-color);
+    font-size: 0.9em;
+    margin-left: 0.5rem;
 }
 
 @media print {
