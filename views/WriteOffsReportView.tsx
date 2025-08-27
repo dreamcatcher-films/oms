@@ -40,24 +40,53 @@ const createEmptyMetrics = (): WriteOffsMetrics => ({
 const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
 const formatValue = (value: number) => `£${Math.round(value).toLocaleString('en-GB')}`;
 
-const ReportRowComponent = ({ row, expandedRows, onToggle, level }: { row: ReportRow, expandedRows: Set<string>, onToggle: (id: string) => void, level: number }) => {
+const DataBarCell = ({ value, maxValue, formatter, barClass }: { value: number; maxValue: number; formatter: (v: number) => string; barClass: string; }) => {
+    const widthPercent = maxValue > 0 ? (Math.abs(value) / maxValue) * 100 : 0;
+    return (
+        <td class={styles['data-bar-cell']}>
+            <div class={styles['data-bar-container']}>
+                <div class={`${styles['data-bar']} ${barClass}`} style={{ width: `${widthPercent}%` }}></div>
+                <span>{formatter(value)}</span>
+            </div>
+        </td>
+    );
+};
+
+const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, expandedRows: Set<string>, onToggle: (id: string) => void }) => {
     const isExpanded = expandedRows.has(row.id);
     const hasChildren = row.children.length > 0;
     
     const deviationClass = row.metrics.deviation === null ? '' :
         row.metrics.deviation > 0 ? styles['deviation-positive'] : styles['deviation-negative'];
     
+    const rowClass = styles[`row-level-${row.level}`];
+
     return (
         <>
-            <tr class={`${styles[`row-level-${level}`]} ${hasChildren ? styles.clickable : ''}`} onClick={() => hasChildren && onToggle(row.id)}>
-                <td class={styles['indent-cell']} style={{ paddingLeft: `${level * 1.5 + 0.5}rem` }}>
+            <tr class={`${rowClass} ${hasChildren ? styles.clickable : ''}`} onClick={() => hasChildren && onToggle(row.id)}>
+                <td class={styles['indent-cell']} style={{ paddingLeft: `${row.level * 1.5 + 0.5}rem` }}>
                     {hasChildren && <span class={`${styles['toggle-icon']} ${isExpanded ? styles.expanded : ''}`}>▶</span>}
                     {row.name}
                 </td>
-                <td>{formatValue(row.metrics.turnover)}</td>
-                <td>{formatValue(row.metrics.writeOffsValue)}</td>
+                <DataBarCell
+                    value={row.metrics.turnover}
+                    maxValue={row.maxValuesInScope?.turnover ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['turnover-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.writeOffsValue}
+                    maxValue={row.maxValuesInScope?.writeOffsValue ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['writeoff-bar']}
+                />
                 <td>{formatPercent(row.metrics.writeOffsPercent)}</td>
-                <td>{formatValue(row.metrics.writeOffsTotalValue)}</td>
+                <DataBarCell
+                    value={row.metrics.writeOffsTotalValue}
+                    maxValue={row.maxValuesInScope?.writeOffsTotalValue ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['writeoff-bar']}
+                />
                 <td>{formatPercent(row.metrics.writeOffsTotalPercent)}</td>
                 <td>{formatValue(row.metrics.discountsValue)}</td>
                 <td>{formatPercent(row.metrics.discountsPercent)}</td>
@@ -69,7 +98,7 @@ const ReportRowComponent = ({ row, expandedRows, onToggle, level }: { row: Repor
                 </td>
             </tr>
             {isExpanded && row.children.map(child => (
-                <ReportRowComponent key={child.id} row={child} expandedRows={expandedRows} onToggle={onToggle} level={level + 1} />
+                <ReportRowComponent key={child.id} row={child} expandedRows={expandedRows} onToggle={onToggle} />
             ))}
         </>
     );
@@ -202,7 +231,7 @@ export const WriteOffsReportView = () => {
         hos.ams.get(store.areaManager)!.push(store);
     }
 
-    const allRegionsRow: ReportRow = { id: 'all-regions', name: t('columns.writeOffs.regionManagerStore').split('/')[0].trim(), level: 0, metrics: createEmptyMetrics(), children: [] };
+    const allRegionsRow: ReportRow = { id: 'all-regions', name: 'All Regions', level: 0, metrics: createEmptyMetrics(), children: [] };
     const sortedRdcs = Array.from(rdcHierarchy.keys()).sort();
 
     for (const rdcId of sortedRdcs) {
@@ -266,6 +295,26 @@ export const WriteOffsReportView = () => {
     }
     
     allRegionsRow.metrics = calculateMetricsForRows(allRegionsRow.children);
+
+    const addMaxValuesToHierarchy = (node: ReportRow) => {
+        if (!node.children || node.children.length === 0) return;
+
+        const maxTurnover = Math.max(...node.children.map(c => Math.abs(c.metrics.turnover)));
+        const maxWriteOffsValue = Math.max(...node.children.map(c => Math.abs(c.metrics.writeOffsValue)));
+        const maxWriteOffsTotalValue = Math.max(...node.children.map(c => Math.abs(c.metrics.writeOffsTotalValue)));
+
+        node.children.forEach(child => {
+            child.maxValuesInScope = {
+                turnover: maxTurnover,
+                writeOffsValue: maxWriteOffsValue,
+                writeOffsTotalValue: maxWriteOffsTotalValue,
+            };
+            addMaxValuesToHierarchy(child);
+        });
+    };
+
+    addMaxValuesToHierarchy(allRegionsRow);
+    
     return allRegionsRow;
     
   }, [isLoading, orgStructure, weeklyActuals, ytdActuals, targets, viewMode, selectedGroup, selectedWeek, t]);
@@ -339,7 +388,7 @@ export const WriteOffsReportView = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    <ReportRowComponent row={reportData} expandedRows={expandedRows} onToggle={handleToggleRow} level={0} />
+                    <ReportRowComponent row={reportData} expandedRows={expandedRows} onToggle={handleToggleRow} />
                 </tbody>
             </table>
         </div>
