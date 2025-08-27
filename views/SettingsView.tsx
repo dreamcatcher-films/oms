@@ -25,6 +25,8 @@ type SettingsViewProps = {
     onClearShcExclusionList: () => void;
     onImportShcBaselineData: () => void;
     onImportShcPreviousWeekData: () => void;
+    onImportDooClick: () => void;
+    onClearDoo: () => void;
 };
 
 export const SettingsView = (props: SettingsViewProps) => {
@@ -49,6 +51,8 @@ export const SettingsView = (props: SettingsViewProps) => {
         onClearShcExclusionList,
         onImportShcBaselineData,
         onImportShcPreviousWeekData,
+        onImportDooClick,
+        onClearDoo,
     } = props;
     const { t } = useTranslation();
     const [newRdc, setNewRdc] = useState({ id: '', name: '' });
@@ -221,6 +225,17 @@ export const SettingsView = (props: SettingsViewProps) => {
                     <button class={sharedStyles['button-clear']} onClick={onClearExclusionList} disabled={exclusionListSize === 0}>{t('settings.exclusionList.clearButton')}</button>
                 </div>
             </div>
+            
+            {isHq && (
+                <div class={styles['settings-section']}>
+                    <h3>{t('settings.dooManagement.title')}</h3>
+                    <p>{t('settings.dooManagement.description')}</p>
+                    <div class={sharedStyles['filter-actions']}>
+                        <button class={sharedStyles['button-primary']} onClick={onImportDooClick}>{t('settings.dooManagement.importButton')}</button>
+                        <button class={sharedStyles['button-clear']} onClick={onClearDoo}>{t('settings.dooManagement.clearButton')}</button>
+                    </div>
+                </div>
+            )}
 
             <div class={styles['settings-section']}>
                 <h3>{t('settings.configManagement.title')}</h3>
