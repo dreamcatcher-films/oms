@@ -72,6 +72,7 @@ const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, e
                 <td class={styles['indent-cell']} style={{ paddingLeft: `${row.level * 1.5 + 0.5}rem` }}>
                     {hasChildren && <span class={`${styles['toggle-icon']} ${isExpanded ? styles.expanded : ''}`}>▶</span>}
                     {row.name}
+                    {row.level < 4 && <span class={styles.storeCount}>( {row.storeCount} )</span>}
                 </td>
                  <DataBarCell
                     value={row.metrics.turnover}
@@ -310,217 +311,220 @@ export const WriteOffsReportView = () => {
                     storeMetrics.discountsPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_PERCENT);
                     storeMetrics.damagesValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_VALUE);
                     storeMetrics.damagesPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_PERCENT);
-                    
-                    const targetKey = selectedGroup === 'all' 
-                        ? targets.find(t => t.storeNumber === store.storeNumber)?.id 
-                        : `${store.storeNumber}-${selectedGroup.split(' - ')[0]}`;
-                    const targetData = targetsByStoreAndGroup.get(targetKey || '');
-                    const targetValue = viewMode === 'weekly' ? targetData?.monthlyTarget : targetData?.yearlyTarget;
 
-                    if (targetValue !== undefined) {
-                        storeMetrics.target = targetValue;
-                        storeMetrics.deviation = storeMetrics.writeOffsTotalPercent - targetValue;
+                    // Find target for this store
+                    if (selectedGroup !== 'all') {
+                        const [groupNumber] = selectedGroup.split(' - ');
+                        const target = targetsByStoreAndGroup.get(`${store.storeNumber}-${groupNumber}`);
+                        if (target) {
+                            const targetValue = viewMode === 'weekly' ? target.monthlyTarget : target.yearlyTarget;
+                            if (targetValue !== undefined) {
+                                storeMetrics.target = targetValue;
+                                storeMetrics.deviation = storeMetrics.writeOffsTotalPercent - targetValue;
+                            }
+                        }
                     }
-                    
-                    amRow.children.push({ id: store.storeNumber, name: `${store.storeNumber} - ${store.storeName}`, level: 4, metrics: storeMetrics, children: [], storeCount: 1, summedMetrics: storeMetrics });
+
+                    const storeRow: ReportRow = {
+                        id: `store-${store.storeNumber}`,
+                        name: `${store.storeNumber} - ${store.storeName}`,
+                        level: 4,
+                        metrics: storeMetrics,
+                        children: [],
+                        storeCount: 1,
+                        summedMetrics: storeMetrics,
+                    };
+                    amRow.children.push(storeRow);
                 }
-                if (amRow.children.length > 0) {
-                     const aggregated = aggregateHierarchyNode(amRow.children, amRow.level);
-                     amRow.metrics = aggregated.metrics;
-                     amRow.summedMetrics = aggregated.summedMetrics;
-                     amRow.storeCount = aggregated.storeCount;
-                     hosRow.children.push(amRow);
+                const { metrics: amMetrics, summedMetrics: amSummedMetrics, storeCount: amStoreCount } = aggregateHierarchyNode(amRow.children, 3);
+                amRow.metrics = amMetrics;
+                amRow.summedMetrics = amSummedMetrics;
+                amRow.storeCount = amStoreCount;
+
+                hosRow.children.push(amRow);
+            }
+            const { metrics: hosMetrics, summedMetrics: hosSummedMetrics, storeCount: hosStoreCount } = aggregateHierarchyNode(hosRow.children, 2);
+            hosRow.metrics = hosMetrics;
+            hosRow.summedMetrics = hosSummedMetrics;
+            hosRow.storeCount = hosStoreCount;
+
+            rdcRow.children.push(hosRow);
+        }
+        const { metrics: rdcMetrics, summedMetrics: rdcSummedMetrics, storeCount: rdcStoreCount } = aggregateHierarchyNode(rdcRow.children, 1);
+        rdcRow.metrics = rdcMetrics;
+        rdcRow.summedMetrics = rdcSummedMetrics;
+        rdcRow.storeCount = rdcStoreCount;
+
+        allRegionsRow.children.push(rdcRow);
+    }
+    const { metrics: allMetrics, summedMetrics: allSummedMetrics, storeCount: allStoreCount } = aggregateHierarchyNode(allRegionsRow.children, 0);
+    allRegionsRow.metrics = allMetrics;
+    allRegionsRow.summedMetrics = allSummedMetrics;
+    allRegionsRow.storeCount = allStoreCount;
+    
+    // Sorting logic needs to be applied after building the hierarchy
+    const sortChildren = (rows: ReportRow[]) => {
+        if (!sortConfig) return;
+        
+        rows.forEach(row => {
+            if (row.children.length > 0) {
+                if (row.level === 1 || row.level === 2) { // Sort AMs under HoS, and HoS under RDC
+                    row.children.sort((a, b) => {
+                        const valA = sortConfig.key === 'turnover' ? a.metrics.turnover : a.metrics.writeOffsTotalPercent;
+                        const valB = sortConfig.key === 'turnover' ? b.metrics.turnover : b.metrics.writeOffsTotalPercent;
+                        if (sortConfig.direction === 'asc') {
+                            return valA - valB;
+                        } else {
+                            return valB - valA;
+                        }
+                    });
                 }
+                sortChildren(row.children);
             }
-            if (hosRow.children.length > 0) {
-                const aggregated = aggregateHierarchyNode(hosRow.children, hosRow.level);
-                hosRow.metrics = aggregated.metrics;
-                hosRow.summedMetrics = aggregated.summedMetrics;
-                hosRow.storeCount = aggregated.storeCount;
-                rdcRow.children.push(hosRow);
-            }
-        }
-        if (rdcRow.children.length > 0) {
-            const aggregated = aggregateHierarchyNode(rdcRow.children, rdcRow.level);
-            rdcRow.metrics = aggregated.metrics;
-            rdcRow.summedMetrics = aggregated.summedMetrics;
-            rdcRow.storeCount = aggregated.storeCount;
-            allRegionsRow.children.push(rdcRow);
-        }
-    }
-    
-    const aggregated = aggregateHierarchyNode(allRegionsRow.children, allRegionsRow.level);
-    allRegionsRow.metrics = aggregated.metrics;
-    allRegionsRow.summedMetrics = aggregated.summedMetrics;
-    allRegionsRow.storeCount = aggregated.storeCount;
-
-    const sortHierarchy = (node: ReportRow, config: SortConfig) => {
-        if (node.children && node.children.length > 0) {
-            if (node.level === 1 || node.level === 2) { // Sort AMs within HoS, and HoS within RDC
-                node.children.sort((a, b) => {
-                    const valA = a.metrics[config.key] ?? (config.direction === 'asc' ? Infinity : -Infinity);
-                    const valB = b.metrics[config.key] ?? (config.direction === 'asc' ? Infinity : -Infinity);
-                    return config.direction === 'asc' ? valA - valB : valB - valA;
-                });
-            }
-            node.children.forEach(child => sortHierarchy(child, config));
-        }
-    };
-    
-    if (sortConfig) {
-        sortHierarchy(allRegionsRow, sortConfig);
-    }
-
-    const addMaxValuesToHierarchy = (node: ReportRow) => {
-        if (!node.children || node.children.length === 0) return;
-
-        const maxTurnover = Math.max(...node.children.map(c => Math.abs(c.metrics.turnover)));
-        const maxWriteOffsValue = Math.max(...node.children.map(c => Math.abs(c.metrics.writeOffsValue)));
-        const maxWriteOffsTotalValue = Math.max(...node.children.map(c => Math.abs(c.metrics.writeOffsTotalValue)));
-        const maxDiscountsValue = Math.max(...node.children.map(c => Math.abs(c.metrics.discountsValue)));
-        const maxDamagesValue = Math.max(...node.children.map(c => Math.abs(c.metrics.damagesValue)));
-        const maxWriteOffsPercent = Math.max(...node.children.map(c => Math.abs(c.metrics.writeOffsPercent)));
-        const maxWriteOffsTotalPercent = Math.max(...node.children.map(c => Math.abs(c.metrics.writeOffsTotalPercent)));
-        const maxDiscountsPercent = Math.max(...node.children.map(c => Math.abs(c.metrics.discountsPercent)));
-        const maxDamagesPercent = Math.max(...node.children.map(c => Math.abs(c.metrics.damagesPercent)));
-
-        node.children.forEach(child => {
-            child.maxValuesInScope = {
-                turnover: maxTurnover,
-                writeOffsValue: maxWriteOffsValue,
-                writeOffsTotalValue: maxWriteOffsTotalValue,
-                discountsValue: maxDiscountsValue,
-                damagesValue: maxDamagesValue,
-                writeOffsPercent: maxWriteOffsPercent,
-                writeOffsTotalPercent: maxWriteOffsTotalPercent,
-                discountsPercent: maxDiscountsPercent,
-                damagesPercent: maxDamagesPercent,
-            };
-            addMaxValuesToHierarchy(child);
         });
     };
+    
+    sortChildren([allRegionsRow]);
 
-    addMaxValuesToHierarchy(allRegionsRow);
-    
     return allRegionsRow;
-    
-  }, [isLoading, orgStructure, weeklyActuals, ytdActuals, targets, viewMode, selectedGroup, selectedWeek, t, sortConfig]);
-  
-  const handleToggleRow = (id: string) => {
-    setExpandedRows(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(id)) {
-            newSet.delete(id);
-        } else {
-            newSet.add(id);
-        }
-        return newSet;
-    });
+
+  }, [isLoading, orgStructure, viewMode, weeklyActuals, ytdActuals, targets, selectedGroup, selectedWeek, sortConfig]);
+
+  const handleToggleRow = useCallback((id: string) => {
+      setExpandedRows(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(id)) {
+              newSet.delete(id);
+          } else {
+              newSet.add(id);
+          }
+          return newSet;
+      });
+  }, []);
+
+  const expandToLevel = (level: number) => {
+      if (!reportData) return;
+      const newExpanded = new Set<string>();
+      const traverse = (row: ReportRow) => {
+          if (row.level < level) {
+              newExpanded.add(row.id);
+              row.children.forEach(traverse);
+          }
+      };
+      traverse(reportData);
+      setExpandedRows(newExpanded);
   };
   
-  const handleSort = (key: SortConfig['key']) => {
-    const isCurrentKey = sortConfig?.key === key;
-    let newDirection: 'asc' | 'desc';
-    if(key === 'turnover') {
-        newDirection = isCurrentKey && sortConfig.direction === 'desc' ? 'asc' : 'desc';
-    } else { // writeOffsTotalPercent
-        newDirection = isCurrentKey && sortConfig.direction === 'asc' ? 'desc' : 'asc';
-    }
-    setSortConfig({ key, direction: newDirection });
+  const handleSort = (key: 'turnover' | 'writeOffsTotalPercent') => {
+      setSortConfig(prev => {
+          const isCurrentKey = prev?.key === key;
+          const newDirection = isCurrentKey && prev.direction === 'desc' ? 'asc' : 'desc';
+          // Default sort for turnover is desc, for deviation is asc
+          const defaultDirection = key === 'turnover' ? 'desc' : 'asc';
+          return {
+              key,
+              direction: isCurrentKey ? newDirection : defaultDirection
+          };
+      });
   };
-  
-  const getSortIcon = (key: SortConfig['key']) => {
-      if (sortConfig?.key !== key) return '↕';
-      return sortConfig.direction === 'asc' ? '▲' : '▼';
+
+  const addMaxValuesToHierarchy = (node: ReportRow) => {
+      if (node.children.length > 0) {
+          const maxValues: ReportRow['maxValuesInScope'] = {
+              turnover: 0, writeOffsValue: 0, writeOffsTotalValue: 0, discountsValue: 0, damagesValue: 0,
+              writeOffsPercent: 0, writeOffsTotalPercent: 0, discountsPercent: 0, damagesPercent: 0,
+          };
+          for (const child of node.children) {
+              maxValues.turnover = Math.max(maxValues.turnover, Math.abs(child.metrics.turnover));
+              maxValues.writeOffsValue = Math.max(maxValues.writeOffsValue, Math.abs(child.metrics.writeOffsValue));
+              maxValues.writeOffsTotalValue = Math.max(maxValues.writeOffsTotalValue, Math.abs(child.metrics.writeOffsTotalValue));
+              maxValues.discountsValue = Math.max(maxValues.discountsValue, Math.abs(child.metrics.discountsValue));
+              maxValues.damagesValue = Math.max(maxValues.damagesValue, Math.abs(child.metrics.damagesValue));
+              maxValues.writeOffsPercent = Math.max(maxValues.writeOffsPercent, Math.abs(child.metrics.writeOffsPercent));
+              maxValues.writeOffsTotalPercent = Math.max(maxValues.writeOffsTotalPercent, Math.abs(child.metrics.writeOffsTotalPercent));
+              maxValues.discountsPercent = Math.max(maxValues.discountsPercent, Math.abs(child.metrics.discountsPercent));
+              maxValues.damagesPercent = Math.max(maxValues.damagesPercent, Math.abs(child.metrics.damagesPercent));
+          }
+          for (const child of node.children) {
+              child.maxValuesInScope = maxValues;
+              addMaxValuesToHierarchy(child);
+          }
+      }
   };
-  
-  const expandToLevel = useCallback((level: number) => {
-    if (!reportData) return;
-    const newExpandedRows = new Set<string>();
-    const traverse = (node: ReportRow) => {
-        if (node.level < level) {
-            newExpandedRows.add(node.id);
-            node.children.forEach(traverse);
-        }
-    };
-    traverse(reportData);
-    setExpandedRows(newExpandedRows);
-  }, [reportData]);
+
+  if (reportData) {
+      addMaxValuesToHierarchy(reportData);
+  }
 
   if (isLoading) {
-    return <div class={sharedStyles.spinner}></div>;
+      return <div class={sharedStyles['spinner-overlay']}><div class={sharedStyles.spinner}></div></div>;
+  }
+  if (!reportData) {
+      return <div class={sharedStyles['placeholder-view']}><h3>{t('sidebar.writeOffsReport')}</h3><p>No data available to generate the report. Please import the required files.</p></div>;
   }
   
-  if (!reportData) {
-      return (
-         <div class={sharedStyles['placeholder-view']}>
-            <h3>{t('sidebar.writeOffsReport')}</h3>
-            <p>No data available to generate the report. Please import the required files.</p>
-        </div>
-      );
-  }
+  const getSortIcon = (key: 'turnover' | 'writeOffsTotalPercent') => {
+      if (sortConfig?.key !== key) return '↕';
+      return sortConfig.direction === 'asc' ? '↑' : '↓';
+  };
 
   return (
-    <div class={styles['write-offs-report-view']}>
-        <div class={styles['controls-container']}>
-            <div class={styles['control-group']}>
-                <div class={styles['view-toggle']}>
-                    <button onClick={() => setViewMode('weekly')} class={viewMode === 'weekly' ? styles.active : ''}>Weekly</button>
-                    <button onClick={() => setViewMode('ytd')} class={viewMode === 'ytd' ? styles.active : ''}>YTD</button>
-                </div>
-                 {viewMode === 'weekly' && availableWeeks.length > 1 && (
-                    <div class={styles['control-group']}>
-                        <label for="week-select">{t('writeOffsReport.chooseWeek')}</label>
-                        <select id="week-select" value={selectedWeek} onChange={e => setSelectedWeek((e.target as HTMLSelectElement).value)}>
-                            {availableWeeks.map(week => <option key={week} value={week}>{week}</option>)}
-                        </select>
-                    </div>
-                )}
-                <div class={styles['control-group']}>
-                    <label for="group-select">Item Group</label>
-                    <select id="group-select" value={selectedGroup} onChange={e => setSelectedGroup((e.target as HTMLSelectElement).value)}>
-                        <option value="all">All Groups</option>
-                        {availableGroups.map(group => <option key={group} value={group}>{group}</option>)}
-                    </select>
-                </div>
-            </div>
-            <div class={styles['control-group']}>
-                <div class={styles['actions-bar']}>
-                    <button onClick={() => expandToLevel(2)}>{t('writeOffsReport.expandToHos')}</button>
-                    <button onClick={() => expandToLevel(3)}>{t('writeOffsReport.expandToAm')}</button>
-                    <button onClick={() => setExpandedRows(new Set())}>{t('writeOffsReport.collapseAll')}</button>
-                </div>
-            </div>
-        </div>
-        <div class={sharedStyles['table-container']}>
-            <table class={styles['report-table']}>
-                <thead>
-                    <tr>
-                        <th class={styles['indent-cell']}>{t('columns.writeOffs.regionManagerStore')}</th>
-                        <th class={styles.sortable} onClick={() => handleSort('turnover')}>
-                            {t('columns.writeOffs.turnover')}
-                            <span class={styles['sort-icon']}>{getSortIcon('turnover')}</span>
-                        </th>
-                        <th>{t('columns.writeOffs.writeOffsValue')}</th>
-                        <th>{t('columns.writeOffs.writeOffsPercent')}</th>
-                        <th>{t('columns.writeOffs.writeOffsTotalValue')}</th>
-                        <th class={styles.sortable} onClick={() => handleSort('writeOffsTotalPercent')}>
+      <div class={styles['write-offs-report-view']}>
+          <div class={styles['controls-container']}>
+              <div class={styles['control-group']}>
+                  <div class={styles['view-toggle']}>
+                      <button class={viewMode === 'weekly' ? styles.active : ''} onClick={() => setViewMode('weekly')}>Weekly</button>
+                      <button class={viewMode === 'ytd' ? styles.active : ''} onClick={() => setViewMode('ytd')}>YTD</button>
+                  </div>
+                  {viewMode === 'weekly' && availableWeeks.length > 0 && (
+                      <>
+                          <label for="week-select">{t('writeOffsReport.chooseWeek')}:</label>
+                          <select id="week-select" value={selectedWeek} onChange={e => setSelectedWeek((e.target as HTMLSelectElement).value)}>
+                              {availableWeeks.map(week => <option key={week} value={week}>{week}</option>)}
+                          </select>
+                      </>
+                  )}
+                  <label for="group-select">Item Group:</label>
+                  <select id="group-select" value={selectedGroup} onChange={e => setSelectedGroup((e.target as HTMLSelectElement).value)}>
+                      <option value="all">All Groups</option>
+                      {availableGroups.map(group => <option key={group} value={group}>{group}</option>)}
+                  </select>
+              </div>
+               <div class={styles['actions-bar']}>
+                  <button onClick={() => expandToLevel(2)}>{t('writeOffsReport.expandToHos')}</button>
+                  <button onClick={() => expandToLevel(3)}>{t('writeOffsReport.expandToAm')}</button>
+                  <button onClick={() => setExpandedRows(new Set())}>{t('writeOffsReport.collapseAll')}</button>
+              </div>
+          </div>
+          <div class={sharedStyles['table-container']}>
+              <table class={styles['report-table']}>
+                  <thead>
+                      <tr>
+                          <th>{t('columns.writeOffs.regionManagerStore')}</th>
+                          <th class={styles.sortable} onClick={() => handleSort('turnover')}>
+                              {t('columns.writeOffs.turnover')}
+                              <span class={styles['sort-icon']}>{getSortIcon('turnover')}</span>
+                          </th>
+                          <th>{t('columns.writeOffs.writeOffsValue')}</th>
+                          <th>{t('columns.writeOffs.writeOffsPercent')}</th>
+                          <th>{t('columns.writeOffs.writeOffsTotalValue')}</th>
+                          <th class={styles.sortable} onClick={() => handleSort('writeOffsTotalPercent')}>
                             {t('columns.writeOffs.writeOffsTotalPercent')}
-                             <span class={styles['sort-icon']}>{getSortIcon('writeOffsTotalPercent')}</span>
-                        </th>
-                        <th>{t('columns.writeOffs.discountsValue')}</th>
-                        <th>{t('columns.writeOffs.discountsPercent')}</th>
-                        <th>{t('columns.writeOffs.damagesValue')}</th>
-                        <th>{t('columns.writeOffs.damagesPercent')}</th>
-                        <th>{t('columns.writeOffs.targetPercent')}</th>
-                        <th>{t('columns.writeOffs.deviation')}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <ReportRowComponent row={reportData} expandedRows={expandedRows} onToggle={handleToggleRow} />
-                </tbody>
-            </table>
-        </div>
-    </div>
+                            <span class={styles['sort-icon']}>{getSortIcon('writeOffsTotalPercent')}</span>
+                          </th>
+                          <th>{t('columns.writeOffs.discountsValue')}</th>
+                          <th>{t('columns.writeOffs.discountsPercent')}</th>
+                          <th>{t('columns.writeOffs.damagesValue')}</th>
+                          <th>{t('columns.writeOffs.damagesPercent')}</th>
+                          <th>{t('columns.writeOffs.targetPercent')}</th>
+                          <th>{t('columns.writeOffs.deviation')}</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      <ReportRowComponent row={reportData} expandedRows={expandedRows} onToggle={handleToggleRow} />
+                  </tbody>
+              </table>
+          </div>
+      </div>
   );
 };
