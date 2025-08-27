@@ -285,6 +285,16 @@ export default {
         "deleteSuccess": "RDC deleted successfully.",
         "deleteConfirm": "Are you sure you want to delete this RDC?"
     },
+    "dooManagement": {
+        "title": "Director of Operations Management",
+        "description": "Import a JSON file to define which Director of Operations is responsible for which RDCs.",
+        "importButton": "Import DoO List (.json)",
+        "clearButton": "Clear DoO List",
+        "importSuccess": "DoO list imported successfully. Loaded {{count}} directors.",
+        "importError": "Error importing DoO list.",
+        "clearSuccess": "DoO list has been cleared.",
+        "clearConfirm": "Are you sure you want to clear the Director of Operations list?"
+    },
     "exclusionList": {
       "title": "Exclusion List Management",
       "description": "Import a list of product numbers to be excluded from 'Suspicious Statuses' calculations in the Status Report. These products will still be visible in the report but will be highlighted.",
@@ -554,6 +564,8 @@ export default {
   },
    "writeOffsReport": {
     "chooseWeek": "Choose week",
+    "expandToDoO": "Expand to DoO",
+    "expandToRdc": "Expand to RDC",
     "expandToHos": "Expand to HoS",
     "expandToAm": "Expand to AM",
     "collapseAll": "Collapse All",
@@ -667,7 +679,7 @@ export default {
         "storeNumber": "Store Number"
     },
     "writeOffs": {
-        "regionManagerStore": "RDC / Head Of Sales / Area Manager / Store",
+        "regionManagerStore": "All / DoO / RDC / HoS / AM / Store",
         "turnover": "Turnover",
         "writeOffsValue": "Write-offs Value",
         "writeOffsPercent": "Write-offs %",
@@ -685,7 +697,7 @@ export default {
       "period": "Period",
       "storeNumber": "Store Number",
       "storeName": "Store Name",
-      "itemGroupNumber": "Item Group No.",
+      "itemGroupNumber": "Item Group Number",
       "itemGroupName": "Item Group Name",
       "value": "Value"
     }
