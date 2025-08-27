@@ -218,7 +218,7 @@ export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null 
     const itemGroupName = row[5]?.trim() || '';
     const valueRaw = row[6]?.trim().replace(/,/g, '') || ''; // Remove thousand separators
     
-    const value = parseFloat(valueRaw);
+    let value = parseFloat(valueRaw);
 
     // A valid data row must have a metric, a store number, a group number, and a valid numeric value.
     if (!metricRaw || !storeNumber || !itemGroupNumber || isNaN(value)) {
@@ -232,6 +232,10 @@ export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null 
 
     // Make ID more unique to avoid collisions in the DB.
     const id = `${storeNumber}-${itemGroupNumber}-${metricId}-${period}-${metricName.replace(/\s/g, '')}`;
+
+    if (metricName.includes('(%)')) {
+        value /= 100;
+    }
 
     return {
         id,
