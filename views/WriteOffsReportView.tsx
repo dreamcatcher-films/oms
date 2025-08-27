@@ -2,12 +2,12 @@ import { useState, useEffect, useMemo, useCallback } from 'preact/hooks';
 import { useTranslation } from '../i18n';
 import { 
     WriteOffsActual, WriteOffsTarget, OrgStructureRow, 
-    ReportRow, WriteOffsMetrics, RDC
+    ReportRow, WriteOffsMetrics, RDC, DirectorOfOperations
 } from '../utils/types';
 import { 
     getAllWriteOffsWeekly, getAllWriteOffsYTD, 
     getAllWriteOffsTargets, getAllOrgStructureData,
-    loadRdcList
+    loadRdcList, loadDooList
 } from '../db';
 import styles from './WriteOffsReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
@@ -73,7 +73,7 @@ const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, e
                 <td class={styles['indent-cell']} style={{ paddingLeft: `${row.level * 1.5 + 0.5}rem` }}>
                     {hasChildren && <span class={`${styles['toggle-icon']} ${isExpanded ? styles.expanded : ''}`}>▶</span>}
                     {row.name}
-                    {row.level < 4 && <span class={styles.storeCount}>( {row.storeCount} )</span>}
+                    {row.level < 5 && <span class={styles.storeCount}>( {row.storeCount} )</span>}
                 </td>
                  <DataBarCell
                     value={row.metrics.turnover}
@@ -150,6 +150,7 @@ export const WriteOffsReportView = () => {
   const [targets, setTargets] = useState<WriteOffsTarget[]>([]);
   const [orgStructure, setOrgStructure] = useState<OrgStructureRow[]>([]);
   const [rdcList, setRdcList] = useState<RDC[]>([]);
+  const [dooList, setDooList] = useState<DirectorOfOperations[]>([]);
 
   const [viewMode, setViewMode] = useState<'weekly' | 'ytd'>('weekly');
   const [selectedGroup, setSelectedGroup] = useState('all');
@@ -163,18 +164,20 @@ export const WriteOffsReportView = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [weekly, ytd, targetsData, org, rdcs] = await Promise.all([
+            const [weekly, ytd, targetsData, org, rdcs, doos] = await Promise.all([
                 getAllWriteOffsWeekly(),
                 getAllWriteOffsYTD(),
                 getAllWriteOffsTargets(),
                 getAllOrgStructureData(),
                 loadRdcList(),
+                loadDooList(),
             ]);
             setWeeklyActuals(weekly);
             setYtdActuals(ytd);
             setTargets(targetsData);
             setOrgStructure(org);
             setRdcList(rdcs);
+            setDooList(doos || []);
             
             const allActuals = [...weekly, ...ytd];
             const groups = [...new Set(allActuals.map(a => `${a.itemGroupNumber} - ${a.itemGroupName}`))];
@@ -253,7 +256,8 @@ export const WriteOffsReportView = () => {
         
         const finalMetrics = { ...summedMetrics };
         
-        if ((level === 2 || level === 3) && storeCount > 0) { // HoS or AM
+        // Average value metrics for all manager levels
+        if ((level >= 1 && level <= 4) && storeCount > 0) { 
             finalMetrics.turnover /= storeCount;
             finalMetrics.writeOffsValue /= storeCount;
             finalMetrics.writeOffsTotalValue /= storeCount;
@@ -274,117 +278,125 @@ export const WriteOffsReportView = () => {
 
         return { metrics: finalMetrics, summedMetrics, storeCount };
     };
-    
-    const rdcHierarchy = new Map<string, { hoss: Map<string, { ams: Map<string, OrgStructureRow[]> }> }>();
+
+    const hierarchy = new Map<string, { rdc: Map<string, { hoss: Map<string, { ams: Map<string, OrgStructureRow[]> }> } > }>();
+    const rdcToDooMap = new Map<string, string>();
+    dooList.forEach(doo => {
+        doo.rdcIds.forEach(rdcId => rdcToDooMap.set(rdcId, doo.directorName));
+    });
+
     for (const store of orgStructure) {
-        if (!rdcHierarchy.has(store.warehouseId)) rdcHierarchy.set(store.warehouseId, { hoss: new Map() });
-        const rdc = rdcHierarchy.get(store.warehouseId)!;
+        const dooName = rdcToDooMap.get(store.warehouseId) || 'Unassigned';
+        if (!hierarchy.has(dooName)) hierarchy.set(dooName, { rdc: new Map() });
+        const doo = hierarchy.get(dooName)!;
+        
+        if (!doo.rdc.has(store.warehouseId)) doo.rdc.set(store.warehouseId, { hoss: new Map() });
+        const rdc = doo.rdc.get(store.warehouseId)!;
+
         if (!rdc.hoss.has(store.headOfSales)) rdc.hoss.set(store.headOfSales, { ams: new Map() });
         const hos = rdc.hoss.get(store.headOfSales)!;
+
         if (!hos.ams.has(store.areaManager)) hos.ams.set(store.areaManager, []);
         hos.ams.get(store.areaManager)!.push(store);
     }
+    
+    const allRow: ReportRow = { id: 'all', name: 'All', level: 0, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+    const sortedDoos = Array.from(hierarchy.keys()).sort();
 
-    const allRegionsRow: ReportRow = { id: 'all-regions', name: 'All Regions', level: 0, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
-    const sortedRdcs = Array.from(rdcHierarchy.keys()).sort();
+    for (const dooName of sortedDoos) {
+        const { rdc: rdcMap } = hierarchy.get(dooName)!;
+        const dooRow: ReportRow = { id: `doo-${dooName}`, name: dooName, level: 1, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+        
+        const sortedRdcs = Array.from(rdcMap.keys()).sort();
+        for (const rdcId of sortedRdcs) {
+            const { hoss } = rdcMap.get(rdcId)!;
+            const rdcName = rdcNameMap.get(rdcId) || rdcId;
+            const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `${rdcName} - ${rdcId}`, level: 2, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
 
-    for (const rdcId of sortedRdcs) {
-        const { hoss } = rdcHierarchy.get(rdcId)!;
-        const rdcName = rdcNameMap.get(rdcId) || rdcId;
-        const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `${rdcName} - ${rdcId}`, level: 1, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
-
-        const sortedHoss = Array.from(hoss.keys()).sort();
-        for (const hosName of sortedHoss) {
-            const { ams } = hoss.get(hosName)!;
-            const hosRow: ReportRow = { id: `${rdcId}-${hosName}`, name: hosName, level: 2, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
-            
-            const sortedAms = Array.from(ams.keys()).sort();
-            for (const amName of sortedAms) {
-                const stores = ams.get(amName)!;
-                const amRow: ReportRow = { id: `${rdcId}-${hosName}-${amName}`, name: amName, level: 3, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+            const sortedHoss = Array.from(hoss.keys()).sort();
+            for (const hosName of sortedHoss) {
+                const { ams } = hoss.get(hosName)!;
+                const hosRow: ReportRow = { id: `${rdcId}-${hosName}`, name: hosName, level: 3, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
                 
-                for (const store of stores) {
-                    const storeActuals = actualsByStore.get(store.storeNumber) || [];
-                    if (storeActuals.length === 0) continue;
+                const sortedAms = Array.from(ams.keys()).sort();
+                for (const amName of sortedAms) {
+                    const stores = ams.get(amName)!;
+                    const amRow: ReportRow = { id: `${rdcId}-${hosName}-${amName}`, name: amName, level: 4, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+                    
+                    for (const store of stores) {
+                        const storeActuals = actualsByStore.get(store.storeNumber) || [];
+                        if (storeActuals.length === 0) continue;
 
-                    const storeMetrics = createEmptyMetrics();
-                    storeMetrics.turnover = getMetric(storeActuals, METRIC_NAME_MATCHERS.TURNOVER);
-                    storeMetrics.writeOffsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_VALUE);
-                    storeMetrics.writeOffsPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_PERCENT);
-                    storeMetrics.writeOffsTotalValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_VALUE);
-                    storeMetrics.writeOffsTotalPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_PERCENT);
-                    storeMetrics.discountsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_VALUE);
-                    storeMetrics.discountsPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_PERCENT);
-                    storeMetrics.damagesValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_VALUE);
-                    storeMetrics.damagesPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_PERCENT);
+                        const storeMetrics = createEmptyMetrics();
+                        storeMetrics.turnover = getMetric(storeActuals, METRIC_NAME_MATCHERS.TURNOVER);
+                        storeMetrics.writeOffsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_VALUE);
+                        storeMetrics.writeOffsPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_PERCENT);
+                        storeMetrics.writeOffsTotalValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_VALUE);
+                        storeMetrics.writeOffsTotalPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_PERCENT);
+                        storeMetrics.discountsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_VALUE);
+                        storeMetrics.discountsPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_PERCENT);
+                        storeMetrics.damagesValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_VALUE);
+                        storeMetrics.damagesPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_PERCENT);
 
-                    // Find target for this store
-                    if (selectedGroup !== 'all') {
-                        const [groupNumber] = selectedGroup.split(' - ');
-                        const target = targetsByStoreAndGroup.get(`${store.storeNumber}-${groupNumber}`);
-                        if (target) {
-                            const targetValue = viewMode === 'weekly' ? target.monthlyTarget : target.yearlyTarget;
-                            if (targetValue !== undefined) {
-                                storeMetrics.target = targetValue;
-                                storeMetrics.deviation = storeMetrics.writeOffsTotalPercent - targetValue;
+                        if (selectedGroup !== 'all') {
+                            const [groupNumber] = selectedGroup.split(' - ');
+                            const target = targetsByStoreAndGroup.get(`${store.storeNumber}-${groupNumber}`);
+                            if (target) {
+                                const targetValue = viewMode === 'weekly' ? target.monthlyTarget : target.yearlyTarget;
+                                if (targetValue !== undefined) {
+                                    storeMetrics.target = targetValue;
+                                    storeMetrics.deviation = storeMetrics.writeOffsTotalPercent - targetValue;
+                                }
                             }
                         }
+
+                        const storeRow: ReportRow = {
+                            id: `store-${store.storeNumber}`, name: `${store.storeNumber} - ${store.storeName}`, level: 5,
+                            metrics: storeMetrics, children: [], storeCount: 1, summedMetrics: storeMetrics,
+                        };
+                        amRow.children.push(storeRow);
                     }
-
-                    const storeRow: ReportRow = {
-                        id: `store-${store.storeNumber}`,
-                        name: `${store.storeNumber} - ${store.storeName}`,
-                        level: 4,
-                        metrics: storeMetrics,
-                        children: [],
-                        storeCount: 1,
-                        summedMetrics: storeMetrics,
-                    };
-                    amRow.children.push(storeRow);
+                    if (amRow.children.length > 0) {
+                        const { metrics: amMetrics, summedMetrics: amSummedMetrics, storeCount: amStoreCount } = aggregateHierarchyNode(amRow.children, 4);
+                        amRow.metrics = amMetrics; amRow.summedMetrics = amSummedMetrics; amRow.storeCount = amStoreCount;
+                        hosRow.children.push(amRow);
+                    }
                 }
-                const { metrics: amMetrics, summedMetrics: amSummedMetrics, storeCount: amStoreCount } = aggregateHierarchyNode(amRow.children, 3);
-                amRow.metrics = amMetrics;
-                amRow.summedMetrics = amSummedMetrics;
-                amRow.storeCount = amStoreCount;
-
-                hosRow.children.push(amRow);
+                if (hosRow.children.length > 0) {
+                    const { metrics: hosMetrics, summedMetrics: hosSummedMetrics, storeCount: hosStoreCount } = aggregateHierarchyNode(hosRow.children, 3);
+                    hosRow.metrics = hosMetrics; hosRow.summedMetrics = hosSummedMetrics; hosRow.storeCount = hosStoreCount;
+                    rdcRow.children.push(hosRow);
+                }
             }
-            const { metrics: hosMetrics, summedMetrics: hosSummedMetrics, storeCount: hosStoreCount } = aggregateHierarchyNode(hosRow.children, 2);
-            hosRow.metrics = hosMetrics;
-            hosRow.summedMetrics = hosSummedMetrics;
-            hosRow.storeCount = hosStoreCount;
-
-            rdcRow.children.push(hosRow);
+            if (rdcRow.children.length > 0) {
+                const { metrics: rdcMetrics, summedMetrics: rdcSummedMetrics, storeCount: rdcStoreCount } = aggregateHierarchyNode(rdcRow.children, 2);
+                rdcRow.metrics = rdcMetrics; rdcRow.summedMetrics = rdcSummedMetrics; rdcRow.storeCount = rdcStoreCount;
+                dooRow.children.push(rdcRow);
+            }
         }
-        const { metrics: rdcMetrics, summedMetrics: rdcSummedMetrics, storeCount: rdcStoreCount } = aggregateHierarchyNode(rdcRow.children, 1);
-        rdcRow.metrics = rdcMetrics;
-        rdcRow.summedMetrics = rdcSummedMetrics;
-        rdcRow.storeCount = rdcStoreCount;
-
-        if (rdcRow.storeCount > 0) {
-            allRegionsRow.children.push(rdcRow);
+        if (dooRow.children.length > 0) {
+            const { metrics: dooMetrics, summedMetrics: dooSummedMetrics, storeCount: dooStoreCount } = aggregateHierarchyNode(dooRow.children, 1);
+            dooRow.metrics = dooMetrics; dooRow.summedMetrics = dooSummedMetrics; dooRow.storeCount = dooStoreCount;
+            allRow.children.push(dooRow);
         }
     }
-    const { metrics: allMetrics, summedMetrics: allSummedMetrics, storeCount: allStoreCount } = aggregateHierarchyNode(allRegionsRow.children, 0);
-    allRegionsRow.metrics = allMetrics;
-    allRegionsRow.summedMetrics = allSummedMetrics;
-    allRegionsRow.storeCount = allStoreCount;
+    const { metrics: allMetrics, summedMetrics: allSummedMetrics, storeCount: allStoreCount } = aggregateHierarchyNode(allRow.children, 0);
+    allRow.metrics = allMetrics;
+    allRow.summedMetrics = allSummedMetrics;
+    allRow.storeCount = allStoreCount;
     
-    // Sorting logic needs to be applied after building the hierarchy
     const sortChildren = (rows: ReportRow[]) => {
         if (!sortConfig) return;
         
         rows.forEach(row => {
             if (row.children.length > 0) {
-                if (row.level === 1 || row.level === 2) { // Sort AMs under HoS, and HoS under RDC
+                if (row.level >= 2 && row.level <= 3) { // Sort AMs under HoS, and HoS under RDC
                     row.children.sort((a, b) => {
                         const valA = sortConfig.key === 'turnover' ? a.metrics.turnover : a.metrics.writeOffsTotalPercent;
                         const valB = sortConfig.key === 'turnover' ? b.metrics.turnover : b.metrics.writeOffsTotalPercent;
-                        if (sortConfig.direction === 'asc') {
-                            return valA - valB;
-                        } else {
-                            return valB - valA;
-                        }
+                        const direction = sortConfig.direction === 'asc' ? 1 : -1;
+                        if (sortConfig.key === 'turnover') return (valB - valA) * direction; // Always desc
+                        return (valA - valB) * direction; // Default asc
                     });
                 }
                 sortChildren(row.children);
@@ -392,20 +404,17 @@ export const WriteOffsReportView = () => {
         });
     };
     
-    sortChildren([allRegionsRow]);
+    sortChildren([allRow]);
 
-    return allRegionsRow;
+    return allRow;
 
-  }, [isLoading, orgStructure, viewMode, weeklyActuals, ytdActuals, targets, selectedGroup, selectedWeek, sortConfig, rdcList]);
+  }, [isLoading, orgStructure, viewMode, weeklyActuals, ytdActuals, targets, selectedGroup, selectedWeek, sortConfig, rdcList, dooList]);
 
   const handleToggleRow = useCallback((id: string) => {
       setExpandedRows(prev => {
           const newSet = new Set(prev);
-          if (newSet.has(id)) {
-              newSet.delete(id);
-          } else {
-              newSet.add(id);
-          }
+          if (newSet.has(id)) newSet.delete(id);
+          else newSet.add(id);
           return newSet;
       });
   }, []);
@@ -426,13 +435,9 @@ export const WriteOffsReportView = () => {
   const handleSort = (key: 'turnover' | 'writeOffsTotalPercent') => {
       setSortConfig(prev => {
           const isCurrentKey = prev?.key === key;
-          const newDirection = isCurrentKey && prev.direction === 'desc' ? 'asc' : 'desc';
-          // Default sort for turnover is desc, for deviation is asc
           const defaultDirection = key === 'turnover' ? 'desc' : 'asc';
-          return {
-              key,
-              direction: isCurrentKey ? newDirection : defaultDirection
-          };
+          const newDirection = isCurrentKey ? (prev.direction === 'asc' ? 'desc' : 'asc') : defaultDirection;
+          return { key, direction: newDirection };
       });
   };
 
@@ -499,8 +504,10 @@ export const WriteOffsReportView = () => {
                   </select>
               </div>
                <div class={styles['actions-bar']}>
-                  <button onClick={() => expandToLevel(2)}>{t('writeOffsReport.expandToHos')}</button>
-                  <button onClick={() => expandToLevel(3)}>{t('writeOffsReport.expandToAm')}</button>
+                  <button onClick={() => expandToLevel(1)}>{t('writeOffsReport.expandToDoO')}</button>
+                  <button onClick={() => expandToLevel(2)}>{t('writeOffsReport.expandToRdc')}</button>
+                  <button onClick={() => expandToLevel(3)}>{t('writeOffsReport.expandToHos')}</button>
+                  <button onClick={() => expandToLevel(4)}>{t('writeOffsReport.expandToAm')}</button>
                   <button onClick={() => setExpandedRows(new Set())}>{t('writeOffsReport.collapseAll')}</button>
               </div>
           </div>
