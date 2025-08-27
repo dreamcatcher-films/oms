@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
 import {
-  Product, GoodsReceipt, OpenOrder, Sale,
+  Product, GoodsReceipt, OpenOrder, Sale, WriteOffsActual,
   ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow,
   getProductsPaginatedAndFiltered, getGoodsReceiptsPaginatedAndFiltered,
   getOpenOrdersPaginatedAndFiltered, getSalesPaginatedAndFiltered,
   getShcDataPaginated, getPlanogramDataPaginated, getOrgStructureDataPaginated, getCategoryRelationDataPaginated,
+  getWriteOffsWeeklyPaginated, getWriteOffsYTDPaginated,
   getUniqueProductStatuses, getUniqueWarehouseIds, getUniqueWarehouseIdsForGoodsReceipts,
   getUniqueWarehouseIdsForOpenOrders, getUniqueWarehouseIdsForSales,
   findProductsByPartialId,
@@ -16,7 +17,7 @@ import sharedStyles from '../styles/shared.module.css';
 
 const PAGE_SIZE = 20;
 
-type TabType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales' | 'shc' | 'planogram' | 'orgStructure' | 'categoryRelation';
+type TabType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales' | 'shc' | 'planogram' | 'orgStructure' | 'categoryRelation' | 'writeOffsWeekly' | 'writeOffsYTD';
 
 export const DataPreview = ({ userSession }: { userSession: UserSession | null }) => {
   const { t, language } = useTranslation();
@@ -30,6 +31,8 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
   const [planogramData, setPlanogramData] = useState<PlanogramRow[]>([]);
   const [orgStructureData, setOrgStructureData] = useState<OrgStructureRow[]>([]);
   const [categoryRelationData, setCategoryRelationData] = useState<CategoryRelationRow[]>([]);
+  const [writeOffsWeeklyData, setWriteOffsWeeklyData] = useState<WriteOffsActual[]>([]);
+  const [writeOffsYTDData, setWriteOffsYTDData] = useState<WriteOffsActual[]>([]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -171,6 +174,16 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         { key: 'settingSpecificallyFor', labelKey: 'columns.categoryRelation.settingSpecificallyFor' },
         { key: 'settingWidth', labelKey: 'columns.categoryRelation.settingWidth' },
     ];
+    
+    const WRITE_OFFS_COLUMNS: { key: keyof WriteOffsActual, labelKey: string }[] = [
+        { key: 'metricName', labelKey: 'columns.writeOffsActual.metricName' },
+        { key: 'period', labelKey: 'columns.writeOffsActual.period' },
+        { key: 'storeNumber', labelKey: 'columns.writeOffsActual.storeNumber' },
+        { key: 'storeName', labelKey: 'columns.writeOffsActual.storeName' },
+        { key: 'itemGroupNumber', labelKey: 'columns.writeOffsActual.itemGroupNumber' },
+        { key: 'itemGroupName', labelKey: 'columns.writeOffsActual.itemGroupName' },
+        { key: 'value', labelKey: 'columns.writeOffsActual.value' },
+    ];
 
 
   useEffect(() => {
@@ -238,6 +251,14 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         case 'categoryRelation':
             result = await getCategoryRelationDataPaginated(currentPage, PAGE_SIZE);
             setCategoryRelationData(result.data);
+            break;
+        case 'writeOffsWeekly':
+            result = await getWriteOffsWeeklyPaginated(currentPage, PAGE_SIZE);
+            setWriteOffsWeeklyData(result.data);
+            break;
+        case 'writeOffsYTD':
+            result = await getWriteOffsYTDPaginated(currentPage, PAGE_SIZE);
+            setWriteOffsYTDData(result.data);
             break;
         default:
             result = { data: [], total: 0 };
@@ -424,6 +445,8 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         <button class={`${sharedStyles.tab} ${activeTab === 'planogram' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('planogram')}>{t('dataPreview.tabs.planogram')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'orgStructure' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('orgStructure')}>{t('dataPreview.tabs.orgStructure')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'categoryRelation' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('categoryRelation')}>{t('dataPreview.tabs.categoryRelation')}</button>
+        <button class={`${sharedStyles.tab} ${activeTab === 'writeOffsWeekly' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('writeOffsWeekly')}>{t('dataPreview.tabs.writeOffsWeekly')}</button>
+        <button class={`${sharedStyles.tab} ${activeTab === 'writeOffsYTD' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('writeOffsYTD')}>{t('dataPreview.tabs.writeOffsYTD')}</button>
       </div>
 
       {activeTab === 'products' && (
@@ -684,6 +707,8 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
       {activeTab === 'planogram' && renderSimpleTable(planogramData, PLANOGRAM_COLUMNS)}
       {activeTab === 'orgStructure' && renderSimpleTable(orgStructureData, ORG_STRUCTURE_COLUMNS)}
       {activeTab === 'categoryRelation' && renderSimpleTable(categoryRelationData, CATEGORY_RELATION_COLUMNS)}
+      {activeTab === 'writeOffsWeekly' && renderSimpleTable(writeOffsWeeklyData, WRITE_OFFS_COLUMNS)}
+      {activeTab === 'writeOffsYTD' && renderSimpleTable(writeOffsYTDData, WRITE_OFFS_COLUMNS)}
 
     </div>
   );
