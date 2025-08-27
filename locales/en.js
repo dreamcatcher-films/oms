@@ -125,7 +125,9 @@ export default {
           "shc": "SHC Data",
           "planogram": "Planogram",
           "orgStructure": "Org Structure",
-          "categoryRelation": "Category Relation"
+          "categoryRelation": "Category Relation",
+          "writeOffsWeekly": "Write-Offs (Weekly)",
+          "writeOffsYTD": "Write-Offs (YTD)"
       },
       "filters": {
           "warehouse": "Warehouse",
@@ -672,6 +674,15 @@ export default {
         "damagesPercent": "Damages %",
         "targetPercent": "Target %",
         "deviation": "Deviation p.p."
+    },
+    "writeOffsActual": {
+      "metricName": "Metric Name",
+      "period": "Period",
+      "storeNumber": "Store Number",
+      "storeName": "Store Name",
+      "itemGroupNumber": "Item Group No.",
+      "itemGroupName": "Item Group Name",
+      "value": "Value"
     }
   }
 }
