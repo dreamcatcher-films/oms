@@ -57,7 +57,6 @@
 
 .report-table th, .report-table td {
     padding: 0.75rem;
-    text-align: right;
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -65,8 +64,14 @@
     background-color: #f8f9fa;
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 2; /* Header should be above data bars */
+    text-align: center;
 }
+
+.report-table th:first-child {
+    text-align: left;
+}
+
 
 .report-table .indent-cell {
     text-align: left;
@@ -114,17 +119,18 @@
 
 .data-bar-cell {
     position: relative;
-    padding: 0 !important; /* Remove default padding */
+    padding: 0 !important;
+    text-align: center;
 }
 
 .data-bar-container {
     position: relative;
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
     align-items: center;
     height: 100%;
-    padding: 0.75rem; /* Re-apply padding inside the container */
-    z-index: 1; /* Keep text above the bar */
+    padding: 0.75rem;
+    z-index: 1; 
 }
 
 .data-bar {
@@ -137,12 +143,12 @@
     z-index: 0;
 }
 
-.turnover-bar {
-    background-color: #4a90e2; /* Blue */
+.value-bar {
+    background-color: #a0c8f0; /* Lighter Blue for values */
 }
 
-.writeoff-bar {
-    background-color: #f5a623; /* Dark Yellow */
+.percent-bar {
+    background-color: #fde29f; /* Lighter Yellow for percentages */
 }
 
 @media print {
