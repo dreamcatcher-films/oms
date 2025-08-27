@@ -44,6 +44,7 @@ const ReportRowComponent = ({ row, expandedRows, onToggle, level }: { row: Repor
 
     const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
     const formatValue = (value: number) => `£${value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const formatTurnover = (value: number) => `£${Math.round(value).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     
     const deviationClass = row.metrics.deviation === null ? '' :
         row.metrics.deviation > 0 ? styles['deviation-positive'] : styles['deviation-negative'];
@@ -55,7 +56,7 @@ const ReportRowComponent = ({ row, expandedRows, onToggle, level }: { row: Repor
                     {hasChildren && <span class={`${styles['toggle-icon']} ${isExpanded ? styles.expanded : ''}`}>▶</span>}
                     {row.name}
                 </td>
-                <td>{formatValue(row.metrics.turnover)}</td>
+                <td>{formatTurnover(row.metrics.turnover)}</td>
                 <td>{formatValue(row.metrics.writeOffsValue)}</td>
                 <td>{formatPercent(row.metrics.writeOffsPercent)}</td>
                 <td>{formatValue(row.metrics.writeOffsTotalValue)}</td>
