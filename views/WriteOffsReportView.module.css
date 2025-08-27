@@ -115,20 +115,21 @@
     text-align: left;
 }
 
-.row-level-0 > td { font-weight: bold; background-color: #e9ecef; }
-.row-level-1 > td { font-weight: bold; background-color: #f8f9fa; }
-.row-level-2 > td {
-    background-color: #495057; /* Dark Grey */
+.row-level-0 > td { font-weight: bold; background-color: #e9ecef; } /* All */
+.row-level-1 > td { font-weight: bold; background-color: #dee2e6; } /* DoO */
+.row-level-2 > td { font-weight: bold; background-color: #f8f9fa; } /* RDC */
+.row-level-3 > td { /* HoS */
+    background-color: #495057; 
     color: white;
     font-weight: bold;
 }
-.row-level-3 > td {
-    background-color: #e7f3fe; /* Light Blue */
+.row-level-4 > td { /* AM */
+    background-color: #e7f3fe; 
     color: #333;
     font-weight: bold;
 }
 
-.row-level-2 .storeCount {
+.row-level-3 .storeCount { /* HoS Count Color */
     color: white;
 }
 
