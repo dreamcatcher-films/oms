@@ -157,6 +157,12 @@ export type ReportRow = {
       turnover: number;
       writeOffsValue: number;
       writeOffsTotalValue: number;
+      discountsValue: number;
+      damagesValue: number;
+      writeOffsPercent: number;
+      writeOffsTotalPercent: number;
+      discountsPercent: number;
+      damagesPercent: number;
   };
 };
 
