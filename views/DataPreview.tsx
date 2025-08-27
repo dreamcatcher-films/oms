@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
 import {
-  Product, GoodsReceipt, OpenOrder, Sale, WriteOffsActual,
+  Product, GoodsReceipt, OpenOrder, Sale, WriteOffsActual, WriteOffsTarget,
   ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow,
   getProductsPaginatedAndFiltered, getGoodsReceiptsPaginatedAndFiltered,
   getOpenOrdersPaginatedAndFiltered, getSalesPaginatedAndFiltered,
   getShcDataPaginated, getPlanogramDataPaginated, getOrgStructureDataPaginated, getCategoryRelationDataPaginated,
-  getWriteOffsWeeklyPaginated, getWriteOffsYTDPaginated,
+  getWriteOffsWeeklyPaginated, getWriteOffsYTDPaginated, getWriteOffsTargetsPaginated,
   getUniqueProductStatuses, getUniqueWarehouseIds, getUniqueWarehouseIdsForGoodsReceipts,
   getUniqueWarehouseIdsForOpenOrders, getUniqueWarehouseIdsForSales,
   findProductsByPartialId,
@@ -17,7 +17,7 @@ import sharedStyles from '../styles/shared.module.css';
 
 const PAGE_SIZE = 20;
 
-type TabType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales' | 'shc' | 'planogram' | 'orgStructure' | 'categoryRelation' | 'writeOffsWeekly' | 'writeOffsYTD';
+type TabType = 'products' | 'goodsReceipts' | 'openOrders' | 'sales' | 'shc' | 'planogram' | 'orgStructure' | 'categoryRelation' | 'writeOffsWeekly' | 'writeOffsYTD' | 'writeOffsTargets';
 
 export const DataPreview = ({ userSession }: { userSession: UserSession | null }) => {
   const { t, language } = useTranslation();
@@ -33,6 +33,7 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
   const [categoryRelationData, setCategoryRelationData] = useState<CategoryRelationRow[]>([]);
   const [writeOffsWeeklyData, setWriteOffsWeeklyData] = useState<WriteOffsActual[]>([]);
   const [writeOffsYTDData, setWriteOffsYTDData] = useState<WriteOffsActual[]>([]);
+  const [writeOffsTargetsData, setWriteOffsTargetsData] = useState<WriteOffsTarget[]>([]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -184,6 +185,13 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         { key: 'itemGroupName', labelKey: 'columns.writeOffsActual.itemGroupName' },
         { key: 'value', labelKey: 'columns.writeOffsActual.value' },
     ];
+    
+    const WRITE_OFFS_TARGETS_COLUMNS: { key: keyof WriteOffsTarget, labelKey: string }[] = [
+        { key: 'storeNumber', labelKey: 'columns.writeOffsTargets.storeNumber' },
+        { key: 'itemGroupNumber', labelKey: 'columns.writeOffsTargets.itemGroupNumber' },
+        { key: 'monthlyTarget', labelKey: 'columns.writeOffsTargets.monthlyTarget' },
+        { key: 'yearlyTarget', labelKey: 'columns.writeOffsTargets.yearlyTarget' },
+    ];
 
 
   useEffect(() => {
@@ -259,6 +267,10 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         case 'writeOffsYTD':
             result = await getWriteOffsYTDPaginated(currentPage, PAGE_SIZE);
             setWriteOffsYTDData(result.data);
+            break;
+        case 'writeOffsTargets':
+            result = await getWriteOffsTargetsPaginated(currentPage, PAGE_SIZE);
+            setWriteOffsTargetsData(result.data);
             break;
         default:
             result = { data: [], total: 0 };
@@ -431,6 +443,39 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
       </div>
     </>
   );
+
+  const renderTargetsTable = () => (
+    <>
+      <div class={sharedStyles['table-container']}>
+        {isLoading ? ( <div class={sharedStyles['spinner-overlay']}><div class={sharedStyles.spinner}></div></div> ) : (
+          <table>
+            <thead>
+              <tr>{WRITE_OFFS_TARGETS_COLUMNS.map(col => <th key={col.key}>{t(col.labelKey)}</th>)}</tr>
+            </thead>
+            <tbody>
+              {writeOffsTargetsData.map(row => (
+                <tr key={row.id}>
+                  {WRITE_OFFS_TARGETS_COLUMNS.map(col => {
+                    const value = row[col.key];
+                    const formattedValue = (col.key === 'monthlyTarget' || col.key === 'yearlyTarget') && typeof value === 'number'
+                        ? `${(value * 100).toFixed(2)}%`
+                        : String(value ?? '');
+                    return <td key={col.key}>{formattedValue}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+       <div class={sharedStyles.pagination}>
+        <span>{totalItems.toLocaleString(language)} {t('dataPreview.pagination.records')}</span>
+        <button onClick={handlePrevPage} disabled={currentPage === 1 || isLoading}>{t('dataPreview.pagination.previous')}</button>
+        <span>{t('dataPreview.pagination.page', { currentPage, totalPages })}</span>
+        <button onClick={handleNextPage} disabled={currentPage === totalPages || isLoading}>{t('dataPreview.pagination.next')}</button>
+      </div>
+    </>
+  );
   
   const isRdcMode = userSession?.mode === 'rdc';
 
@@ -440,13 +485,14 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
         <button class={`${sharedStyles.tab} ${activeTab === 'products' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('products')}>{t('dataPreview.tabs.products')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'goodsReceipts' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('goodsReceipts')}>{t('dataPreview.tabs.goodsReceipts')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'openOrders' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('openOrders')}>{t('dataPreview.tabs.openOrders')}</button>
-        <button class={`${sharedStyles.tab} ${activeTab === 'sales' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('sales')}>{t('dataPreview.tabs.sales')}</button>
+        <button class={`${sharedStyles.tab} ${activeTab === 'sales' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('sales')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'shc' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('shc')}>{t('dataPreview.tabs.shc')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'planogram' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('planogram')}>{t('dataPreview.tabs.planogram')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'orgStructure' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('orgStructure')}>{t('dataPreview.tabs.orgStructure')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'categoryRelation' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('categoryRelation')}>{t('dataPreview.tabs.categoryRelation')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'writeOffsWeekly' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('writeOffsWeekly')}>{t('dataPreview.tabs.writeOffsWeekly')}</button>
         <button class={`${sharedStyles.tab} ${activeTab === 'writeOffsYTD' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('writeOffsYTD')}>{t('dataPreview.tabs.writeOffsYTD')}</button>
+        <button class={`${sharedStyles.tab} ${activeTab === 'writeOffsTargets' ? sharedStyles.active : ''}`} onClick={() => handleTabChange('writeOffsTargets')}>{t('dataPreview.tabs.writeOffsTargets')}</button>
       </div>
 
       {activeTab === 'products' && (
@@ -709,6 +755,7 @@ export const DataPreview = ({ userSession }: { userSession: UserSession | null }
       {activeTab === 'categoryRelation' && renderSimpleTable(categoryRelationData, CATEGORY_RELATION_COLUMNS)}
       {activeTab === 'writeOffsWeekly' && renderSimpleTable(writeOffsWeeklyData, WRITE_OFFS_COLUMNS)}
       {activeTab === 'writeOffsYTD' && renderSimpleTable(writeOffsYTDData, WRITE_OFFS_COLUMNS)}
+      {activeTab === 'writeOffsTargets' && renderTargetsTable()}
 
     </div>
   );
