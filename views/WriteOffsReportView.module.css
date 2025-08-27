@@ -72,10 +72,18 @@
     text-align: left;
 }
 
-.row-level-0 { font-weight: bold; background-color: #e9ecef; }
-.row-level-1 { font-weight: bold; background-color: #f8f9fa; }
-.row-level-2 { font-weight: 500; }
-.row-level-3 { background-color: white; }
+.row-level-0 > td { font-weight: bold; background-color: #e9ecef; }
+.row-level-1 > td { font-weight: bold; background-color: #f8f9fa; }
+.row-level-2 > td {
+    background-color: #495057; /* Dark Grey */
+    color: white;
+    font-weight: bold;
+}
+.row-level-3 > td {
+    background-color: #e7f3fe; /* Light Blue */
+    color: #333;
+    font-weight: bold;
+}
 
 .clickable {
     cursor: pointer;
@@ -102,6 +110,39 @@
     background-color: rgba(46, 204, 113, 0.2);
     color: #27ae60;
     font-weight: bold;
+}
+
+.data-bar-cell {
+    position: relative;
+    padding: 0 !important; /* Remove default padding */
+}
+
+.data-bar-container {
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    height: 100%;
+    padding: 0.75rem; /* Re-apply padding inside the container */
+    z-index: 1; /* Keep text above the bar */
+}
+
+.data-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    height: 100%;
+    opacity: 0.6;
+    z-index: 0;
+}
+
+.turnover-bar {
+    background-color: #4a90e2; /* Blue */
+}
+
+.writeoff-bar {
+    background-color: #f5a623; /* Dark Yellow */
 }
 
 @media print {
