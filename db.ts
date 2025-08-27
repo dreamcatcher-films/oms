@@ -1,4 +1,4 @@
-import { RDC, DataType, ShcDataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcSectionConfig, ShcSectionGroup, ShcSnapshot, WriteOffsActual, WriteOffsTarget } from './utils/types';
+import { RDC, DataType, ShcDataType, ImportMetadata, ImportMeta, Product, GoodsReceipt, OpenOrder, Sale, ExclusionListData, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcSectionConfig, ShcSectionGroup, ShcSnapshot, WriteOffsActual, WriteOffsTarget, DirectorOfOperations } from './utils/types';
 
 const DB_NAME = 'OMSDatabase';
 const PRODUCTS_STORE_NAME = 'products';
@@ -17,6 +17,7 @@ const SETTINGS_STORE_NAME = 'settings';
 const DB_VERSION = 15; 
 
 const RDC_LIST_KEY = 'rdcList';
+const DOO_LIST_KEY = 'dooList';
 const EXCLUSION_LIST_KEY = 'exclusionList'; // For Status Report
 const SHC_EXCLUSION_LIST_KEY = 'shcExclusionList'; // For SHC Report
 const SHC_BASELINE_DATA_KEY = 'shcBaselineData'; // For Compliance Report
@@ -942,6 +943,12 @@ export const loadRdcList = async (): Promise<RDC[]> => {
     return list ?? DEFAULT_RDC_LIST;
 };
 
+// Director of Operations Functions
+export const saveDooList = (dooList: DirectorOfOperations[]): Promise<void> => saveSetting(DOO_LIST_KEY, dooList);
+export const loadDooList = (): Promise<DirectorOfOperations[] | null> => loadSetting<DirectorOfOperations[]>(DOO_LIST_KEY);
+export const clearDooList = (): Promise<void> => deleteSetting(DOO_LIST_KEY);
+
+
 // --- Exclusion List Functions ---
 export const saveExclusionList = (list: string[]): Promise<void> => {
     const data = {
@@ -1108,4 +1115,4 @@ export const saveShcPreviousWeekData = (data: ShcSnapshot): Promise<void> => sav
 export const loadShcPreviousWeekData = (): Promise<ShcSnapshot | null> => loadSetting<ShcSnapshot>(SHC_PREVIOUS_WEEK_DATA_KEY);
 
 
-export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest, ShcSectionConfig, WriteOffsActual, WriteOffsTarget } from './utils/types';
+export type { Product, GoodsReceipt, OpenOrder, Sale, ImportMeta, ImportMetadata, DataType, ShcDataType, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, ShcWorkerMessage, ShcWorkerRequest, ShcSectionConfig, WriteOffsActual, WriteOffsTarget, DirectorOfOperations } from './utils/types';
