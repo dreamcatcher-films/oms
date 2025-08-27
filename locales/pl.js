@@ -125,7 +125,9 @@ export default {
           "shc": "Dane SHC",
           "planogram": "Planogram",
           "orgStructure": "Struktura Org.",
-          "categoryRelation": "Relacje Kategorii"
+          "categoryRelation": "Relacje Kategorii",
+          "writeOffsWeekly": "Odpisy (Tygodniowe)",
+          "writeOffsYTD": "Odpisy (YTD)"
       },
       "filters": {
           "warehouse": "Magazyn",
@@ -282,6 +284,16 @@ export default {
         "addSuccess": "RDC dodane pomyślnie.",
         "deleteSuccess": "RDC usunięte pomyślnie.",
         "deleteConfirm": "Czy na pewno chcesz usunąć to RDC?"
+    },
+    "dooManagement": {
+        "title": "Zarządzanie Dyrektorami Operacyjnymi",
+        "description": "Importuj plik JSON, aby zdefiniować, który Dyrektor Operacyjny jest odpowiedzialny za które RDC.",
+        "importButton": "Importuj listę DoO (.json)",
+        "clearButton": "Wyczyść listę DoO",
+        "importSuccess": "Lista DoO zaimportowana pomyślnie. Załadowano {{count}} dyrektorów.",
+        "importError": "Błąd podczas importowania listy DoO.",
+        "clearSuccess": "Lista DoO została wyczyszczona.",
+        "clearConfirm": "Czy na pewno chcesz wyczyścić listę Dyrektorów Operacyjnych?"
     },
     "exclusionList": {
       "title": "Zarządzanie Listą Wykluczeń",
@@ -551,7 +563,14 @@ export default {
     }
   },
   "writeOffsReport": {
-    "chooseWeek": "Wybierz tydzień"
+    "chooseWeek": "Wybierz tydzień",
+    "expandToDoO": "Rozwiń do Dyr. Oper.",
+    "expandToRdc": "Rozwiń do RDC",
+    "expandToHos": "Rozwiń do Kier. Sprzedaży",
+    "expandToAm": "Rozwiń do Kier. Rejonu",
+    "collapseAll": "Zwiń wszystko",
+    "sortByTurnover": "Sortuj wg Obrotu",
+    "sortByDeviation": "Sortuj wg Odchylenia"
   },
   "columns": {
     "product": {
@@ -660,7 +679,7 @@ export default {
         "storeNumber": "Numer sklepu"
     },
     "writeOffs": {
-        "regionManagerStore": "Region / Manager / Sklep",
+        "regionManagerStore": "All / DoO / RDC / HoS / AM / Sklep",
         "turnover": "Obrót",
         "writeOffsValue": "Wartość odpisów",
         "writeOffsPercent": "% odpisów",
@@ -672,6 +691,15 @@ export default {
         "damagesPercent": "% uszkodzeń",
         "targetPercent": "Cel %",
         "deviation": "Odchylenie p.p."
+    },
+    "writeOffsActual": {
+      "metricName": "Nazwa Metryki",
+      "period": "Okres",
+      "storeNumber": "Numer Sklepu",
+      "storeName": "Nazwa Sklepu",
+      "itemGroupNumber": "Nr Grupy Towarowej",
+      "itemGroupName": "Nazwa Grupy Towarowej",
+      "value": "Wartość"
     }
   }
 }
