@@ -2,11 +2,12 @@ import { useState, useEffect, useMemo, useCallback } from 'preact/hooks';
 import { useTranslation } from '../i18n';
 import { 
     WriteOffsActual, WriteOffsTarget, OrgStructureRow, 
-    ReportRow, WriteOffsMetrics 
+    ReportRow, WriteOffsMetrics, RDC
 } from '../utils/types';
 import { 
     getAllWriteOffsWeekly, getAllWriteOffsYTD, 
-    getAllWriteOffsTargets, getAllOrgStructureData
+    getAllWriteOffsTargets, getAllOrgStructureData,
+    loadRdcList
 } from '../db';
 import styles from './WriteOffsReportView.module.css';
 import sharedStyles from '../styles/shared.module.css';
@@ -148,6 +149,7 @@ export const WriteOffsReportView = () => {
   const [ytdActuals, setYtdActuals] = useState<WriteOffsActual[]>([]);
   const [targets, setTargets] = useState<WriteOffsTarget[]>([]);
   const [orgStructure, setOrgStructure] = useState<OrgStructureRow[]>([]);
+  const [rdcList, setRdcList] = useState<RDC[]>([]);
 
   const [viewMode, setViewMode] = useState<'weekly' | 'ytd'>('weekly');
   const [selectedGroup, setSelectedGroup] = useState('all');
@@ -161,16 +163,18 @@ export const WriteOffsReportView = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [weekly, ytd, targetsData, org] = await Promise.all([
+            const [weekly, ytd, targetsData, org, rdcs] = await Promise.all([
                 getAllWriteOffsWeekly(),
                 getAllWriteOffsYTD(),
                 getAllWriteOffsTargets(),
                 getAllOrgStructureData(),
+                loadRdcList(),
             ]);
             setWeeklyActuals(weekly);
             setYtdActuals(ytd);
             setTargets(targetsData);
             setOrgStructure(org);
+            setRdcList(rdcs);
             
             const allActuals = [...weekly, ...ytd];
             const groups = [...new Set(allActuals.map(a => `${a.itemGroupNumber} - ${a.itemGroupName}`))];
@@ -194,6 +198,7 @@ export const WriteOffsReportView = () => {
   const reportData = useMemo<ReportRow | null>(() => {
     if (isLoading || orgStructure.length === 0) return null;
 
+    const rdcNameMap = new Map(rdcList.map(rdc => [rdc.id, rdc.name]));
     let actuals = viewMode === 'weekly' ? weeklyActuals : ytdActuals;
 
     if (viewMode === 'weekly' && selectedWeek) {
@@ -285,7 +290,8 @@ export const WriteOffsReportView = () => {
 
     for (const rdcId of sortedRdcs) {
         const { hoss } = rdcHierarchy.get(rdcId)!;
-        const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `Region ${rdcId}`, level: 1, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+        const rdcName = rdcNameMap.get(rdcId) || rdcId;
+        const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `${rdcName} - ${rdcId}`, level: 1, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
 
         const sortedHoss = Array.from(hoss.keys()).sort();
         for (const hosName of sortedHoss) {
@@ -355,7 +361,9 @@ export const WriteOffsReportView = () => {
         rdcRow.summedMetrics = rdcSummedMetrics;
         rdcRow.storeCount = rdcStoreCount;
 
-        allRegionsRow.children.push(rdcRow);
+        if (rdcRow.storeCount > 0) {
+            allRegionsRow.children.push(rdcRow);
+        }
     }
     const { metrics: allMetrics, summedMetrics: allSummedMetrics, storeCount: allStoreCount } = aggregateHierarchyNode(allRegionsRow.children, 0);
     allRegionsRow.metrics = allMetrics;
@@ -388,7 +396,7 @@ export const WriteOffsReportView = () => {
 
     return allRegionsRow;
 
-  }, [isLoading, orgStructure, viewMode, weeklyActuals, ytdActuals, targets, selectedGroup, selectedWeek, sortConfig]);
+  }, [isLoading, orgStructure, viewMode, weeklyActuals, ytdActuals, targets, selectedGroup, selectedWeek, sortConfig, rdcList]);
 
   const handleToggleRow = useCallback((id: string) => {
       setExpandedRows(prev => {
