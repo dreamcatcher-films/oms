@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'preact/hooks';
+import { useState, useEffect, useMemo, useCallback } from 'preact/hooks';
 import { useTranslation } from '../i18n';
 import { 
     WriteOffsActual, WriteOffsTarget, OrgStructureRow, 
@@ -21,6 +21,11 @@ const METRIC_NAME_MATCHERS = {
     DISCOUNTS_PERCENT: (name: string) => name.includes('Discounts (%)'),
     DAMAGES_VALUE: (name: string) => name.includes('Damages Store (value)'),
     DAMAGES_PERCENT: (name: string) => name.includes('Damages Store (%)'),
+};
+
+type SortConfig = {
+    key: 'turnover' | 'writeOffsTotalPercent';
+    direction: 'asc' | 'desc';
 };
 
 const createEmptyMetrics = (): WriteOffsMetrics => ({
@@ -149,6 +154,7 @@ export const WriteOffsReportView = () => {
   const [availableGroups, setAvailableGroups] = useState<string[]>([]);
   const [availableWeeks, setAvailableWeeks] = useState<string[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<string>('');
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -214,41 +220,53 @@ export const WriteOffsReportView = () => {
         return storeActuals.find(a => matcher(a.metricName))?.value || 0;
     };
     
-    const calculateMetricsForRows = (rows: ReportRow[]): WriteOffsMetrics => {
-        const aggregated = createEmptyMetrics();
+    const aggregateHierarchyNode = (rows: ReportRow[], level: number): { metrics: WriteOffsMetrics, summedMetrics: WriteOffsMetrics, storeCount: number } => {
+        const summedMetrics = createEmptyMetrics();
         let totalWeightedPercent = 0;
         let totalWeightedTotalPercent = 0;
         let totalWeightedTarget = 0;
         let totalTurnoverForTarget = 0;
+        let storeCount = 0;
 
         for (const row of rows) {
-            aggregated.turnover += row.metrics.turnover;
-            aggregated.writeOffsValue += row.metrics.writeOffsValue;
-            aggregated.writeOffsTotalValue += row.metrics.writeOffsTotalValue;
-            aggregated.discountsValue += row.metrics.discountsValue;
-            aggregated.damagesValue += row.metrics.damagesValue;
-            if (row.metrics.turnover > 0) {
-                totalWeightedPercent += row.metrics.writeOffsPercent * row.metrics.turnover;
-                totalWeightedTotalPercent += row.metrics.writeOffsTotalPercent * row.metrics.turnover;
+            summedMetrics.turnover += row.summedMetrics.turnover;
+            summedMetrics.writeOffsValue += row.summedMetrics.writeOffsValue;
+            summedMetrics.writeOffsTotalValue += row.summedMetrics.writeOffsTotalValue;
+            summedMetrics.discountsValue += row.summedMetrics.discountsValue;
+            summedMetrics.damagesValue += row.summedMetrics.damagesValue;
+            storeCount += row.storeCount;
+            if (row.summedMetrics.turnover > 0) {
+                totalWeightedPercent += row.metrics.writeOffsPercent * row.summedMetrics.turnover;
+                totalWeightedTotalPercent += row.metrics.writeOffsTotalPercent * row.summedMetrics.turnover;
                 if (row.metrics.target !== null) {
-                    totalWeightedTarget += row.metrics.target * row.metrics.turnover;
-                    totalTurnoverForTarget += row.metrics.turnover;
+                    totalWeightedTarget += row.metrics.target * row.summedMetrics.turnover;
+                    totalTurnoverForTarget += row.summedMetrics.turnover;
                 }
             }
         }
         
-        aggregated.writeOffsPercent = aggregated.turnover > 0 ? totalWeightedPercent / aggregated.turnover : 0;
-        aggregated.writeOffsTotalPercent = aggregated.turnover > 0 ? totalWeightedTotalPercent / aggregated.turnover : 0;
-        aggregated.discountsPercent = aggregated.turnover > 0 ? aggregated.discountsValue / aggregated.turnover : 0;
-        aggregated.damagesPercent = aggregated.turnover > 0 ? aggregated.damagesValue / aggregated.turnover : 0;
+        const finalMetrics = { ...summedMetrics };
         
-        aggregated.target = totalTurnoverForTarget > 0 ? totalWeightedTarget / totalTurnoverForTarget : null;
-
-        if (aggregated.target !== null) {
-            aggregated.deviation = aggregated.writeOffsPercent - aggregated.target;
+        if ((level === 2 || level === 3) && storeCount > 0) { // HoS or AM
+            finalMetrics.turnover /= storeCount;
+            finalMetrics.writeOffsValue /= storeCount;
+            finalMetrics.writeOffsTotalValue /= storeCount;
+            finalMetrics.discountsValue /= storeCount;
+            finalMetrics.damagesValue /= storeCount;
         }
 
-        return aggregated;
+        finalMetrics.writeOffsPercent = summedMetrics.turnover > 0 ? totalWeightedPercent / summedMetrics.turnover : 0;
+        finalMetrics.writeOffsTotalPercent = summedMetrics.turnover > 0 ? totalWeightedTotalPercent / summedMetrics.turnover : 0;
+        finalMetrics.discountsPercent = summedMetrics.turnover > 0 ? summedMetrics.discountsValue / summedMetrics.turnover : 0;
+        finalMetrics.damagesPercent = summedMetrics.turnover > 0 ? summedMetrics.damagesValue / summedMetrics.turnover : 0;
+        
+        finalMetrics.target = totalTurnoverForTarget > 0 ? totalWeightedTarget / totalTurnoverForTarget : null;
+
+        if (finalMetrics.target !== null) {
+            finalMetrics.deviation = finalMetrics.writeOffsTotalPercent - finalMetrics.target;
+        }
+
+        return { metrics: finalMetrics, summedMetrics, storeCount };
     };
     
     const rdcHierarchy = new Map<string, { hoss: Map<string, { ams: Map<string, OrgStructureRow[]> }> }>();
@@ -261,22 +279,22 @@ export const WriteOffsReportView = () => {
         hos.ams.get(store.areaManager)!.push(store);
     }
 
-    const allRegionsRow: ReportRow = { id: 'all-regions', name: 'All Regions', level: 0, metrics: createEmptyMetrics(), children: [] };
+    const allRegionsRow: ReportRow = { id: 'all-regions', name: 'All Regions', level: 0, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
     const sortedRdcs = Array.from(rdcHierarchy.keys()).sort();
 
     for (const rdcId of sortedRdcs) {
         const { hoss } = rdcHierarchy.get(rdcId)!;
-        const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `Region ${rdcId}`, level: 1, metrics: createEmptyMetrics(), children: [] };
+        const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `Region ${rdcId}`, level: 1, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
 
         const sortedHoss = Array.from(hoss.keys()).sort();
         for (const hosName of sortedHoss) {
             const { ams } = hoss.get(hosName)!;
-            const hosRow: ReportRow = { id: `${rdcId}-${hosName}`, name: hosName, level: 2, metrics: createEmptyMetrics(), children: [] };
+            const hosRow: ReportRow = { id: `${rdcId}-${hosName}`, name: hosName, level: 2, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
             
             const sortedAms = Array.from(ams.keys()).sort();
             for (const amName of sortedAms) {
                 const stores = ams.get(amName)!;
-                const amRow: ReportRow = { id: `${rdcId}-${hosName}-${amName}`, name: amName, level: 3, metrics: createEmptyMetrics(), children: [] };
+                const amRow: ReportRow = { id: `${rdcId}-${hosName}-${amName}`, name: amName, level: 3, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
                 
                 for (const store of stores) {
                     const storeActuals = actualsByStore.get(store.storeNumber) || [];
@@ -301,30 +319,57 @@ export const WriteOffsReportView = () => {
 
                     if (targetValue !== undefined) {
                         storeMetrics.target = targetValue;
-                        storeMetrics.deviation = storeMetrics.writeOffsPercent - targetValue;
+                        storeMetrics.deviation = storeMetrics.writeOffsTotalPercent - targetValue;
                     }
                     
-                    amRow.children.push({ id: store.storeNumber, name: `${store.storeNumber} - ${store.storeName}`, level: 4, metrics: storeMetrics, children: [] });
+                    amRow.children.push({ id: store.storeNumber, name: `${store.storeNumber} - ${store.storeName}`, level: 4, metrics: storeMetrics, children: [], storeCount: 1, summedMetrics: storeMetrics });
                 }
                 if (amRow.children.length > 0) {
-                     amRow.children.sort((a,b) => (a.metrics.deviation ?? Infinity) - (b.metrics.deviation ?? Infinity));
-                     amRow.metrics = calculateMetricsForRows(amRow.children);
+                     const aggregated = aggregateHierarchyNode(amRow.children, amRow.level);
+                     amRow.metrics = aggregated.metrics;
+                     amRow.summedMetrics = aggregated.summedMetrics;
+                     amRow.storeCount = aggregated.storeCount;
                      hosRow.children.push(amRow);
                 }
             }
             if (hosRow.children.length > 0) {
-                hosRow.children.sort((a,b) => (a.metrics.deviation ?? Infinity) - (b.metrics.deviation ?? Infinity));
-                hosRow.metrics = calculateMetricsForRows(hosRow.children);
+                const aggregated = aggregateHierarchyNode(hosRow.children, hosRow.level);
+                hosRow.metrics = aggregated.metrics;
+                hosRow.summedMetrics = aggregated.summedMetrics;
+                hosRow.storeCount = aggregated.storeCount;
                 rdcRow.children.push(hosRow);
             }
         }
         if (rdcRow.children.length > 0) {
-            rdcRow.metrics = calculateMetricsForRows(rdcRow.children);
+            const aggregated = aggregateHierarchyNode(rdcRow.children, rdcRow.level);
+            rdcRow.metrics = aggregated.metrics;
+            rdcRow.summedMetrics = aggregated.summedMetrics;
+            rdcRow.storeCount = aggregated.storeCount;
             allRegionsRow.children.push(rdcRow);
         }
     }
     
-    allRegionsRow.metrics = calculateMetricsForRows(allRegionsRow.children);
+    const aggregated = aggregateHierarchyNode(allRegionsRow.children, allRegionsRow.level);
+    allRegionsRow.metrics = aggregated.metrics;
+    allRegionsRow.summedMetrics = aggregated.summedMetrics;
+    allRegionsRow.storeCount = aggregated.storeCount;
+
+    const sortHierarchy = (node: ReportRow, config: SortConfig) => {
+        if (node.children && node.children.length > 0) {
+            if (node.level === 1 || node.level === 2) { // Sort AMs within HoS, and HoS within RDC
+                node.children.sort((a, b) => {
+                    const valA = a.metrics[config.key] ?? (config.direction === 'asc' ? Infinity : -Infinity);
+                    const valB = b.metrics[config.key] ?? (config.direction === 'asc' ? Infinity : -Infinity);
+                    return config.direction === 'asc' ? valA - valB : valB - valA;
+                });
+            }
+            node.children.forEach(child => sortHierarchy(child, config));
+        }
+    };
+    
+    if (sortConfig) {
+        sortHierarchy(allRegionsRow, sortConfig);
+    }
 
     const addMaxValuesToHierarchy = (node: ReportRow) => {
         if (!node.children || node.children.length === 0) return;
@@ -359,7 +404,7 @@ export const WriteOffsReportView = () => {
     
     return allRegionsRow;
     
-  }, [isLoading, orgStructure, weeklyActuals, ytdActuals, targets, viewMode, selectedGroup, selectedWeek, t]);
+  }, [isLoading, orgStructure, weeklyActuals, ytdActuals, targets, viewMode, selectedGroup, selectedWeek, t, sortConfig]);
   
   const handleToggleRow = (id: string) => {
     setExpandedRows(prev => {
@@ -372,6 +417,35 @@ export const WriteOffsReportView = () => {
         return newSet;
     });
   };
+  
+  const handleSort = (key: SortConfig['key']) => {
+    const isCurrentKey = sortConfig?.key === key;
+    let newDirection: 'asc' | 'desc';
+    if(key === 'turnover') {
+        newDirection = isCurrentKey && sortConfig.direction === 'desc' ? 'asc' : 'desc';
+    } else { // writeOffsTotalPercent
+        newDirection = isCurrentKey && sortConfig.direction === 'asc' ? 'desc' : 'asc';
+    }
+    setSortConfig({ key, direction: newDirection });
+  };
+  
+  const getSortIcon = (key: SortConfig['key']) => {
+      if (sortConfig?.key !== key) return '↕';
+      return sortConfig.direction === 'asc' ? '▲' : '▼';
+  };
+  
+  const expandToLevel = useCallback((level: number) => {
+    if (!reportData) return;
+    const newExpandedRows = new Set<string>();
+    const traverse = (node: ReportRow) => {
+        if (node.level < level) {
+            newExpandedRows.add(node.id);
+            node.children.forEach(traverse);
+        }
+    };
+    traverse(reportData);
+    setExpandedRows(newExpandedRows);
+  }, [reportData]);
 
   if (isLoading) {
     return <div class={sharedStyles.spinner}></div>;
@@ -394,21 +468,28 @@ export const WriteOffsReportView = () => {
                     <button onClick={() => setViewMode('weekly')} class={viewMode === 'weekly' ? styles.active : ''}>Weekly</button>
                     <button onClick={() => setViewMode('ytd')} class={viewMode === 'ytd' ? styles.active : ''}>YTD</button>
                 </div>
-            </div>
-            {viewMode === 'weekly' && availableWeeks.length > 1 && (
+                 {viewMode === 'weekly' && availableWeeks.length > 1 && (
+                    <div class={styles['control-group']}>
+                        <label for="week-select">{t('writeOffsReport.chooseWeek')}</label>
+                        <select id="week-select" value={selectedWeek} onChange={e => setSelectedWeek((e.target as HTMLSelectElement).value)}>
+                            {availableWeeks.map(week => <option key={week} value={week}>{week}</option>)}
+                        </select>
+                    </div>
+                )}
                 <div class={styles['control-group']}>
-                    <label for="week-select">{t('writeOffsReport.chooseWeek')}</label>
-                    <select id="week-select" value={selectedWeek} onChange={e => setSelectedWeek((e.target as HTMLSelectElement).value)}>
-                        {availableWeeks.map(week => <option key={week} value={week}>{week}</option>)}
+                    <label for="group-select">Item Group</label>
+                    <select id="group-select" value={selectedGroup} onChange={e => setSelectedGroup((e.target as HTMLSelectElement).value)}>
+                        <option value="all">All Groups</option>
+                        {availableGroups.map(group => <option key={group} value={group}>{group}</option>)}
                     </select>
                 </div>
-            )}
+            </div>
             <div class={styles['control-group']}>
-                <label for="group-select">Item Group</label>
-                <select id="group-select" value={selectedGroup} onChange={e => setSelectedGroup((e.target as HTMLSelectElement).value)}>
-                    <option value="all">All Groups</option>
-                    {availableGroups.map(group => <option key={group} value={group}>{group}</option>)}
-                </select>
+                <div class={styles['actions-bar']}>
+                    <button onClick={() => expandToLevel(2)}>{t('writeOffsReport.expandToHos')}</button>
+                    <button onClick={() => expandToLevel(3)}>{t('writeOffsReport.expandToAm')}</button>
+                    <button onClick={() => setExpandedRows(new Set())}>{t('writeOffsReport.collapseAll')}</button>
+                </div>
             </div>
         </div>
         <div class={sharedStyles['table-container']}>
@@ -416,11 +497,17 @@ export const WriteOffsReportView = () => {
                 <thead>
                     <tr>
                         <th class={styles['indent-cell']}>{t('columns.writeOffs.regionManagerStore')}</th>
-                        <th>{t('columns.writeOffs.turnover')}</th>
+                        <th class={styles.sortable} onClick={() => handleSort('turnover')}>
+                            {t('columns.writeOffs.turnover')}
+                            <span class={styles['sort-icon']}>{getSortIcon('turnover')}</span>
+                        </th>
                         <th>{t('columns.writeOffs.writeOffsValue')}</th>
                         <th>{t('columns.writeOffs.writeOffsPercent')}</th>
                         <th>{t('columns.writeOffs.writeOffsTotalValue')}</th>
-                        <th>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
+                        <th class={styles.sortable} onClick={() => handleSort('writeOffsTotalPercent')}>
+                            {t('columns.writeOffs.writeOffsTotalPercent')}
+                             <span class={styles['sort-icon']}>{getSortIcon('writeOffsTotalPercent')}</span>
+                        </th>
                         <th>{t('columns.writeOffs.discountsValue')}</th>
                         <th>{t('columns.writeOffs.discountsPercent')}</th>
                         <th>{t('columns.writeOffs.damagesValue')}</th>
