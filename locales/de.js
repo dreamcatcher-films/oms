@@ -127,7 +127,8 @@ export default {
           "orgStructure": "Org-Struktur",
           "categoryRelation": "Kategorie-Beziehung",
           "writeOffsWeekly": "Abschreibungen (Wöchentlich)",
-          "writeOffsYTD": "Abschreibungen (YTD)"
+          "writeOffsYTD": "Abschreibungen (YTD)",
+          "writeOffsTargets": "Abschreibungen (Ziele)"
       },
       "filters": {
           "warehouse": "Lager",
@@ -700,6 +701,12 @@ export default {
       "itemGroupNumber": "Warengr.-Nr.",
       "itemGroupName": "Warengr.-Name",
       "value": "Wert"
+    },
+    "writeOffsTargets": {
+      "storeNumber": "Filialnummer",
+      "itemGroupNumber": "Warengr.-Nr.",
+      "monthlyTarget": "Monatsziel (%)",
+      "yearlyTarget": "Jahresziel (%)"
     }
   }
 }
