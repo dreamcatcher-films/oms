@@ -218,11 +218,16 @@ export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null 
     const itemGroupName = row[5]?.trim() || '';
     const valueRaw = row[6]?.trim().replace(/,/g, '') || ''; // Remove thousand separators
     
-    const value = parseFloat(valueRaw);
+    let value = parseFloat(valueRaw);
 
     // A valid data row must have a metric, a store number, a group number, and a valid numeric value.
     if (!metricRaw || !storeNumber || !itemGroupNumber || isNaN(value)) {
         return null;
+    }
+
+    // If the metric name indicates a percentage, convert the value from XX.XX% to a decimal 0.XXXX
+    if (metricRaw.includes('(%)')) {
+        value = value / 100;
     }
 
     const metricParts = metricRaw.split('|');
