@@ -21,6 +21,11 @@ export type RDC = {
     name: string;
 };
 
+export type DirectorOfOperations = {
+    directorName: string;
+    rdcIds: string[];
+};
+
 export type UserSession = {
     mode: 'hq' | 'rdc';
     rdc?: RDC;
@@ -150,7 +155,7 @@ export type WriteOffsMetrics = {
 export type ReportRow = {
   id: string;
   name: string;
-  level: 0 | 1 | 2 | 3 | 4; // 0: All Regions, 1: RDC, 2: HoS, 3: AM, 4: Store
+  level: 0 | 1 | 2 | 3 | 4 | 5; // 0: All, 1: DoO, 2: RDC, 3: HoS, 4: AM, 5: Store
   metrics: WriteOffsMetrics;
   children: ReportRow[];
   storeCount: number;
