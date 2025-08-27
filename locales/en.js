@@ -553,7 +553,12 @@ export default {
     }
   },
    "writeOffsReport": {
-    "chooseWeek": "Choose week"
+    "chooseWeek": "Choose week",
+    "expandToHos": "Expand to HoS",
+    "expandToAm": "Expand to AM",
+    "collapseAll": "Collapse All",
+    "sortByTurnover": "Sort by Turnover",
+    "sortByDeviation": "Sort by Deviation"
   },
   "columns": {
     "product": {
@@ -662,7 +667,7 @@ export default {
         "storeNumber": "Store Number"
     },
     "writeOffs": {
-        "regionManagerStore": "Region / Manager / Store",
+        "regionManagerStore": "RDC / Head Of Sales / Area Manager / Store",
         "turnover": "Turnover",
         "writeOffsValue": "Write-offs Value",
         "writeOffsPercent": "Write-offs %",
