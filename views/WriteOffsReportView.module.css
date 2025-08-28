@@ -254,6 +254,10 @@
 }
 
 @media print {
+    body, html {
+        background-color: white;
+    }
+    
     body * {
         visibility: hidden;
     }
@@ -266,6 +270,8 @@
         top: 0;
         width: 100%;
         border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
     }
     .controls-container {
         display: none !important;
