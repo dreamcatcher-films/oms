@@ -199,18 +199,36 @@ export const WriteOffsReportView = () => {
   }, []);
   
   const reportData = useMemo<ReportRow | null>(() => {
-    if (isLoading || orgStructure.length === 0) return null;
+    console.log('[WriteOffsReport] Starting report generation...');
+    console.log(`[WriteOffsReport] View Mode: ${viewMode}, Selected Week: ${selectedWeek}, Selected Group: ${selectedGroup}`);
+
+    if (isLoading || orgStructure.length === 0) {
+        console.warn('[WriteOffsReport] Aborting: isLoading is', isLoading, 'or orgStructure length is 0.');
+        return null;
+    }
+    
+    console.log('[WriteOffsReport] Initial data counts:', {
+        weeklyActuals: weeklyActuals.length,
+        ytdActuals: ytdActuals.length,
+        targets: targets.length,
+        orgStructure: orgStructure.length,
+        rdcList: rdcList.length,
+        dooList: dooList.length,
+    });
 
     const rdcNameMap = new Map(rdcList.map(rdc => [rdc.id, rdc.name]));
     let actuals = viewMode === 'weekly' ? weeklyActuals : ytdActuals;
+    console.log(`[WriteOffsReport] Using ${viewMode} data. Initial actuals count:`, actuals.length);
 
     if (viewMode === 'weekly' && selectedWeek) {
         actuals = actuals.filter(a => a.period === selectedWeek);
+        console.log(`[WriteOffsReport] After filtering by week ('${selectedWeek}'), actuals count:`, actuals.length);
     }
     
     const filteredActuals = actuals.filter(a => 
         (selectedGroup === 'all' || `${a.itemGroupNumber} - ${a.itemGroupName}` === selectedGroup)
     );
+    console.log(`[WriteOffsReport] After filtering by group ('${selectedGroup}'), actuals count:`, filteredActuals.length);
     
     const actualsByStore = new Map<string, WriteOffsActual[]>();
     for (const actual of filteredActuals) {
@@ -219,11 +237,13 @@ export const WriteOffsReportView = () => {
         }
         actualsByStore.get(actual.storeNumber)!.push(actual);
     }
+    console.log('[WriteOffsReport] Grouped actuals by store. Stores with data:', actualsByStore.size);
     
     const targetsByStoreAndGroup = new Map<string, WriteOffsTarget>();
     for (const target of targets) {
         targetsByStoreAndGroup.set(`${target.storeNumber}-${target.itemGroupNumber}`, target);
     }
+    console.log('[WriteOffsReport] Mapped targets by store/group. Targets available:', targetsByStoreAndGroup.size);
     
     const getMetric = (storeActuals: WriteOffsActual[], matcher: (name: string) => boolean): number => {
         return storeActuals.find(a => matcher(a.metricName))?.value || 0;
@@ -279,6 +299,7 @@ export const WriteOffsReportView = () => {
         return { metrics: finalMetrics, summedMetrics, storeCount };
     };
 
+    console.log('[WriteOffsReport] Building organizational hierarchy...');
     const hierarchy = new Map<string, { rdc: Map<string, { hoss: Map<string, { ams: Map<string, OrgStructureRow[]> }> } > }>();
     const rdcToDooMap = new Map<string, string>();
     dooList.forEach(doo => {
@@ -299,7 +320,9 @@ export const WriteOffsReportView = () => {
         if (!hos.ams.has(store.areaManager)) hos.ams.set(store.areaManager, []);
         hos.ams.get(store.areaManager)!.push(store);
     }
+    console.log('[WriteOffsReport] Hierarchy built. DoOs found:', hierarchy.size);
     
+    console.log('[WriteOffsReport] Starting aggregation...');
     const allRow: ReportRow = { id: 'all', name: 'All Regions', level: 0, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
     const sortedDoos = Array.from(hierarchy.keys()).sort();
 
@@ -419,6 +442,7 @@ export const WriteOffsReportView = () => {
     
     sortChildren([allRow]);
 
+    console.log('[WriteOffsReport] Aggregation complete. Final report data:', allRow);
     return allRow;
 
   }, [isLoading, orgStructure, viewMode, weeklyActuals, ytdActuals, targets, selectedGroup, selectedWeek, sortConfig, rdcList, dooList]);
