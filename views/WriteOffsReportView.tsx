@@ -69,13 +69,16 @@ const DataBarCell = ({ value, maxValue, formatter, barClass }: { value: number; 
     );
 };
 
-const HierarchyRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, expandedRows: Set<string>, onToggle: (id: string) => void }) => {
+const HierarchyRowComponent = ({ row, expandedRows, onToggle, viewMode }: { row: ReportRow, expandedRows: Set<string>, onToggle: (id: string) => void, viewMode: 'weekly' | 'ytd' }) => {
     const isExpanded = expandedRows.has(row.id);
     const hasChildren = row.children.length > 0;
     
-    // Positive deviation is favorable (green), negative is unfavorable (red)
+    // Positive deviation is now unfavorable (red), negative is favorable (green)
     const deviationClass = row.metrics.deviation === null ? '' :
-        row.metrics.deviation > 0 ? styles['deviation-favorable'] : styles['deviation-unfavorable'];
+        row.metrics.deviation > 0 ? styles['deviation-unfavorable'] : styles['deviation-favorable'];
+    
+    const ytdDeviationClass = row.ytdMetrics?.deviation === null || row.ytdMetrics?.deviation === undefined ? '' :
+        row.ytdMetrics.deviation > 0 ? styles['deviation-unfavorable'] : styles['deviation-favorable'];
     
     const rowClass = styles[`row-level-${row.level}`];
 
@@ -145,9 +148,18 @@ const HierarchyRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow
                 <td class={deviationClass} style={{textAlign: 'center'}}>
                     {formatDeviation(row.metrics.deviation)}
                 </td>
+                {viewMode === 'weekly' && (
+                  <>
+                    <td class={styles['ytd-separator']}></td>
+                    <td style={{textAlign: 'center'}}>{row.ytdMetrics ? formatPercent(row.ytdMetrics.writeOffsTotalPercent) : '-'}</td>
+                    <td style={{textAlign: 'center'}}>{row.ytdMetrics?.target !== null && row.ytdMetrics?.target !== undefined ? formatPercent(row.ytdMetrics.target) : '-'}</td>
+                    <td class={ytdDeviationClass} style={{textAlign: 'center'}}>{formatDeviation(row.ytdMetrics?.deviation ?? null)}</td>
+                  </>
+                )}
+                <td class={styles['store-name-repeat']}>{row.level === 5 ? row.name : ''}</td>
             </tr>
             {isExpanded && row.children.map(child => (
-                <HierarchyRowComponent key={child.id} row={child} expandedRows={expandedRows} onToggle={onToggle} />
+                <HierarchyRowComponent key={child.id} row={child} expandedRows={expandedRows} onToggle={onToggle} viewMode={viewMode} />
             ))}
         </>
     );
@@ -160,7 +172,7 @@ const RankingTable = ({ data }: { data: RankingRow[] }) => {
             <thead>
                 <tr>
                     <th class={styles['ranking-header']}>Rank</th>
-                    <th class={styles['ranking-header']}>Store</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.regionManagerStore')}</th>
                     <th class={styles['ranking-header']}>AM</th>
                     <th class={styles['ranking-header']}>HoS</th>
                     <th class={styles['ranking-header']}>{t('columns.writeOffs.turnover')}</th>
@@ -180,24 +192,24 @@ const RankingTable = ({ data }: { data: RankingRow[] }) => {
                 {data.map(item => {
                     const { metrics } = item;
                     const deviationClass = metrics.deviation === null ? '' :
-                        metrics.deviation > 0 ? styles['deviation-favorable'] : styles['deviation-unfavorable'];
+                        metrics.deviation > 0 ? styles['deviation-unfavorable'] : styles['deviation-favorable'];
                     return (
                         <tr key={item.storeNumber}>
-                            <td style={{textAlign: 'center'}}>{item.rank}</td>
-                            <td style={{textAlign: 'left'}}>{item.storeNumber} - {item.storeName}</td>
-                            <td style={{textAlign: 'left'}}>{item.areaManager}</td>
-                            <td style={{textAlign: 'left'}}>{item.headOfSales}</td>
-                            <td style={{textAlign: 'right'}}>{formatValue(metrics.turnover)}</td>
-                            <td style={{textAlign: 'right'}}>{formatValue(metrics.writeOffsValue)}</td>
-                            <td style={{textAlign: 'right'}}>{formatPercent(metrics.writeOffsPercent)}</td>
-                            <td style={{textAlign: 'right'}}>{formatValue(metrics.discountsValue)}</td>
-                            <td style={{textAlign: 'right'}}>{formatPercent(metrics.discountsPercent)}</td>
-                            <td style={{textAlign: 'right'}}>{formatValue(metrics.damagesValue)}</td>
-                            <td style={{textAlign: 'right'}}>{formatPercent(metrics.damagesPercent)}</td>
-                            <td style={{textAlign: 'right'}}>{formatValue(metrics.writeOffsTotalValue)}</td>
-                            <td style={{textAlign: 'right'}}>{formatPercent(metrics.writeOffsTotalPercent)}</td>
-                            <td style={{textAlign: 'center'}}>{metrics.target !== null ? formatPercent(metrics.target) : '-'}</td>
-                            <td class={deviationClass} style={{textAlign: 'center'}}>{formatDeviation(metrics.deviation)}</td>
+                            <td class={styles['centered-cell']}>{item.rank}</td>
+                            <td class={`${styles['left-aligned-cell']} ${styles['store-name-cell']}`}>{item.storeNumber} - {item.storeName}</td>
+                            <td class={styles['left-aligned-cell']}>{item.areaManager}</td>
+                            <td class={styles['left-aligned-cell']}>{item.headOfSales}</td>
+                            <td class={styles['centered-cell']}>{formatValue(metrics.turnover)}</td>
+                            <td class={styles['centered-cell']}>{formatValue(metrics.writeOffsValue)}</td>
+                            <td class={styles['centered-cell']}>{formatPercent(metrics.writeOffsPercent)}</td>
+                            <td class={styles['centered-cell']}>{formatValue(metrics.discountsValue)}</td>
+                            <td class={styles['centered-cell']}>{formatPercent(metrics.discountsPercent)}</td>
+                            <td class={styles['centered-cell']}>{formatValue(metrics.damagesValue)}</td>
+                            <td class={styles['centered-cell']}>{formatPercent(metrics.damagesPercent)}</td>
+                            <td class={styles['centered-cell']}>{formatValue(metrics.writeOffsTotalValue)}</td>
+                            <td class={styles['centered-cell']}>{formatPercent(metrics.writeOffsTotalPercent)}</td>
+                            <td class={styles['centered-cell']}>{metrics.target !== null ? formatPercent(metrics.target) : '-'}</td>
+                            <td class={`${deviationClass} ${styles['centered-cell']}`}>{formatDeviation(metrics.deviation)}</td>
                         </tr>
                     );
                 })}
@@ -268,211 +280,198 @@ export const WriteOffsReportView = () => {
   
   const reportData = useMemo<ReportRow | null>(() => {
     if (reportType !== 'hierarchy' || isLoading || orgStructure.length === 0) return null;
-
-    const rdcNameMap = new Map(rdcList.map(rdc => [rdc.id, rdc.name]));
-    let actuals = viewMode === 'weekly' ? weeklyActuals : ytdActuals;
-
-    if (viewMode === 'weekly' && selectedWeek) {
-        actuals = actuals.filter(a => a.period === selectedWeek);
-    }
     
-    const filteredActuals = actuals.filter(a => 
-        (selectedGroup === 'all' || `${a.itemGroupNumber} - ${a.itemGroupName}` === selectedGroup)
-    );
-    
-    const actualsByStore = new Map<string, WriteOffsActual[]>();
-    for (const actual of filteredActuals) {
-        if (!actualsByStore.has(actual.storeNumber)) {
-            actualsByStore.set(actual.storeNumber, []);
-        }
-        actualsByStore.get(actual.storeNumber)!.push(actual);
-    }
-    
-    const targetsByStoreAndGroup = new Map<string, WriteOffsTarget>();
-    for (const target of targets) {
-        targetsByStoreAndGroup.set(`${target.storeNumber}-${target.itemGroupNumber}`, target);
-    }
-    
-    const getMetric = (storeActuals: WriteOffsActual[], matcher: (name: string) => boolean): number => {
-        return storeActuals.find(a => matcher(a.metricName))?.value || 0;
+    const dataToProcess = {
+        main: { actuals: viewMode === 'weekly' ? weeklyActuals : ytdActuals, targetType: viewMode === 'weekly' ? 'monthlyTarget' : 'yearlyTarget' },
+        ytd: viewMode === 'weekly' ? { actuals: ytdActuals, targetType: 'yearlyTarget' } : null,
     };
-    
-    const aggregateHierarchyNode = (rows: ReportRow[], level: number): { metrics: WriteOffsMetrics, summedMetrics: WriteOffsMetrics, storeCount: number } => {
-        const summedMetrics = createEmptyMetrics();
-        let totalWeightedPercent = 0;
-        let totalWeightedTotalPercent = 0;
-        let totalWeightedTarget = 0;
-        let totalTurnoverForTarget = 0;
+
+    const processDataSet = (dataset: { actuals: WriteOffsActual[]; targetType: 'monthlyTarget' | 'yearlyTarget' }) => {
+        let { actuals } = dataset;
+        if (viewMode === 'weekly' && selectedWeek) {
+            actuals = actuals.filter(a => a.period === selectedWeek);
+        }
+        
+        const filteredActuals = actuals.filter(a => (selectedGroup === 'all' || `${a.itemGroupNumber} - ${a.itemGroupName}` === selectedGroup));
+        
+        const actualsByStore = new Map<string, WriteOffsActual[]>();
+        for (const actual of filteredActuals) {
+            if (!actualsByStore.has(actual.storeNumber)) actualsByStore.set(actual.storeNumber, []);
+            actualsByStore.get(actual.storeNumber)!.push(actual);
+        }
+
+        const metricsByStore = new Map<string, WriteOffsMetrics>();
+        for (const store of orgStructure) {
+            const storeActuals = actualsByStore.get(store.storeNumber) || [];
+            if (storeActuals.length === 0) continue;
+            
+            const metrics = createEmptyMetrics();
+            const getMetric = (matcher: (name: string) => boolean) => storeActuals.find(a => matcher(a.metricName))?.value || 0;
+            
+            metrics.turnover = getMetric(METRIC_NAME_MATCHERS.TURNOVER);
+            if (metrics.turnover === 0 && dataset === dataToProcess.main) continue;
+
+            metrics.writeOffsValue = getMetric(METRIC_NAME_MATCHERS.WRITE_OFFS_VALUE);
+            metrics.writeOffsTotalValue = getMetric(METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_VALUE);
+            metrics.discountsValue = getMetric(METRIC_NAME_MATCHERS.DISCOUNTS_VALUE);
+            metrics.damagesValue = getMetric(METRIC_NAME_MATCHERS.DAMAGES_VALUE);
+
+            metrics.writeOffsPercent = metrics.turnover > 0 ? metrics.writeOffsValue / metrics.turnover : 0;
+            metrics.writeOffsTotalPercent = metrics.turnover > 0 ? metrics.writeOffsTotalValue / metrics.turnover : 0;
+            metrics.discountsPercent = metrics.turnover > 0 ? metrics.discountsValue / metrics.turnover : 0;
+            metrics.damagesPercent = metrics.turnover > 0 ? metrics.damagesValue / metrics.turnover : 0;
+
+            if (selectedGroup !== 'all') {
+                const [groupNumber] = selectedGroup.split(' - ');
+                const target = targets.find(t => t.storeNumber === store.storeNumber && t.itemGroupNumber === groupNumber);
+                if (target) {
+                    const targetValue = target[dataset.targetType];
+                    if (targetValue !== undefined) {
+                        metrics.target = targetValue;
+                        metrics.deviation = targetValue - metrics.writeOffsTotalPercent;
+                    }
+                }
+            }
+            metricsByStore.set(store.storeNumber, metrics);
+        }
+        return metricsByStore;
+    };
+
+    const mainMetricsByStore = processDataSet(dataToProcess.main);
+    const ytdMetricsByStore = dataToProcess.ytd ? processDataSet(dataToProcess.ytd) : null;
+
+    const aggregateHierarchyNode = (rows: ReportRow[], level: number): { metrics: WriteOffsMetrics, summedMetrics: WriteOffsMetrics, storeCount: number, ytdMetrics?: ReportRow['ytdMetrics'] } => {
+        const summed = { main: createEmptyMetrics(), ytd: createEmptyMetrics() };
         let storeCount = 0;
 
         for (const row of rows) {
-            summedMetrics.turnover += row.summedMetrics.turnover;
-            summedMetrics.writeOffsValue += row.summedMetrics.writeOffsValue;
-            summedMetrics.writeOffsTotalValue += row.summedMetrics.writeOffsTotalValue;
-            summedMetrics.discountsValue += row.summedMetrics.discountsValue;
-            summedMetrics.damagesValue += row.summedMetrics.damagesValue;
             storeCount += row.storeCount;
-            if (row.summedMetrics.turnover > 0) {
-                totalWeightedPercent += row.metrics.writeOffsPercent * row.summedMetrics.turnover;
-                totalWeightedTotalPercent += row.metrics.writeOffsTotalPercent * row.summedMetrics.turnover;
-                if (row.metrics.target !== null) {
-                    totalWeightedTarget += row.metrics.target * row.summedMetrics.turnover;
-                    totalTurnoverForTarget += row.summedMetrics.turnover;
+            for (const key in row.summedMetrics) {
+                (summed.main as any)[key] += (row.summedMetrics as any)[key];
+            }
+            if(viewMode === 'weekly' && row.summedMetrics.ytd) {
+                 for (const key in row.summedMetrics.ytd) {
+                    (summed.ytd as any)[key] += (row.summedMetrics.ytd as any)[key];
                 }
             }
         }
         
-        const finalMetrics = { ...summedMetrics };
+        const calculateFinalMetrics = (s: WriteOffsMetrics) => {
+            const final = { ...s };
+            if ((level >= 1 && level <= 4) && storeCount > 0) { 
+                 const avgKeys: (keyof WriteOffsMetrics)[] = ['turnover', 'writeOffsValue', 'writeOffsTotalValue', 'discountsValue', 'damagesValue'];
+                 avgKeys.forEach(k => (final as any)[k] /= storeCount);
+            }
+            final.writeOffsPercent = s.turnover > 0 ? s.writeOffsValue / s.turnover : 0;
+            final.writeOffsTotalPercent = s.turnover > 0 ? s.writeOffsTotalValue / s.turnover : 0;
+            final.discountsPercent = s.turnover > 0 ? s.discountsValue / s.turnover : 0;
+            final.damagesPercent = s.turnover > 0 ? s.damagesValue / s.turnover : 0;
+            
+            const totalTurnoverForTarget = s.target ?? 0; // Using target as a proxy for summed weighted target calc
+            final.target = totalTurnoverForTarget > 0 ? s.deviation! / totalTurnoverForTarget : null; // Using deviation as a proxy
+            
+            if (final.target !== null) {
+                final.deviation = final.target - final.writeOffsTotalPercent;
+            }
+            return final;
+        };
+
+        const finalMainMetrics = calculateFinalMetrics(summed.main);
         
-        if ((level >= 1 && level <= 4) && storeCount > 0) { 
-            finalMetrics.turnover /= storeCount;
-            finalMetrics.writeOffsValue /= storeCount;
-            finalMetrics.writeOffsTotalValue /= storeCount;
-            finalMetrics.discountsValue /= storeCount;
-            finalMetrics.damagesValue /= storeCount;
+        let finalYtdMetrics: ReportRow['ytdMetrics'] | undefined;
+        if(viewMode === 'weekly') {
+            const tempYtdMetrics = calculateFinalMetrics(summed.ytd);
+            finalYtdMetrics = {
+                writeOffsTotalPercent: tempYtdMetrics.writeOffsTotalPercent,
+                target: tempYtdMetrics.target,
+                deviation: tempYtdMetrics.deviation,
+            };
+        }
+        
+        // This is a bit of a hack to pass summed values up.
+        summed.main.target = summed.main.deviation; // Store totalWeightedTarget
+        summed.main.deviation = summed.main.target; // Store totalTurnoverForTarget
+        if (viewMode === 'weekly') {
+            summed.ytd.target = summed.ytd.deviation;
+            summed.ytd.deviation = summed.ytd.target;
         }
 
-        finalMetrics.writeOffsPercent = summedMetrics.turnover > 0 ? totalWeightedPercent / summedMetrics.turnover : 0;
-        finalMetrics.writeOffsTotalPercent = summedMetrics.turnover > 0 ? totalWeightedTotalPercent / summedMetrics.turnover : 0;
-        finalMetrics.discountsPercent = summedMetrics.turnover > 0 ? summedMetrics.discountsValue / summedMetrics.turnover : 0;
-        finalMetrics.damagesPercent = summedMetrics.turnover > 0 ? summedMetrics.damagesValue / summedMetrics.turnover : 0;
-        
-        finalMetrics.target = totalTurnoverForTarget > 0 ? totalWeightedTarget / totalTurnoverForTarget : null;
-
-        if (finalMetrics.target !== null) {
-            // Deviation = Target - Actual (so positive is good/under-target)
-            finalMetrics.deviation = finalMetrics.target - finalMetrics.writeOffsTotalPercent;
-        }
-
-        return { metrics: finalMetrics, summedMetrics, storeCount };
+        return { metrics: finalMainMetrics, summedMetrics: { ...summed.main, ytd: viewMode === 'weekly' ? summed.ytd : undefined }, storeCount, ytdMetrics: finalYtdMetrics };
     };
-
-    const hierarchy = new Map<string, { rdc: Map<string, { hoss: Map<string, { ams: Map<string, OrgStructureRow[]> }> } > }>();
+    
+    const rdcNameMap = new Map(rdcList.map(rdc => [rdc.id, rdc.name]));
     const rdcToDooMap = new Map<string, string>();
-    dooList.forEach(doo => {
-        doo.rdcIds.forEach(rdcId => rdcToDooMap.set(rdcId, doo.directorName));
-    });
-
+    dooList.forEach(doo => { doo.rdcIds.forEach(rdcId => rdcToDooMap.set(rdcId, doo.directorName)); });
+    
+    const hierarchy = new Map<string, Map<string, Map<string, Map<string, OrgStructureRow[]>>>>();
     for (const store of orgStructure) {
         const dooName = rdcToDooMap.get(store.warehouseId) || 'Unassigned';
-        if (!hierarchy.has(dooName)) hierarchy.set(dooName, { rdc: new Map() });
+        if (!hierarchy.has(dooName)) hierarchy.set(dooName, new Map());
         const doo = hierarchy.get(dooName)!;
-        
-        if (!doo.rdc.has(store.warehouseId)) doo.rdc.set(store.warehouseId, { hoss: new Map() });
-        const rdc = doo.rdc.get(store.warehouseId)!;
-
-        if (!rdc.hoss.has(store.headOfSales)) rdc.hoss.set(store.headOfSales, { ams: new Map() });
-        const hos = rdc.hoss.get(store.headOfSales)!;
-
-        if (!hos.ams.has(store.areaManager)) hos.ams.set(store.areaManager, []);
-        hos.ams.get(store.areaManager)!.push(store);
+        if (!doo.has(store.warehouseId)) doo.set(store.warehouseId, new Map());
+        const rdc = doo.get(store.warehouseId)!;
+        if (!rdc.has(store.headOfSales)) rdc.set(store.headOfSales, new Map());
+        const hos = rdc.get(store.headOfSales)!;
+        if (!hos.has(store.areaManager)) hos.set(store.areaManager, []);
+        hos.get(store.areaManager)!.push(store);
     }
     
-    const allRow: ReportRow = { id: 'all', name: 'All', level: 0, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
-    const sortedDoos = Array.from(hierarchy.keys()).sort();
+    const buildRows = (map: Map<string, any>, level: number, parentId: string): ReportRow[] => {
+        const rows: ReportRow[] = [];
+        const sortedKeys = Array.from(map.keys()).sort();
+        for (const key of sortedKeys) {
+            const value = map.get(key);
+            const id = `${parentId}-${key}`;
+            let name = key;
+            if(level === 2) name = `${rdcNameMap.get(key) || key} - ${key}`;
+            
+            const row: ReportRow = { id, name, level, children: [], metrics: createEmptyMetrics(), storeCount: 0, summedMetrics: createEmptyMetrics() };
 
-    for (const dooName of sortedDoos) {
-        const { rdc: rdcMap } = hierarchy.get(dooName)!;
-        const dooRow: ReportRow = { id: `doo-${dooName}`, name: dooName, level: 1, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
-        
-        const sortedRdcs = Array.from(rdcMap.keys()).sort();
-        for (const rdcId of sortedRdcs) {
-            const { hoss } = rdcMap.get(rdcId)!;
-            const rdcName = rdcNameMap.get(rdcId) || rdcId;
-            const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `${rdcName} - ${rdcId}`, level: 2, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
-
-            const sortedHoss = Array.from(hoss.keys()).sort();
-            for (const hosName of sortedHoss) {
-                const { ams } = hoss.get(hosName)!;
-                const hosRow: ReportRow = { id: `${rdcId}-${hosName}`, name: hosName, level: 3, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
-                
-                const sortedAms = Array.from(ams.keys()).sort();
-                for (const amName of sortedAms) {
-                    const stores = ams.get(amName)!;
-                    const amRow: ReportRow = { id: `${rdcId}-${hosName}-${amName}`, name: amName, level: 4, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
-                    
-                    for (const store of stores) {
-                        const storeActuals = actualsByStore.get(store.storeNumber) || [];
-                        if (storeActuals.length === 0) continue;
-
-                        const storeMetrics = createEmptyMetrics();
-                        storeMetrics.turnover = getMetric(storeActuals, METRIC_NAME_MATCHERS.TURNOVER);
-                        storeMetrics.writeOffsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_VALUE);
-                        storeMetrics.writeOffsPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_PERCENT);
-                        storeMetrics.writeOffsTotalValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_VALUE);
-                        storeMetrics.writeOffsTotalPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_PERCENT);
-                        storeMetrics.discountsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_VALUE);
-                        storeMetrics.discountsPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_PERCENT);
-                        storeMetrics.damagesValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_VALUE);
-                        storeMetrics.damagesPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_PERCENT);
-
-                        if (selectedGroup !== 'all') {
-                            const [groupNumber] = selectedGroup.split(' - ');
-                            const target = targetsByStoreAndGroup.get(`${store.storeNumber}-${groupNumber}`);
-                            if (target) {
-                                const targetValue = viewMode === 'weekly' ? target.monthlyTarget : target.yearlyTarget;
-                                if (targetValue !== undefined) {
-                                    storeMetrics.target = targetValue;
-                                    storeMetrics.deviation = targetValue - storeMetrics.writeOffsTotalPercent;
-                                }
-                            }
-                        }
-
+            if (Array.isArray(value)) { // Store level
+                for (const store of value) {
+                    const storeMetrics = mainMetricsByStore.get(store.storeNumber);
+                    if (storeMetrics) {
+                        const ytdStoreMetrics = ytdMetricsByStore?.get(store.storeNumber);
                         const storeRow: ReportRow = {
-                            id: `store-${store.storeNumber}`, name: `${store.storeNumber} - ${store.storeName}`, level: 5,
-                            metrics: storeMetrics, children: [], storeCount: 1, summedMetrics: storeMetrics,
+                            id: `store-${store.storeNumber}`, name: `${store.storeNumber} - ${store.storeName}`, level: 5, children: [],
+                            metrics: storeMetrics, storeCount: 1, 
+                            summedMetrics: { 
+                                ...storeMetrics, 
+                                target: (storeMetrics.target ?? 0) * storeMetrics.turnover, // totalWeightedTarget
+                                deviation: (storeMetrics.target !== null ? storeMetrics.turnover : 0), // totalTurnoverForTarget
+                                ytd: ytdStoreMetrics ? {
+                                    ...ytdStoreMetrics,
+                                    target: (ytdStoreMetrics.target ?? 0) * ytdStoreMetrics.turnover,
+                                    deviation: (ytdStoreMetrics.target !== null ? ytdStoreMetrics.turnover : 0)
+                                } : undefined,
+                            },
+                            ytdMetrics: ytdStoreMetrics ? { writeOffsTotalPercent: ytdStoreMetrics.writeOffsTotalPercent, target: ytdStoreMetrics.target, deviation: ytdStoreMetrics.deviation } : undefined
                         };
-                        amRow.children.push(storeRow);
-                    }
-                    if (amRow.children.length > 0) {
-                        const { metrics: amMetrics, summedMetrics: amSummedMetrics, storeCount: amStoreCount } = aggregateHierarchyNode(amRow.children, 4);
-                        amRow.metrics = amMetrics; amRow.summedMetrics = amSummedMetrics; amRow.storeCount = amStoreCount;
-                        hosRow.children.push(amRow);
+                        row.children.push(storeRow);
                     }
                 }
-                if (hosRow.children.length > 0) {
-                    const { metrics: hosMetrics, summedMetrics: hosSummedMetrics, storeCount: hosStoreCount } = aggregateHierarchyNode(hosRow.children, 3);
-                    hosRow.metrics = hosMetrics; hosRow.summedMetrics = hosSummedMetrics; hosRow.storeCount = hosStoreCount;
-                    rdcRow.children.push(hosRow);
-                }
+            } else { // Hierarchy level
+                row.children = buildRows(value, level + 1, id);
             }
-            if (rdcRow.children.length > 0) {
-                const { metrics: rdcMetrics, summedMetrics: rdcSummedMetrics, storeCount: rdcStoreCount } = aggregateHierarchyNode(rdcRow.children, 2);
-                rdcRow.metrics = rdcMetrics; rdcRow.summedMetrics = rdcSummedMetrics; rdcRow.storeCount = rdcStoreCount;
-                dooRow.children.push(rdcRow);
-            }
-        }
-        if (dooRow.children.length > 0) {
-            const { metrics: dooMetrics, summedMetrics: dooSummedMetrics, storeCount: dooStoreCount } = aggregateHierarchyNode(dooRow.children, 1);
-            dooRow.metrics = dooMetrics; dooRow.summedMetrics = dooSummedMetrics; dooRow.storeCount = dooStoreCount;
-            allRow.children.push(dooRow);
-        }
-    }
-    const { metrics: allMetrics, summedMetrics: allSummedMetrics, storeCount: allStoreCount } = aggregateHierarchyNode(allRow.children, 0);
-    allRow.metrics = allMetrics;
-    allRow.summedMetrics = allSummedMetrics;
-    allRow.storeCount = allStoreCount;
-    
-    const sortChildren = (rows: ReportRow[]) => {
-        if (!sortConfig) return;
-        
-        rows.forEach(row => {
+            
             if (row.children.length > 0) {
-                if (row.level >= 2 && row.level <= 3) { 
-                    row.children.sort((a, b) => {
-                        const valA = sortConfig.key === 'turnover' ? a.metrics.turnover : a.metrics.writeOffsTotalPercent;
-                        const valB = sortConfig.key === 'turnover' ? b.metrics.turnover : b.metrics.writeOffsTotalPercent;
-                        const direction = sortConfig.direction === 'asc' ? 1 : -1;
-                        if (sortConfig.key === 'turnover') return (valB - valA) * direction; // Always desc
-                        return (valA - valB) * direction; // Default asc
-                    });
-                }
-                sortChildren(row.children);
+                const { metrics, summedMetrics, storeCount, ytdMetrics } = aggregateHierarchyNode(row.children, level);
+                row.metrics = metrics;
+                row.summedMetrics = summedMetrics;
+                row.storeCount = storeCount;
+                row.ytdMetrics = ytdMetrics;
+                rows.push(row);
             }
-        });
+        }
+        return rows;
     };
     
-    sortChildren([allRow]);
+    const allRow: ReportRow = { id: 'all', name: 'All', level: 0, children: [], metrics: createEmptyMetrics(), storeCount: 0, summedMetrics: createEmptyMetrics() };
+    allRow.children = buildRows(hierarchy, 1, 'all');
+    const { metrics, storeCount, ytdMetrics } = aggregateHierarchyNode(allRow.children, 0);
+    allRow.metrics = metrics;
+    allRow.storeCount = storeCount;
+    allRow.ytdMetrics = ytdMetrics;
 
     return allRow;
 
@@ -533,7 +532,7 @@ export const WriteOffsReportView = () => {
         });
     }
 
-    results.sort((a, b) => (a.metrics.deviation ?? Infinity) - (b.metrics.deviation ?? Infinity));
+    results.sort((a, b) => (b.metrics.deviation ?? -Infinity) - (a.metrics.deviation ?? -Infinity));
     
     return results.map((item, index) => ({ ...item, rank: index + 1 }));
 
@@ -616,28 +615,37 @@ export const WriteOffsReportView = () => {
             <table class={styles['report-table']}>
                 <thead>
                     <tr>
-                        <th>{t('columns.writeOffs.regionManagerStore')}</th>
-                        <th class={styles.sortable} onClick={() => handleSort('turnover')}>
+                        <th rowSpan={2}>{t('columns.writeOffs.regionManagerStore')}</th>
+                        <th rowSpan={2} class={styles.sortable} onClick={() => handleSort('turnover')}>
                             {t('columns.writeOffs.turnover')}
                             <span class={styles['sort-icon']}>{getSortIcon('turnover')}</span>
                         </th>
-                        <th>{t('columns.writeOffs.writeOffsValue')}</th>
-                        <th>{t('columns.writeOffs.writeOffsPercent')}</th>
-                        <th>{t('columns.writeOffs.discountsValue')}</th>
-                        <th>{t('columns.writeOffs.discountsPercent')}</th>
-                        <th>{t('columns.writeOffs.damagesValue')}</th>
-                        <th>{t('columns.writeOffs.damagesPercent')}</th>
-                        <th>{t('columns.writeOffs.writeOffsTotalValue')}</th>
-                        <th class={styles.sortable} onClick={() => handleSort('writeOffsTotalPercent')}>
+                        <th rowSpan={2}>{t('columns.writeOffs.writeOffsValue')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.writeOffsPercent')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.discountsValue')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.discountsPercent')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.damagesValue')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.damagesPercent')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.writeOffsTotalValue')}</th>
+                        <th rowSpan={2} class={styles.sortable} onClick={() => handleSort('writeOffsTotalPercent')}>
                           {t('columns.writeOffs.writeOffsTotalPercent')}
                           <span class={styles['sort-icon']}>{getSortIcon('writeOffsTotalPercent')}</span>
                         </th>
-                        <th>{t('columns.writeOffs.targetPercent')}</th>
-                        <th>{t('columns.writeOffs.deviation')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.targetPercent')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.deviation')}</th>
+                        {viewMode === 'weekly' && <th colSpan={3} class={styles['ytd-separator']}>YTD</th>}
+                        <th rowSpan={2}>{t('columns.writeOffs.regionManagerStore')}</th>
                     </tr>
+                    {viewMode === 'weekly' && (
+                        <tr>
+                            <th class={styles['ytd-separator']}>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
+                            <th>{t('columns.writeOffs.targetPercent')}</th>
+                            <th>{t('columns.writeOffs.deviation')}</th>
+                        </tr>
+                    )}
                 </thead>
                 <tbody>
-                    <HierarchyRowComponent row={reportData} expandedRows={expandedRows} onToggle={handleToggleRow} />
+                    <HierarchyRowComponent row={reportData} expandedRows={expandedRows} onToggle={handleToggleRow} viewMode={viewMode}/>
                 </tbody>
             </table>
           );
@@ -651,7 +659,7 @@ export const WriteOffsReportView = () => {
 
 
   return (
-      <div class={styles['write-offs-report-view']}>
+      <div class={`${styles['write-offs-report-view']} ${styles['printable-area']}`}>
           <div class={styles['controls-container']}>
               <div class={styles['control-group']}>
                   <div class={styles['view-toggle']}>
@@ -683,6 +691,7 @@ export const WriteOffsReportView = () => {
                       <option value="all">All Groups</option>
                       {availableGroups.map(group => <option key={group} value={group}>{group}</option>)}
                   </select>
+                  <button class={sharedStyles['button-secondary']} onClick={() => window.print()}>{t('writeOffsReport.printReport')}</button>
               </div>
                {reportType === 'hierarchy' && (
                   <div class={styles['actions-bar']}>
