@@ -25,7 +25,7 @@ const METRIC_NAME_MATCHERS = {
 };
 
 type SortConfig = {
-    key: 'turnover' | 'writeOffsTotalPercent';
+    key: 'turnover' | 'writeOffsTotalPercent' | 'deviation';
     direction: 'asc' | 'desc';
 };
 
@@ -63,7 +63,7 @@ const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, e
     const hasChildren = row.children.length > 0;
     
     const deviationClass = row.metrics.deviation === null ? '' :
-        row.metrics.deviation > 0 ? styles['deviation-positive'] : styles['deviation-negative'];
+        row.metrics.deviation > 0 ? styles['deviation-negative'] : styles['deviation-positive'];
     
     const rowClass = styles[`row-level-${row.level}`];
 
@@ -94,18 +94,6 @@ const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, e
                     barClass={styles['percent-bar']}
                 />
                 <DataBarCell
-                    value={row.metrics.writeOffsTotalValue}
-                    maxValue={row.maxValuesInScope?.writeOffsTotalValue ?? 0}
-                    formatter={formatValue}
-                    barClass={styles['value-bar']}
-                />
-                <DataBarCell
-                    value={row.metrics.writeOffsTotalPercent}
-                    maxValue={row.maxValuesInScope?.writeOffsTotalPercent ?? 0}
-                    formatter={formatPercent}
-                    barClass={styles['percent-bar']}
-                />
-                <DataBarCell
                     value={row.metrics.discountsValue}
                     maxValue={row.maxValuesInScope?.discountsValue ?? 0}
                     formatter={formatValue}
@@ -126,6 +114,18 @@ const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, e
                 <DataBarCell
                     value={row.metrics.damagesPercent}
                     maxValue={row.maxValuesInScope?.damagesPercent ?? 0}
+                    formatter={formatPercent}
+                    barClass={styles['percent-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.writeOffsTotalValue}
+                    maxValue={row.maxValuesInScope?.writeOffsTotalValue ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['value-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.writeOffsTotalPercent}
+                    maxValue={row.maxValuesInScope?.writeOffsTotalPercent ?? 0}
                     formatter={formatPercent}
                     barClass={styles['percent-bar']}
                 />
@@ -300,27 +300,31 @@ export const WriteOffsReportView = () => {
         hos.ams.get(store.areaManager)!.push(store);
     }
     
-    const allRow: ReportRow = { id: 'all', name: 'All', level: 0, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+    const allRow: ReportRow = { id: 'all', name: 'All Regions', level: 0, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
     const sortedDoos = Array.from(hierarchy.keys()).sort();
 
     for (const dooName of sortedDoos) {
         const { rdc: rdcMap } = hierarchy.get(dooName)!;
+        if (Object.keys(rdcMap).length === 0) continue;
         const dooRow: ReportRow = { id: `doo-${dooName}`, name: dooName, level: 1, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
         
         const sortedRdcs = Array.from(rdcMap.keys()).sort();
         for (const rdcId of sortedRdcs) {
             const { hoss } = rdcMap.get(rdcId)!;
-            const rdcName = rdcNameMap.get(rdcId) || rdcId;
-            const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `${rdcName} - ${rdcId}`, level: 2, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+            const rdcName = `${rdcNameMap.get(rdcId) || 'Unknown'} - ${rdcId}`;
+            if (Object.keys(hoss).length === 0) continue;
+            const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: rdcName, level: 2, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
 
             const sortedHoss = Array.from(hoss.keys()).sort();
             for (const hosName of sortedHoss) {
                 const { ams } = hoss.get(hosName)!;
+                if (Object.keys(ams).length === 0) continue;
                 const hosRow: ReportRow = { id: `${rdcId}-${hosName}`, name: hosName, level: 3, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
                 
                 const sortedAms = Array.from(ams.keys()).sort();
                 for (const amName of sortedAms) {
                     const stores = ams.get(amName)!;
+                    if (stores.length === 0) continue;
                     const amRow: ReportRow = { id: `${rdcId}-${hosName}-${amName}`, name: amName, level: 4, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
                     
                     for (const store of stores) {
@@ -390,13 +394,22 @@ export const WriteOffsReportView = () => {
         
         rows.forEach(row => {
             if (row.children.length > 0) {
-                if (row.level >= 2 && row.level <= 3) { // Sort AMs under HoS, and HoS under RDC
+                if (row.level >= 1 && row.level <= 4) { // Sort DoO, RDC, HoS, AM
                     row.children.sort((a, b) => {
-                        const valA = sortConfig.key === 'turnover' ? a.metrics.turnover : a.metrics.writeOffsTotalPercent;
-                        const valB = sortConfig.key === 'turnover' ? b.metrics.turnover : b.metrics.writeOffsTotalPercent;
-                        const direction = sortConfig.direction === 'asc' ? 1 : -1;
-                        if (sortConfig.key === 'turnover') return (valB - valA) * direction; // Always desc
-                        return (valA - valB) * direction; // Default asc
+                        let valA, valB;
+                        if (sortConfig.key === 'deviation') {
+                            valA = a.metrics.deviation ?? -Infinity;
+                            valB = b.metrics.deviation ?? -Infinity;
+                        } else {
+                            valA = a.metrics[sortConfig.key] ?? 0;
+                            valB = b.metrics[sortConfig.key] ?? 0;
+                        }
+
+                        if (sortConfig.direction === 'asc') {
+                            return valA - valB;
+                        } else {
+                            return valB - valA;
+                        }
                     });
                 }
                 sortChildren(row.children);
@@ -432,10 +445,14 @@ export const WriteOffsReportView = () => {
       setExpandedRows(newExpanded);
   };
   
-  const handleSort = (key: 'turnover' | 'writeOffsTotalPercent') => {
+  const handleSort = (key: 'turnover' | 'writeOffsTotalPercent' | 'deviation') => {
       setSortConfig(prev => {
           const isCurrentKey = prev?.key === key;
-          const defaultDirection = key === 'turnover' ? 'desc' : 'asc';
+          let defaultDirection: 'asc' | 'desc';
+          if (key === 'turnover') defaultDirection = 'desc';
+          else if (key === 'writeOffsTotalPercent') defaultDirection = 'asc';
+          else defaultDirection = 'asc';
+          
           const newDirection = isCurrentKey ? (prev.direction === 'asc' ? 'desc' : 'asc') : defaultDirection;
           return { key, direction: newDirection };
       });
@@ -472,11 +489,11 @@ export const WriteOffsReportView = () => {
   if (isLoading) {
       return <div class={sharedStyles['spinner-overlay']}><div class={sharedStyles.spinner}></div></div>;
   }
-  if (!reportData) {
+  if (!reportData || reportData.storeCount === 0) {
       return <div class={sharedStyles['placeholder-view']}><h3>{t('sidebar.writeOffsReport')}</h3><p>No data available to generate the report. Please import the required files.</p></div>;
   }
   
-  const getSortIcon = (key: 'turnover' | 'writeOffsTotalPercent') => {
+  const getSortIcon = (key: 'turnover' | 'writeOffsTotalPercent' | 'deviation') => {
       if (sortConfig?.key !== key) return '↕';
       return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
@@ -522,17 +539,20 @@ export const WriteOffsReportView = () => {
                           </th>
                           <th>{t('columns.writeOffs.writeOffsValue')}</th>
                           <th>{t('columns.writeOffs.writeOffsPercent')}</th>
+                          <th>{t('columns.writeOffs.discountsValue')}</th>
+                          <th>{t('columns.writeOffs.discountsPercent')}</th>
+                          <th>{t('columns.writeOffs.damagesValue')}</th>
+                          <th>{t('columns.writeOffs.damagesPercent')}</th>
                           <th>{t('columns.writeOffs.writeOffsTotalValue')}</th>
                           <th class={styles.sortable} onClick={() => handleSort('writeOffsTotalPercent')}>
                             {t('columns.writeOffs.writeOffsTotalPercent')}
                             <span class={styles['sort-icon']}>{getSortIcon('writeOffsTotalPercent')}</span>
                           </th>
-                          <th>{t('columns.writeOffs.discountsValue')}</th>
-                          <th>{t('columns.writeOffs.discountsPercent')}</th>
-                          <th>{t('columns.writeOffs.damagesValue')}</th>
-                          <th>{t('columns.writeOffs.damagesPercent')}</th>
                           <th>{t('columns.writeOffs.targetPercent')}</th>
-                          <th>{t('columns.writeOffs.deviation')}</th>
+                          <th class={styles.sortable} onClick={() => handleSort('deviation')}>
+                              {t('columns.writeOffs.deviation')}
+                              <span class={styles['sort-icon']}>{getSortIcon('deviation')}</span>
+                          </th>
                       </tr>
                   </thead>
                   <tbody>
