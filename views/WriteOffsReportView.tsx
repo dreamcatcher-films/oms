@@ -82,9 +82,6 @@ const HierarchyRowComponent = ({ row, expandedRows, onToggle, viewMode }: { row:
     const deviationClass = row.metrics.deviation === null ? '' :
         row.metrics.deviation > 0 ? styles['deviation-unfavorable'] : styles['deviation-favorable'];
     
-    const ytdDeviationClass = row.ytdMetrics?.deviation === null || row.ytdMetrics?.deviation === undefined ? '' :
-        row.ytdMetrics.deviation > 0 ? styles['deviation-unfavorable'] : styles['deviation-favorable'];
-    
     const rowClass = styles[`row-level-${row.level}`];
 
     return (
@@ -149,18 +146,10 @@ const HierarchyRowComponent = ({ row, expandedRows, onToggle, viewMode }: { row:
                     formatter={formatPercent}
                     barClass={styles['percent-bar']}
                 />
-                <td style={{textAlign: 'center'}}>{row.metrics.target !== null ? formatPercent(row.metrics.target) : '-'}</td>
-                <td class={deviationClass} style={{textAlign: 'center'}}>
-                    {formatDeviation(row.metrics.deviation)}
+                <td style={{textAlign: 'center'}}>{row.level === 5 && row.metrics.target !== null ? formatPercent(row.metrics.target) : '-'}</td>
+                <td class={row.level === 5 ? deviationClass : ''} style={{textAlign: 'center'}}>
+                    {row.level === 5 ? formatDeviation(row.metrics.deviation) : '-'}
                 </td>
-                {viewMode === 'weekly' && (
-                  <>
-                    <td class={styles['ytd-separator']}></td>
-                    <td style={{textAlign: 'center'}}>{row.ytdMetrics ? formatPercent(row.ytdMetrics.writeOffsTotalPercent) : '-'}</td>
-                    <td style={{textAlign: 'center'}}>{row.ytdMetrics?.target !== null && row.ytdMetrics?.target !== undefined ? formatPercent(row.ytdMetrics.target) : '-'}</td>
-                    <td class={ytdDeviationClass} style={{textAlign: 'center'}}>{formatDeviation(row.ytdMetrics?.deviation ?? null)}</td>
-                  </>
-                )}
                 <td class={styles['store-name-repeat']}>{row.level === 5 ? row.name : ''}</td>
             </tr>
             {isExpanded && row.children.map(child => (
@@ -225,12 +214,13 @@ const RankingTable = ({ data, viewMode }: { data: RankingRow[], viewMode: 'weekl
                             <td class={styles['centered-cell']}>{formatValue(metrics.damagesValue)}</td>
                             <td class={styles['centered-cell']}>{formatPercent(metrics.damagesPercent)}</td>
                             <td class={styles['centered-cell']}>{formatValue(metrics.writeOffsTotalValue)}</td>
-                            <td class={styles['centered-cell']}>{formatPercent(metrics.writeOffsTotalPercent)}</td>
+                            <td class{styles['centered-cell']}>{formatPercent(metrics.writeOffsTotalPercent)}</td>
                             <td class={styles['centered-cell']}>{metrics.target !== null ? formatPercent(metrics.target) : '-'}</td>
                             <td class={`${deviationClass} ${styles['centered-cell']}`}>{formatDeviation(metrics.deviation)}</td>
                             {viewMode === 'weekly' && (
                                 <>
-                                    <td class={`${styles['ytd-separator']} ${styles['centered-cell']}`}>{ytdMetrics ? formatPercent(ytdMetrics.writeOffsTotalPercent) : '-'}</td>
+                                    <td class={styles['ytd-separator']}></td>
+                                    <td class={styles['centered-cell']}>{ytdMetrics ? formatPercent(ytdMetrics.writeOffsTotalPercent) : '-'}</td>
                                     <td class={styles['centered-cell']}>{ytdMetrics?.target !== null && ytdMetrics?.target !== undefined ? formatPercent(ytdMetrics.target) : '-'}</td>
                                     <td class={`${ytdDeviationClass} ${styles['centered-cell']}`}>{formatDeviation(ytdMetrics?.deviation ?? null)}</td>
                                 </>
@@ -313,7 +303,7 @@ export const WriteOffsReportView = () => {
         ytd: viewMode === 'weekly' ? { actuals: ytdActuals, targetType: 'yearlyTarget' as const } : null,
     };
 
-    const processDataSet = (dataset: { actuals: WriteOffsActual[]; targetType: 'monthlyTarget' | 'yearlyTarget' }) => {
+    const processDataSet = (dataset: { actuals: WriteOffsActual[]; targetType: 'monthlyTarget' | 'yearlyTarget' }, isMain: boolean) => {
         let { actuals } = dataset;
         if (viewMode === 'weekly' && selectedWeek) {
             actuals = actuals.filter(a => a.period === selectedWeek);
@@ -333,10 +323,10 @@ export const WriteOffsReportView = () => {
             if (storeActuals.length === 0) continue;
             
             const metrics = createEmptyMetrics();
-            const getMetric = (matcher: (name: string) => boolean) => storeActuals.find(a => matcher(a.metricName))?.value || 0;
+            const getMetric = (matcher: (name: string) => boolean) => storeActuals.reduce((sum, a) => matcher(a.metricName) ? sum + a.value : sum, 0);
             
             metrics.turnover = getMetric(METRIC_NAME_MATCHERS.TURNOVER);
-            if (metrics.turnover === 0 && dataset === dataToProcess.main) continue;
+            if (metrics.turnover === 0 && isMain) continue;
 
             metrics.writeOffsValue = getMetric(METRIC_NAME_MATCHERS.WRITE_OFFS_VALUE);
             metrics.writeOffsTotalValue = getMetric(METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_VALUE);
@@ -364,8 +354,8 @@ export const WriteOffsReportView = () => {
         return metricsByStore;
     };
 
-    const mainMetricsByStore = processDataSet(dataToProcess.main);
-    const ytdMetricsByStore = dataToProcess.ytd ? processDataSet(dataToProcess.ytd) : null;
+    const mainMetricsByStore = processDataSet(dataToProcess.main, true);
+    const ytdMetricsByStore = dataToProcess.ytd ? processDataSet(dataToProcess.ytd, false) : null;
 
     const aggregateHierarchyNode = (rows: ReportRow[], level: number): { metrics: WriteOffsMetrics, summedMetrics: ReportRow['summedMetrics'], storeCount: number, ytdMetrics?: ReportRow['ytdMetrics'] } => {
         const summed = { main: createEmptyMetrics(), ytd: createEmptyMetrics() };
@@ -387,21 +377,15 @@ export const WriteOffsReportView = () => {
         
         const calculateFinalMetrics = (s: WriteOffsMetrics) => {
             const final = { ...s };
-            if ((level >= 1 && level <= 4) && storeCount > 0) { 
-                 const avgKeys: (keyof WriteOffsMetrics)[] = ['turnover', 'writeOffsValue', 'writeOffsTotalValue', 'discountsValue', 'damagesValue'];
-                 avgKeys.forEach(k => (final as any)[k] /= storeCount);
-            }
             final.writeOffsPercent = s.turnover > 0 ? s.writeOffsValue / s.turnover : 0;
             final.writeOffsTotalPercent = s.turnover > 0 ? s.writeOffsTotalValue / s.turnover : 0;
             final.discountsPercent = s.turnover > 0 ? s.discountsValue / s.turnover : 0;
             final.damagesPercent = s.turnover > 0 ? s.damagesValue / s.turnover : 0;
             
-            const totalTurnoverForTarget = s.target ?? 0; // Using target as a proxy for summed weighted target calc
-            final.target = totalTurnoverForTarget > 0 ? s.deviation! / totalTurnoverForTarget : null; // Using deviation as a proxy
-            
-            if (final.target !== null) {
-                final.deviation = final.target - final.writeOffsTotalPercent;
-            }
+            // Do not calculate average target for aggregated levels.
+            final.target = null;
+            final.deviation = null;
+
             return final;
         };
 
@@ -417,14 +401,6 @@ export const WriteOffsReportView = () => {
             };
         }
         
-        // This is a bit of a hack to pass summed values up.
-        summed.main.target = summed.main.deviation; // Store totalWeightedTarget
-        summed.main.deviation = summed.main.target; // Store totalTurnoverForTarget
-        if (viewMode === 'weekly') {
-            summed.ytd.target = summed.ytd.deviation;
-            summed.ytd.deviation = summed.ytd.target;
-        }
-
         return { metrics: finalMainMetrics, summedMetrics: { ...summed.main, ytd: viewMode === 'weekly' ? summed.ytd : undefined }, storeCount, ytdMetrics: finalYtdMetrics };
     };
     
@@ -466,13 +442,7 @@ export const WriteOffsReportView = () => {
                             metrics: storeMetrics, storeCount: 1, 
                             summedMetrics: { 
                                 ...storeMetrics, 
-                                target: (storeMetrics.target ?? 0) * storeMetrics.turnover, // totalWeightedTarget
-                                deviation: (storeMetrics.target !== null ? storeMetrics.turnover : 0), // totalTurnoverForTarget
-                                ytd: ytdStoreMetrics ? {
-                                    ...ytdStoreMetrics,
-                                    target: (ytdStoreMetrics.target ?? 0) * ytdStoreMetrics.turnover,
-                                    deviation: (ytdStoreMetrics.target !== null ? ytdStoreMetrics.turnover : 0)
-                                } : undefined,
+                                ytd: ytdStoreMetrics ? { ...ytdStoreMetrics } : undefined,
                             },
                             ytdMetrics: ytdStoreMetrics ? { writeOffsTotalPercent: ytdStoreMetrics.writeOffsTotalPercent, target: ytdStoreMetrics.target, deviation: ytdStoreMetrics.deviation } : undefined
                         };
@@ -690,16 +660,8 @@ export const WriteOffsReportView = () => {
                         </th>
                         <th rowSpan={2}>{t('columns.writeOffs.targetPercent')}</th>
                         <th rowSpan={2}>{t('columns.writeOffs.deviation')}</th>
-                        {viewMode === 'weekly' && <th colSpan={3} class={styles['ytd-separator']}>YTD</th>}
                         <th rowSpan={2}>{t('columns.writeOffs.regionManagerStore')}</th>
                     </tr>
-                    {viewMode === 'weekly' && (
-                        <tr>
-                            <th class={styles['ytd-separator']}>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
-                            <th>{t('columns.writeOffs.targetPercent')}</th>
-                            <th>{t('columns.writeOffs.deviation')}</th>
-                        </tr>
-                    )}
                 </thead>
                 <tbody>
                     <HierarchyRowComponent row={reportData} expandedRows={expandedRows} onToggle={handleToggleRow} viewMode={viewMode}/>
