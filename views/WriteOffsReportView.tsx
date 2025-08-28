@@ -323,7 +323,7 @@ export const WriteOffsReportView = () => {
             if (storeActuals.length === 0) continue;
             
             const metrics = createEmptyMetrics();
-            const getMetric = (matcher: (name: string) => boolean) => storeActuals.reduce((sum, a) => matcher(a.metricName) ? sum + a.value : sum, 0);
+            const getMetric = (matcher: (name: string) => boolean) => storeActuals.find(a => matcher(a.metricName))?.value ?? 0;
             
             metrics.turnover = getMetric(METRIC_NAME_MATCHERS.TURNOVER);
             if (metrics.turnover === 0 && isMain) continue;
@@ -467,10 +467,10 @@ export const WriteOffsReportView = () => {
     
     const allRow: ReportRow = { id: 'all', name: 'All', level: 0, children: [], metrics: createEmptyMetrics(), storeCount: 0, summedMetrics: createEmptyMetrics() };
     allRow.children = buildRows(hierarchy, 1, 'all');
-    const { metrics, storeCount, ytdMetrics } = aggregateHierarchyNode(allRow.children, 0);
-    allRow.metrics = metrics;
-    allRow.storeCount = storeCount;
-    allRow.ytdMetrics = ytdMetrics;
+    const aggregation = aggregateHierarchyNode(allRow.children, 0);
+    allRow.metrics = aggregation.metrics;
+    allRow.storeCount = aggregation.storeCount;
+    allRow.ytdMetrics = aggregation.ytdMetrics;
 
     return allRow;
 
