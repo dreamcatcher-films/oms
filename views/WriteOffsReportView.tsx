@@ -1,377 +1,545 @@
-import * as XLSX from 'xlsx';
-import { Product, GoodsReceipt, OpenOrder, Sale, ShcDataRow, PlanogramRow, OrgStructureRow, CategoryRelationRow, WriteOffsActual } from '../db';
-import { ShcDataType } from './types';
+import { useState, useEffect, useMemo, useCallback } from 'preact/hooks';
+import { useTranslation } from '../i18n';
+import { 
+    WriteOffsActual, WriteOffsTarget, OrgStructureRow, 
+    ReportRow, WriteOffsMetrics, RDC, DirectorOfOperations
+} from '../utils/types';
+import { 
+    getAllWriteOffsWeekly, getAllWriteOffsYTD, 
+    getAllWriteOffsTargets, getAllOrgStructureData,
+    loadRdcList, loadDooList
+} from '../db';
+import styles from './WriteOffsReportView.module.css';
+import sharedStyles from '../styles/shared.module.css';
 
-export const parseDateToObj = (dateStr: string | undefined): Date | null => {
-    if (!dateStr) return null;
-    const parts = dateStr.split('/');
-    if (parts.length !== 3) return null;
-    const [day, month, year] = parts.map(Number);
-    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-    return new Date(year, month - 1, day);
-};
-  
-export const parseDateToSortableFormat = (dateStr: string | undefined): string => {
-  if (!dateStr) return '00000000';
-  const parts = dateStr.match(/(\d+)/g);
-  if (!parts || parts.length < 3) return '00000000';
-  let [day, month, year] = parts;
-  if (day.length === 4) { // Handle YYYY/DD/MM
-      [year, day, month] = parts;
-  } else if (month.length === 4) { // Handle MM/YYYY/DD
-      [month, year, day] = parts;
-  } // Assume DD/MM/YYYY otherwise
-  
-  const fullYear = year.length === 2 ? `20${year}` : year;
-  return `${fullYear.padStart(4, '0')}${month.padStart(2, '0')}${day.padStart(2, '0')}`;
+const METRIC_NAME_MATCHERS = {
+    TURNOVER: (name: string) => name.includes('Net Turnover'),
+    WRITE_OFFS_VALUE: (name: string) => name.includes('Write Offs Store (value)'),
+    WRITE_OFFS_PERCENT: (name: string) => name.includes('Store write offs (%)'),
+    WRITE_OFFS_TOTAL_VALUE: (name: string) => name.includes('Write Offs Total (value)'),
+    WRITE_OFFS_TOTAL_PERCENT: (name: string) => name.includes('Write Offs Total (%)'),
+    DISCOUNTS_VALUE: (name: string) => name.includes('Discounts (value)'),
+    DISCOUNTS_PERCENT: (name: string) => name.includes('Discounts (%)'),
+    DAMAGES_VALUE: (name: string) => name.includes('Damages Store (value)'),
+    DAMAGES_PERCENT: (name: string) => name.includes('Damages Store (%)'),
 };
 
-export const productRowMapper = (row: { [key: string]: string }): Product => {
-    const parseNum = (val: string | undefined) => {
-        if (val === undefined) return 0;
-        const num = parseFloat(val);
-        return isNaN(num) ? 0 : num;
-    };
-
-    const estimatedReceivings: { date: string, quantity: number }[] = [];
-    const dateRegex = /^\d{1,2}\.\d{1,2}\.\d{2,4}$/;
-    for (const key in row) {
-        if (dateRegex.test(key.trim())) {
-            const quantity = parseNum(row[key]);
-            if (quantity > 0) {
-                estimatedReceivings.push({ date: key.trim(), quantity });
-            }
-        }
-    }
-    
-    const rawProductId = row['ITEM NR SHORT']?.trim() ?? '';
-    let processedProductId = rawProductId;
-    if (/^\d+$/.test(rawProductId)) {
-        processedProductId = String(parseInt(rawProductId, 10));
-    }
-
-    return {
-        warehouseId: row['WH NR']?.trim() ?? '',
-        productId: processedProductId,
-        productId_lower: processedProductId.toLowerCase(),
-        fullProductId: row['ITEM NR FULL']?.trim() ?? '',
-        name: row['ITEM DESC']?.trim() ?? '',
-        caseSize: parseNum(row['CASE SIZE']),
-        shelfLifeAtReceiving: parseNum(row['W-DATE DAYS']),
-        shelfLifeAtStore: parseNum(row['S-DATE DAYS']),
-        customerShelfLife: parseNum(row['C-DATE DAYS']),
-        price: parseNum(row['RETAIL PRICE']),
-        status: row['ITEM STATUS']?.trim() ?? '',
-        promoDate: row['ADV DATE']?.trim() ?? '',
-        supplierId: row['SUPPLIER NR']?.trim() ?? '',
-        supplierName: row['SUPPLIER NAME']?.trim() ?? '',
-        stockOnHand: parseNum(row['STOCK ON HAND']),
-        storeAllocationToday: parseNum(row['STORE ALLOC C']),
-        storeAllocationTotal: parseNum(row['STORE ALLOC C <']),
-        estimatedReceivings: estimatedReceivings,
-        dispoGroup: row['DISPO GROUP']?.trim() ?? '',
-        itemGroup: row['ITEM GROUP']?.trim() ?? '',
-        orderArea: row['ORDER AREA']?.trim() ?? '',
-        cartonsPerLayer: parseNum(row['LAYER FACTOR']),
-        duessFactor: parseNum(row['DUESS FACTOR']),
-        cartonsPerPallet: parseNum(row['EURO FACTOR']),
-        itemLocked: row['ITEM LOCKED']?.trim() ?? '',
-        slotNr: row['SLOT NR']?.trim() ?? '',
-        unprocessedDeliveryQty: parseNum(row['UNPROC DEL QTY']),
-    };
-};
-  
-export const goodsReceiptRowMapper = (row: { [key: string]: string }): GoodsReceipt => {
-  const parseNum = (val: string | undefined) => {
-      if (val === undefined) return 0;
-      const num = parseFloat(val);
-      return isNaN(num) ? 0 : num;
-  };
-  
-  const fullProductId = row['ITEM NR']?.trim() ?? '';
-  let productId = '';
-  if (fullProductId && fullProductId.length > 4) {
-      const productIdWithoutLast4 = fullProductId.slice(0, -4);
-      if (/^\d+$/.test(productIdWithoutLast4)) {
-          productId = String(parseInt(productIdWithoutLast4, 10));
-      } else {
-          productId = productIdWithoutLast4;
-      }
-  }
-  
-  const deliveryDate = row['DELIVERY DATE']?.trim() ?? '';
-  const bestBeforeDate = row['BEST BEFORE DATE']?.trim() ?? '';
-
-  return {
-      warehouseId: row['WH NR']?.trim() ?? '',
-      fullProductId: fullProductId,
-      deliveryNote: row['DELIVERY NOTE']?.trim() ?? '',
-      productId: productId,
-      name: row['ITEM DESC']?.trim() ?? '',
-      deliveryUnit: row['DELIVERY UNIT OF MEASURE (CASES)']?.trim() ?? '',
-      deliveryQtyUom: parseNum(row['DELIVERY QTY (in UOM)']),
-      caseSize: parseNum(row['CASE SIZE']),
-      deliveryQtyPcs: parseNum(row['DELIVERY QTY (in PIECES)']),
-      poNr: row['PO NR']?.trim() ?? '',
-      deliveryDate,
-      bestBeforeDate,
-      bolNr: row['BOL NR']?.trim() ?? '',
-      supplierId: row['SUPPLIER NR']?.trim() ?? '',
-      supplierName: row['SUPPLIER DESC']?.trim() ?? '',
-      intSupplierNr: row['INT SUPPLIER NR']?.trim() ?? '',
-      intItemNr: row['INT ITEM NR']?.trim() ?? '',
-      caseGtin: row['CASE GTIN']?.trim() ?? '',
-      liaReference: row['LIA REFERENCE']?.trim() ?? '',
-      deliveryDateSortable: parseDateToSortableFormat(deliveryDate),
-      bestBeforeDateSortable: parseDateToSortableFormat(bestBeforeDate),
-  };
+type SortConfig = {
+    key: 'turnover' | 'writeOffsTotalPercent';
+    direction: 'asc' | 'desc';
 };
 
-export const openOrderRowMapper = (row: { [key: string]: string }): OpenOrder => {
-  const parseNum = (val: string | undefined) => {
-      if (val === undefined) return 0;
-      const num = parseFloat(val);
-      return isNaN(num) ? 0 : num;
-  };
-
-  const fullProductId = row['ITEM NR']?.trim() ?? '';
-  let productId = '';
-  if (fullProductId && fullProductId.length > 4) {
-      const productIdWithoutLast4 = fullProductId.slice(0, -4);
-      if (/^\d+$/.test(productIdWithoutLast4)) {
-          productId = String(parseInt(productIdWithoutLast4, 10));
-      } else {
-          productId = productIdWithoutLast4;
-      }
-  }
-
-  const deliveryDateStr = row['DELIVERY DATE']?.trim();
-  const creationDateStr = row['CREATION DATE']?.trim();
-  
-  const deliveryDate = parseDateToObj(deliveryDateStr);
-  const creationDate = parseDateToObj(creationDateStr);
-  
-  let deliveryLeadTime = -1;
-  if (deliveryDate && creationDate) {
-      const timeDiff = deliveryDate.getTime() - creationDate.getTime();
-      deliveryLeadTime = Math.ceil(timeDiff / (1000 * 3600 * 24));
-  }
-
-  return {
-      warehouseId: row['WH NR']?.trim() ?? '',
-      fullProductId,
-      poNr: row['PO NR']?.trim() ?? '',
-      productId: productId,
-      name: row['ITEM DESC']?.trim() ?? '',
-      orderUnit: row['ORDER UNIT OF MEASURE (CASES)']?.trim() ?? '',
-      orderQtyUom: parseNum(row['ORDER QTY (in UOM)']),
-      caseSize: parseNum(row['CASE SIZE']),
-      orderQtyPcs: parseNum(row['ORDER QTY (in PIECES)']),
-      supplierId: row['SUPPLIER NR']?.trim() ?? '',
-      supplierName: row['SUPPLIER DESC']?.trim() ?? '',
-      deliveryDate: deliveryDateStr ?? '',
-      creationDate: creationDateStr ?? '',
-      deliveryLeadTime,
-      deliveryDateSortable: parseDateToSortableFormat(deliveryDateStr)
-  };
-};
-  
-export const saleRowMapper = (row: string[]): Sale | null => {
-    if (row.length < 5) return null;
-    
-    const resaleDate = row[0]?.trim() ?? '';
-    const warehouseId = row[1]?.trim() ?? '';
-    // row[2] is warehouse name, we skip it
-    const productId = row[3]?.trim() ?? '';
-    const productName = row[4]?.trim() ?? '';
-    
-    // Handle cases where quantity is split into multiple columns
-    const quantityRaw = row.slice(5).join('').replace(/"/g, '').replace(/,/g, '').trim();
-
-    const quantity = parseFloat(quantityRaw);
-
-    if (!resaleDate || !warehouseId || !productId || !productName || isNaN(quantity)) {
-        return null;
-    }
-
-    return {
-        resaleDate,
-        warehouseId,
-        productId,
-        productName,
-        quantity,
-        resaleDateSortable: parseDateToSortableFormat(resaleDate),
-    };
-};
-
-export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null => {
-    // Handles CSV with no headers and potentially empty columns, based on fixed positions.
-    if (row.length < 7) {
-        return null;
-    }
-
-    const metricRaw = row[0]?.trim() || '';
-    const period = row[1]?.trim() || '';
-    const storeNumber = row[2]?.trim() || '';
-    const storeName = row[3]?.trim() || '';
-    const itemGroupNumber = row[4]?.trim() || '';
-    const itemGroupName = row[5]?.trim() || '';
-    const valueRaw = row[6]?.trim().replace(/,/g, '') || ''; // Remove thousand separators
-    
-    let value = parseFloat(valueRaw);
-
-    // A valid data row must have a metric, a store number, a group number, and a valid numeric value.
-    if (!metricRaw || !storeNumber || !itemGroupNumber || isNaN(value)) {
-        return null;
-    }
-
-    const metricParts = metricRaw.split('|');
-    const metricName = metricParts[0]?.trim() || 'Unknown Metric';
-    const metricIdMatch = metricRaw.match(/\(([^)]+)\)/);
-    const metricId = metricIdMatch ? metricIdMatch[1] : `unknown-${Date.now()}`;
-
-    // Make ID more unique to avoid collisions in the DB.
-    const id = `${storeNumber}-${itemGroupNumber}-${metricId}-${period}-${metricName.replace(/\s/g, '')}`;
-
-    if (metricName.includes('(%)')) {
-        value /= 100;
-    }
-
-    return {
-        id,
-        metricName,
-        metricId,
-        period,
-        storeNumber,
-        storeName,
-        itemGroupNumber,
-        itemGroupName,
-        value,
-    };
-};
-
-
-// --- SHC vs Planogram Parsers ---
-
-const normalizeNumericString = (numStr: string | undefined): string => {
-    if (!numStr) return '';
-    const trimmed = numStr.trim();
-    if (/^\d+$/.test(trimmed)) {
-        return String(parseInt(trimmed, 10));
-    }
-    return trimmed;
-};
-
-export const shcRowMapper = (row: string[]): ShcDataRow => ({
-    storeNumber: normalizeNumericString(row[0]),
-    itemNumber: normalizeNumericString(row[2]),
-    itemDescription: row[3]?.trim() || '',
-    piecesInBox: parseInt(row[4], 10) || 0,
-    itemStatus: row[5]?.trim() || '',
-    itemGroup: row[9]?.trim() || '',
-    shelfCapacity: parseInt(row[19], 10) || 0,
-    shelfCapacityUnit: row[21]?.trim() || '',
+const createEmptyMetrics = (): WriteOffsMetrics => ({
+    turnover: 0,
+    writeOffsValue: 0,
+    writeOffsPercent: 0,
+    writeOffsTotalValue: 0,
+    writeOffsTotalPercent: 0,
+    discountsValue: 0,
+    discountsPercent: 0,
+    damagesValue: 0,
+    damagesPercent: 0,
+    target: null,
+    deviation: null,
 });
 
-export const parsePlanogramFileContents = (rows: any[][]): PlanogramRow[] => {
-    const data: PlanogramRow[] = [];
-    let lastSectionDescX23 = '';
-    let lastSectionDescX24 = '';
-    let lastSectionDescX25 = '';
+const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
+const formatValue = (value: number) => `£${Math.round(value).toLocaleString('en-GB')}`;
 
-    const startIndex = rows[0]?.[0]?.toString().toLowerCase().includes('section') ? 1 : 0;
+const DataBarCell = ({ value, maxValue, formatter, barClass }: { value: number; maxValue: number; formatter: (v: number) => string; barClass: string; }) => {
+    const widthPercent = maxValue > 0 ? (Math.abs(value) / maxValue) * 100 : 0;
+    return (
+        <td class={styles['data-bar-cell']}>
+            <div class={styles['data-bar-container']}>
+                <div class={`${styles['data-bar']} ${barClass}`} style={{ width: `${widthPercent}%` }}></div>
+                <span>{formatter(value)}</span>
+            </div>
+        </td>
+    );
+};
 
-    for (let i = startIndex; i < rows.length; i++) {
-        const row = rows[i].map(cell => String(cell ?? '')); // Ensure all cells are strings
-        const currentSectionDescX23 = row[2]?.trim() || lastSectionDescX23;
-        const currentSectionDescX24 = row[3]?.trim() || lastSectionDescX24;
-        const currentSectionDescX25 = row[4]?.trim() || lastSectionDescX25;
+const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, expandedRows: Set<string>, onToggle: (id: string) => void }) => {
+    const isExpanded = expandedRows.has(row.id);
+    const hasChildren = row.children.length > 0;
+    
+    const deviationClass = row.metrics.deviation === null ? '' :
+        row.metrics.deviation > 0 ? styles['deviation-positive'] : styles['deviation-negative'];
+    
+    const rowClass = styles[`row-level-${row.level}`];
+
+    return (
+        <>
+            <tr class={`${rowClass} ${hasChildren ? styles.clickable : ''}`} onClick={() => hasChildren && onToggle(row.id)}>
+                <td class={styles['indent-cell']} style={{ paddingLeft: `${row.level * 1.5 + 0.5}rem` }}>
+                    {hasChildren && <span class={`${styles['toggle-icon']} ${isExpanded ? styles.expanded : ''}`}>▶</span>}
+                    {row.name}
+                    {row.level < 5 && <span class={styles.storeCount}>( {row.storeCount} )</span>}
+                </td>
+                 <DataBarCell
+                    value={row.metrics.turnover}
+                    maxValue={row.maxValuesInScope?.turnover ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['value-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.writeOffsValue}
+                    maxValue={row.maxValuesInScope?.writeOffsValue ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['value-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.writeOffsPercent}
+                    maxValue={row.maxValuesInScope?.writeOffsPercent ?? 0}
+                    formatter={formatPercent}
+                    barClass={styles['percent-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.writeOffsTotalValue}
+                    maxValue={row.maxValuesInScope?.writeOffsTotalValue ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['value-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.writeOffsTotalPercent}
+                    maxValue={row.maxValuesInScope?.writeOffsTotalPercent ?? 0}
+                    formatter={formatPercent}
+                    barClass={styles['percent-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.discountsValue}
+                    maxValue={row.maxValuesInScope?.discountsValue ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['value-bar']}
+                />
+                 <DataBarCell
+                    value={row.metrics.discountsPercent}
+                    maxValue={row.maxValuesInScope?.discountsPercent ?? 0}
+                    formatter={formatPercent}
+                    barClass={styles['percent-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.damagesValue}
+                    maxValue={row.maxValuesInScope?.damagesValue ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['value-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.damagesPercent}
+                    maxValue={row.maxValuesInScope?.damagesPercent ?? 0}
+                    formatter={formatPercent}
+                    barClass={styles['percent-bar']}
+                />
+                <td style={{textAlign: 'center'}}>{row.metrics.target !== null ? formatPercent(row.metrics.target) : '-'}</td>
+                <td class={deviationClass} style={{textAlign: 'center'}}>
+                    {row.metrics.deviation !== null ? `${(row.metrics.deviation * 100).toFixed(2)} p.p.` : '-'}
+                </td>
+            </tr>
+            {isExpanded && row.children.map(child => (
+                <ReportRowComponent key={child.id} row={child} expandedRows={expandedRows} onToggle={onToggle} />
+            ))}
+        </>
+    );
+};
+
+export const WriteOffsReportView = () => {
+  const { t } = useTranslation();
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [weeklyActuals, setWeeklyActuals] = useState<WriteOffsActual[]>([]);
+  const [ytdActuals, setYtdActuals] = useState<WriteOffsActual[]>([]);
+  const [targets, setTargets] = useState<WriteOffsTarget[]>([]);
+  const [orgStructure, setOrgStructure] = useState<OrgStructureRow[]>([]);
+  const [rdcList, setRdcList] = useState<RDC[]>([]);
+  const [dooList, setDooList] = useState<DirectorOfOperations[]>([]);
+
+  const [viewMode, setViewMode] = useState<'weekly' | 'ytd'>('weekly');
+  const [selectedGroup, setSelectedGroup] = useState('all');
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [availableGroups, setAvailableGroups] = useState<string[]>([]);
+  const [availableWeeks, setAvailableWeeks] = useState<string[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState<string>('');
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const [weekly, ytd, targetsData, org, rdcs, doos] = await Promise.all([
+                getAllWriteOffsWeekly(),
+                getAllWriteOffsYTD(),
+                getAllWriteOffsTargets(),
+                getAllOrgStructureData(),
+                loadRdcList(),
+                loadDooList(),
+            ]);
+            setWeeklyActuals(weekly);
+            setYtdActuals(ytd);
+            setTargets(targetsData);
+            setOrgStructure(org);
+            setRdcList(rdcs);
+            setDooList(doos || []);
+            
+            const allActuals = [...weekly, ...ytd];
+            const groups = [...new Set(allActuals.map(a => `${a.itemGroupNumber} - ${a.itemGroupName}`))];
+            setAvailableGroups(groups.sort());
+
+            const weeks = [...new Set(weekly.map(a => a.period))].sort((a,b) => b.localeCompare(a));
+            setAvailableWeeks(weeks);
+            if (weeks.length > 0) {
+                setSelectedWeek(weeks[0]);
+            }
+
+        } catch (error) {
+            console.error("Failed to fetch data for Write-Offs Report", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchData();
+  }, []);
+  
+  const reportData = useMemo<ReportRow | null>(() => {
+    if (isLoading || orgStructure.length === 0) return null;
+
+    const rdcNameMap = new Map(rdcList.map(rdc => [rdc.id, rdc.name]));
+    let actuals = viewMode === 'weekly' ? weeklyActuals : ytdActuals;
+
+    if (viewMode === 'weekly' && selectedWeek) {
+        actuals = actuals.filter(a => a.period === selectedWeek);
+    }
+    
+    const filteredActuals = actuals.filter(a => 
+        (selectedGroup === 'all' || `${a.itemGroupNumber} - ${a.itemGroupName}` === selectedGroup)
+    );
+    
+    const actualsByStore = new Map<string, WriteOffsActual[]>();
+    for (const actual of filteredActuals) {
+        if (!actualsByStore.has(actual.storeNumber)) {
+            actualsByStore.set(actual.storeNumber, []);
+        }
+        actualsByStore.get(actual.storeNumber)!.push(actual);
+    }
+    
+    const targetsByStoreAndGroup = new Map<string, WriteOffsTarget>();
+    for (const target of targets) {
+        targetsByStoreAndGroup.set(`${target.storeNumber}-${target.itemGroupNumber}`, target);
+    }
+    
+    const getMetric = (storeActuals: WriteOffsActual[], matcher: (name: string) => boolean): number => {
+        return storeActuals.find(a => matcher(a.metricName))?.value || 0;
+    };
+    
+    const aggregateHierarchyNode = (rows: ReportRow[], level: number): { metrics: WriteOffsMetrics, summedMetrics: WriteOffsMetrics, storeCount: number } => {
+        const summedMetrics = createEmptyMetrics();
+        let totalWeightedPercent = 0;
+        let totalWeightedTotalPercent = 0;
+        let totalWeightedTarget = 0;
+        let totalTurnoverForTarget = 0;
+        let storeCount = 0;
+
+        for (const row of rows) {
+            summedMetrics.turnover += row.summedMetrics.turnover;
+            summedMetrics.writeOffsValue += row.summedMetrics.writeOffsValue;
+            summedMetrics.writeOffsTotalValue += row.summedMetrics.writeOffsTotalValue;
+            summedMetrics.discountsValue += row.summedMetrics.discountsValue;
+            summedMetrics.damagesValue += row.summedMetrics.damagesValue;
+            storeCount += row.storeCount;
+            if (row.summedMetrics.turnover > 0) {
+                totalWeightedPercent += row.metrics.writeOffsPercent * row.summedMetrics.turnover;
+                totalWeightedTotalPercent += row.metrics.writeOffsTotalPercent * row.summedMetrics.turnover;
+                if (row.metrics.target !== null) {
+                    totalWeightedTarget += row.metrics.target * row.summedMetrics.turnover;
+                    totalTurnoverForTarget += row.summedMetrics.turnover;
+                }
+            }
+        }
         
-        if (row[5]?.trim()) {
-            data.push({
-                generalStoreArea: currentSectionDescX23,
-                settingSpecificallyFor: currentSectionDescX24,
-                settingWidth: currentSectionDescX25,
-                itemNumber: normalizeNumericString(row[5]),
-                itemName: row[6]?.trim(),
-                targetShc: parseInt(row[7], 10) || 0,
-                facings: parseInt(row[8], 10) || 0,
-                depth: parseInt(row[9], 10) || 0,
-            });
+        const finalMetrics = { ...summedMetrics };
+        
+        // Average value metrics for all manager levels
+        if ((level >= 1 && level <= 4) && storeCount > 0) { 
+            finalMetrics.turnover /= storeCount;
+            finalMetrics.writeOffsValue /= storeCount;
+            finalMetrics.writeOffsTotalValue /= storeCount;
+            finalMetrics.discountsValue /= storeCount;
+            finalMetrics.damagesValue /= storeCount;
         }
 
-        lastSectionDescX23 = currentSectionDescX23;
-        lastSectionDescX24 = currentSectionDescX24;
-        lastSectionDescX25 = currentSectionDescX25;
-    }
-    return data;
-};
+        finalMetrics.writeOffsPercent = summedMetrics.turnover > 0 ? totalWeightedPercent / summedMetrics.turnover : 0;
+        finalMetrics.writeOffsTotalPercent = summedMetrics.turnover > 0 ? totalWeightedTotalPercent / summedMetrics.turnover : 0;
+        finalMetrics.discountsPercent = summedMetrics.turnover > 0 ? summedMetrics.discountsValue / summedMetrics.turnover : 0;
+        finalMetrics.damagesPercent = summedMetrics.turnover > 0 ? summedMetrics.damagesValue / summedMetrics.turnover : 0;
+        
+        finalMetrics.target = totalTurnoverForTarget > 0 ? totalWeightedTarget / totalTurnoverForTarget : null;
 
-export const orgStructureRowMapper = (row: string[]): OrgStructureRow => ({
-    storeNumber: normalizeNumericString(row[0]),
-    storeName: row[1]?.trim() || '',
-    warehouseId: row[3]?.trim().substring(0, 3) || '',
-    areaManager: row[12]?.trim() || '',
-    headOfSales: row[13]?.trim() || '',
-});
+        if (finalMetrics.target !== null) {
+            finalMetrics.deviation = finalMetrics.writeOffsTotalPercent - finalMetrics.target;
+        }
 
-export const categoryRelationRowMapper = (row: { [key: string]: string }): CategoryRelationRow => {
-    const storeName = row['StoreName']?.trim() || '';
-    const storeNumberMatch = storeName.match(/(\d{4})$/);
-    const storeNumber = storeNumberMatch ? String(parseInt(storeNumberMatch[1], 10)) : '';
-
-    return {
-        generalStoreArea: row['CategoryHierarchy03']?.trim() || '',
-        settingSpecificallyFor: row['CategoryHierarchy04']?.trim() || '',
-        settingWidth: row['CategoryHierarchy05']?.trim() || '',
-        storeNumber,
+        return { metrics: finalMetrics, summedMetrics, storeCount };
     };
-};
 
-export const parseShcFile = (dataType: ShcDataType, buffer: ArrayBuffer): any[] => {
-    const workbook = XLSX.read(buffer, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
+    const hierarchy = new Map<string, { rdc: Map<string, { hoss: Map<string, { ams: Map<string, OrgStructureRow[]> }> } > }>();
+    const rdcToDooMap = new Map<string, string>();
+    dooList.forEach(doo => {
+        doo.rdcIds.forEach(rdcId => rdcToDooMap.set(rdcId, doo.directorName));
+    });
 
-    if (dataType === 'categoryRelation') {
-        const data = XLSX.utils.sheet_to_json(sheet) as { [key: string]: any }[];
-        const stringifiedData = data.map(rowObject => {
-            const newObj: { [key: string]: string } = {};
-            for (const key in rowObject) {
-                newObj[key] = String(rowObject[key] ?? '');
+    for (const store of orgStructure) {
+        const dooName = rdcToDooMap.get(store.warehouseId) || 'Unassigned';
+        if (!hierarchy.has(dooName)) hierarchy.set(dooName, { rdc: new Map() });
+        const doo = hierarchy.get(dooName)!;
+        
+        if (!doo.rdc.has(store.warehouseId)) doo.rdc.set(store.warehouseId, { hoss: new Map() });
+        const rdc = doo.rdc.get(store.warehouseId)!;
+
+        if (!rdc.hoss.has(store.headOfSales)) rdc.hoss.set(store.headOfSales, { ams: new Map() });
+        const hos = rdc.hoss.get(store.headOfSales)!;
+
+        if (!hos.ams.has(store.areaManager)) hos.ams.set(store.areaManager, []);
+        hos.ams.get(store.areaManager)!.push(store);
+    }
+    
+    const allRow: ReportRow = { id: 'all', name: 'All', level: 0, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+    const sortedDoos = Array.from(hierarchy.keys()).sort();
+
+    for (const dooName of sortedDoos) {
+        const { rdc: rdcMap } = hierarchy.get(dooName)!;
+        const dooRow: ReportRow = { id: `doo-${dooName}`, name: dooName, level: 1, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+        
+        const sortedRdcs = Array.from(rdcMap.keys()).sort();
+        for (const rdcId of sortedRdcs) {
+            const { hoss } = rdcMap.get(rdcId)!;
+            const rdcName = rdcNameMap.get(rdcId) || rdcId;
+            const rdcRow: ReportRow = { id: `rdc-${rdcId}`, name: `${rdcName} - ${rdcId}`, level: 2, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+
+            const sortedHoss = Array.from(hoss.keys()).sort();
+            for (const hosName of sortedHoss) {
+                const { ams } = hoss.get(hosName)!;
+                const hosRow: ReportRow = { id: `${rdcId}-${hosName}`, name: hosName, level: 3, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+                
+                const sortedAms = Array.from(ams.keys()).sort();
+                for (const amName of sortedAms) {
+                    const stores = ams.get(amName)!;
+                    const amRow: ReportRow = { id: `${rdcId}-${hosName}-${amName}`, name: amName, level: 4, metrics: createEmptyMetrics(), children: [], storeCount: 0, summedMetrics: createEmptyMetrics() };
+                    
+                    for (const store of stores) {
+                        const storeActuals = actualsByStore.get(store.storeNumber) || [];
+                        if (storeActuals.length === 0) continue;
+
+                        const storeMetrics = createEmptyMetrics();
+                        storeMetrics.turnover = getMetric(storeActuals, METRIC_NAME_MATCHERS.TURNOVER);
+                        storeMetrics.writeOffsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_VALUE);
+                        storeMetrics.writeOffsPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_PERCENT);
+                        storeMetrics.writeOffsTotalValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_VALUE);
+                        storeMetrics.writeOffsTotalPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_PERCENT);
+                        storeMetrics.discountsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_VALUE);
+                        storeMetrics.discountsPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_PERCENT);
+                        storeMetrics.damagesValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_VALUE);
+                        storeMetrics.damagesPercent = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_PERCENT);
+
+                        if (selectedGroup !== 'all') {
+                            const [groupNumber] = selectedGroup.split(' - ');
+                            const target = targetsByStoreAndGroup.get(`${store.storeNumber}-${groupNumber}`);
+                            if (target) {
+                                const targetValue = viewMode === 'weekly' ? target.monthlyTarget : target.yearlyTarget;
+                                if (targetValue !== undefined) {
+                                    storeMetrics.target = targetValue;
+                                    storeMetrics.deviation = storeMetrics.writeOffsTotalPercent - targetValue;
+                                }
+                            }
+                        }
+
+                        const storeRow: ReportRow = {
+                            id: `store-${store.storeNumber}`, name: `${store.storeNumber} - ${store.storeName}`, level: 5,
+                            metrics: storeMetrics, children: [], storeCount: 1, summedMetrics: storeMetrics,
+                        };
+                        amRow.children.push(storeRow);
+                    }
+                    if (amRow.children.length > 0) {
+                        const { metrics: amMetrics, summedMetrics: amSummedMetrics, storeCount: amStoreCount } = aggregateHierarchyNode(amRow.children, 4);
+                        amRow.metrics = amMetrics; amRow.summedMetrics = amSummedMetrics; amRow.storeCount = amStoreCount;
+                        hosRow.children.push(amRow);
+                    }
+                }
+                if (hosRow.children.length > 0) {
+                    const { metrics: hosMetrics, summedMetrics: hosSummedMetrics, storeCount: hosStoreCount } = aggregateHierarchyNode(hosRow.children, 3);
+                    hosRow.metrics = hosMetrics; hosRow.summedMetrics = hosSummedMetrics; hosRow.storeCount = hosStoreCount;
+                    rdcRow.children.push(hosRow);
+                }
             }
-            return newObj;
+            if (rdcRow.children.length > 0) {
+                const { metrics: rdcMetrics, summedMetrics: rdcSummedMetrics, storeCount: rdcStoreCount } = aggregateHierarchyNode(rdcRow.children, 2);
+                rdcRow.metrics = rdcMetrics; rdcRow.summedMetrics = rdcSummedMetrics; rdcRow.storeCount = rdcStoreCount;
+                dooRow.children.push(rdcRow);
+            }
+        }
+        if (dooRow.children.length > 0) {
+            const { metrics: dooMetrics, summedMetrics: dooSummedMetrics, storeCount: dooStoreCount } = aggregateHierarchyNode(dooRow.children, 1);
+            dooRow.metrics = dooMetrics; dooRow.summedMetrics = dooSummedMetrics; dooRow.storeCount = dooStoreCount;
+            allRow.children.push(dooRow);
+        }
+    }
+    const { metrics: allMetrics, summedMetrics: allSummedMetrics, storeCount: allStoreCount } = aggregateHierarchyNode(allRow.children, 0);
+    allRow.metrics = allMetrics;
+    allRow.summedMetrics = allSummedMetrics;
+    allRow.storeCount = allStoreCount;
+    
+    const sortChildren = (rows: ReportRow[]) => {
+        if (!sortConfig) return;
+        
+        rows.forEach(row => {
+            if (row.children.length > 0) {
+                if (row.level >= 2 && row.level <= 3) { // Sort AMs under HoS, and HoS under RDC
+                    row.children.sort((a, b) => {
+                        const valA = sortConfig.key === 'turnover' ? a.metrics.turnover : a.metrics.writeOffsTotalPercent;
+                        const valB = sortConfig.key === 'turnover' ? b.metrics.turnover : b.metrics.writeOffsTotalPercent;
+                        const direction = sortConfig.direction === 'asc' ? 1 : -1;
+                        if (sortConfig.key === 'turnover') return (valB - valA) * direction; // Always desc
+                        return (valA - valB) * direction; // Default asc
+                    });
+                }
+                sortChildren(row.children);
+            }
         });
-        return stringifiedData.map(categoryRelationRowMapper).filter(Boolean);
-    }
+    };
     
-    // For other types, parse as an array of arrays
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-    if (rows.length === 0) return [];
-    
-    // Ensure all cells are strings for consistent mapping
-    let stringRows = rows.map(row => row.map(cell => String(cell ?? '')));
-    
-    // Skip header row for non-planogram files
-    if (dataType !== 'planogram' && stringRows.length > 0) {
-        stringRows.shift();
-    }
+    sortChildren([allRow]);
 
-    switch(dataType) {
-        case 'shc':
-            // Pre-filter the raw string rows before mapping for performance.
-            const filteredRows = stringRows.filter(row => {
-                const itemStatus = row[5]?.trim(); // Column F (6th column) is Item Status
-                const shelfCapacityUnit = row[21]?.trim(); // Column V (22nd column) is Shelf capacity unit description
-                return itemStatus === '8' && shelfCapacityUnit === 'C';
-            });
-            return filteredRows.map(shcRowMapper).filter(Boolean);
-        case 'planogram':
-             // The original `parsePlanogramFileContents` function expects raw rows to handle header detection and fill-down logic
-            return parsePlanogramFileContents(rows);
-        case 'orgStructure':
-            return stringRows.map(orgStructureRowMapper).filter(Boolean);
-        default:
-            return [];
-    }
+    return allRow;
+
+  }, [isLoading, orgStructure, viewMode, weeklyActuals, ytdActuals, targets, selectedGroup, selectedWeek, sortConfig, rdcList, dooList]);
+
+  const handleToggleRow = useCallback((id: string) => {
+      setExpandedRows(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(id)) newSet.delete(id);
+          else newSet.add(id);
+          return newSet;
+      });
+  }, []);
+
+  const expandToLevel = (level: number) => {
+      if (!reportData) return;
+      const newExpanded = new Set<string>();
+      const traverse = (row: ReportRow) => {
+          if (row.level < level) {
+              newExpanded.add(row.id);
+              row.children.forEach(traverse);
+          }
+      };
+      traverse(reportData);
+      setExpandedRows(newExpanded);
+  };
+  
+  const handleSort = (key: 'turnover' | 'writeOffsTotalPercent') => {
+      setSortConfig(prev => {
+          const isCurrentKey = prev?.key === key;
+          const defaultDirection = key === 'turnover' ? 'desc' : 'asc';
+          const newDirection = isCurrentKey ? (prev.direction === 'asc' ? 'desc' : 'asc') : defaultDirection;
+          return { key, direction: newDirection };
+      });
+  };
+
+  const addMaxValuesToHierarchy = (node: ReportRow) => {
+      if (node.children.length > 0) {
+          const maxValues: ReportRow['maxValuesInScope'] = {
+              turnover: 0, writeOffsValue: 0, writeOffsTotalValue: 0, discountsValue: 0, damagesValue: 0,
+              writeOffsPercent: 0, writeOffsTotalPercent: 0, discountsPercent: 0, damagesPercent: 0,
+          };
+          for (const child of node.children) {
+              maxValues.turnover = Math.max(maxValues.turnover, Math.abs(child.metrics.turnover));
+              maxValues.writeOffsValue = Math.max(maxValues.writeOffsValue, Math.abs(child.metrics.writeOffsValue));
+              maxValues.writeOffsTotalValue = Math.max(maxValues.writeOffsTotalValue, Math.abs(child.metrics.writeOffsTotalValue));
+              maxValues.discountsValue = Math.max(maxValues.discountsValue, Math.abs(child.metrics.discountsValue));
+              maxValues.damagesValue = Math.max(maxValues.damagesValue, Math.abs(child.metrics.damagesValue));
+              maxValues.writeOffsPercent = Math.max(maxValues.writeOffsPercent, Math.abs(child.metrics.writeOffsPercent));
+              maxValues.writeOffsTotalPercent = Math.max(maxValues.writeOffsTotalPercent, Math.abs(child.metrics.writeOffsTotalPercent));
+              maxValues.discountsPercent = Math.max(maxValues.discountsPercent, Math.abs(child.metrics.discountsPercent));
+              maxValues.damagesPercent = Math.max(maxValues.damagesPercent, Math.abs(child.metrics.damagesPercent));
+          }
+          for (const child of node.children) {
+              child.maxValuesInScope = maxValues;
+              addMaxValuesToHierarchy(child);
+          }
+      }
+  };
+
+  if (reportData) {
+      addMaxValuesToHierarchy(reportData);
+  }
+
+  if (isLoading) {
+      return <div class={sharedStyles['spinner-overlay']}><div class={sharedStyles.spinner}></div></div>;
+  }
+  if (!reportData) {
+      return <div class={sharedStyles['placeholder-view']}><h3>{t('sidebar.writeOffsReport')}</h3><p>No data available to generate the report. Please import the required files.</p></div>;
+  }
+  
+  const getSortIcon = (key: 'turnover' | 'writeOffsTotalPercent') => {
+      if (sortConfig?.key !== key) return '↕';
+      return sortConfig.direction === 'asc' ? '↑' : '↓';
+  };
+
+  return (
+      <div class={styles['write-offs-report-view']}>
+          <div class={styles['controls-container']}>
+              <div class={styles['control-group']}>
+                  <div class={styles['view-toggle']}>
+                      <button class={viewMode === 'weekly' ? styles.active : ''} onClick={() => setViewMode('weekly')}>Weekly</button>
+                      <button class={viewMode === 'ytd' ? styles.active : ''} onClick={() => setViewMode('ytd')}>YTD</button>
+                  </div>
+                  {viewMode === 'weekly' && availableWeeks.length > 0 && (
+                      <>
+                          <label for="week-select">{t('writeOffsReport.chooseWeek')}:</label>
+                          <select id="week-select" value={selectedWeek} onChange={e => setSelectedWeek((e.target as HTMLSelectElement).value)}>
+                              {availableWeeks.map(week => <option key={week} value={week}>{week}</option>)}
+                          </select>
+                      </>
+                  )}
+                  <label for="group-select">Item Group:</label>
+                  <select id="group-select" value={selectedGroup} onChange={e => setSelectedGroup((e.target as HTMLSelectElement).value)}>
+                      <option value="all">All Groups</option>
+                      {availableGroups.map(group => <option key={group} value={group}>{group}</option>)}
+                  </select>
+              </div>
+               <div class={styles['actions-bar']}>
+                  <button onClick={() => expandToLevel(1)}>{t('writeOffsReport.expandToDoO')}</button>
+                  <button onClick={() => expandToLevel(2)}>{t('writeOffsReport.expandToRdc')}</button>
+                  <button onClick={() => expandToLevel(3)}>{t('writeOffsReport.expandToHos')}</button>
+                  <button onClick={() => expandToLevel(4)}>{t('writeOffsReport.expandToAm')}</button>
+                  <button onClick={() => setExpandedRows(new Set())}>{t('writeOffsReport.collapseAll')}</button>
+              </div>
+          </div>
+          <div class={sharedStyles['table-container']}>
+              <table class={styles['report-table']}>
+                  <thead>
+                      <tr>
+                          <th>{t('columns.writeOffs.regionManagerStore')}</th>
+                          <th class={styles.sortable} onClick={() => handleSort('turnover')}>
+                              {t('columns.writeOffs.turnover')}
+                              <span class={styles['sort-icon']}>{getSortIcon('turnover')}</span>
+                          </th>
+                          <th>{t('columns.writeOffs.writeOffsValue')}</th>
+                          <th>{t('columns.writeOffs.writeOffsPercent')}</th>
+                          <th>{t('columns.writeOffs.writeOffsTotalValue')}</th>
+                          <th class={styles.sortable} onClick={() => handleSort('writeOffsTotalPercent')}>
+                            {t('columns.writeOffs.writeOffsTotalPercent')}
+                            <span class={styles['sort-icon']}>{getSortIcon('writeOffsTotalPercent')}</span>
+                          </th>
+                          <th>{t('columns.writeOffs.discountsValue')}</th>
+                          <th>{t('columns.writeOffs.discountsPercent')}</th>
+                          <th>{t('columns.writeOffs.damagesValue')}</th>
+                          <th>{t('columns.writeOffs.damagesPercent')}</th>
+                          <th>{t('columns.writeOffs.targetPercent')}</th>
+                          <th>{t('columns.writeOffs.deviation')}</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      <ReportRowComponent row={reportData} expandedRows={expandedRows} onToggle={handleToggleRow} />
+                  </tbody>
+              </table>
+          </div>
+      </div>
+  );
 };
