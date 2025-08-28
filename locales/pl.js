@@ -571,7 +571,8 @@ export default {
     "expandToAm": "Rozwiń do Kier. Rejonu",
     "collapseAll": "Zwiń wszystko",
     "sortByTurnover": "Sortuj wg Obrotu",
-    "sortByDeviation": "Sortuj wg Odchylenia"
+    "sortByDeviation": "Sortuj wg Odchylenia",
+    "printReport": "Drukuj Raport"
   },
   "columns": {
     "product": {
