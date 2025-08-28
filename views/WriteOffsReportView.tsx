@@ -63,7 +63,7 @@ const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, e
     const hasChildren = row.children.length > 0;
     
     const deviationClass = row.metrics.deviation === null ? '' :
-        row.metrics.deviation > 0 ? styles['deviation-positive'] : styles['deviation-negative'];
+        row.metrics.deviation > 0 ? styles['deviation-negative'] : styles['deviation-positive'];
     
     const rowClass = styles[`row-level-${row.level}`];
 
@@ -94,18 +94,6 @@ const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, e
                     barClass={styles['percent-bar']}
                 />
                 <DataBarCell
-                    value={row.metrics.writeOffsTotalValue}
-                    maxValue={row.maxValuesInScope?.writeOffsTotalValue ?? 0}
-                    formatter={formatValue}
-                    barClass={styles['value-bar']}
-                />
-                <DataBarCell
-                    value={row.metrics.writeOffsTotalPercent}
-                    maxValue={row.maxValuesInScope?.writeOffsTotalPercent ?? 0}
-                    formatter={formatPercent}
-                    barClass={styles['percent-bar']}
-                />
-                <DataBarCell
                     value={row.metrics.discountsValue}
                     maxValue={row.maxValuesInScope?.discountsValue ?? 0}
                     formatter={formatValue}
@@ -126,6 +114,18 @@ const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, e
                 <DataBarCell
                     value={row.metrics.damagesPercent}
                     maxValue={row.maxValuesInScope?.damagesPercent ?? 0}
+                    formatter={formatPercent}
+                    barClass={styles['percent-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.writeOffsTotalValue}
+                    maxValue={row.maxValuesInScope?.writeOffsTotalValue ?? 0}
+                    formatter={formatValue}
+                    barClass={styles['value-bar']}
+                />
+                <DataBarCell
+                    value={row.metrics.writeOffsTotalPercent}
+                    maxValue={row.maxValuesInScope?.writeOffsTotalPercent ?? 0}
                     formatter={formatPercent}
                     barClass={styles['percent-bar']}
                 />
@@ -522,15 +522,15 @@ export const WriteOffsReportView = () => {
                           </th>
                           <th>{t('columns.writeOffs.writeOffsValue')}</th>
                           <th>{t('columns.writeOffs.writeOffsPercent')}</th>
+                          <th>{t('columns.writeOffs.discountsValue')}</th>
+                          <th>{t('columns.writeOffs.discountsPercent')}</th>
+                          <th>{t('columns.writeOffs.damagesValue')}</th>
+                          <th>{t('columns.writeOffs.damagesPercent')}</th>
                           <th>{t('columns.writeOffs.writeOffsTotalValue')}</th>
                           <th class={styles.sortable} onClick={() => handleSort('writeOffsTotalPercent')}>
                             {t('columns.writeOffs.writeOffsTotalPercent')}
                             <span class={styles['sort-icon']}>{getSortIcon('writeOffsTotalPercent')}</span>
                           </th>
-                          <th>{t('columns.writeOffs.discountsValue')}</th>
-                          <th>{t('columns.writeOffs.discountsPercent')}</th>
-                          <th>{t('columns.writeOffs.damagesValue')}</th>
-                          <th>{t('columns.writeOffs.damagesPercent')}</th>
                           <th>{t('columns.writeOffs.targetPercent')}</th>
                           <th>{t('columns.writeOffs.deviation')}</th>
                       </tr>
