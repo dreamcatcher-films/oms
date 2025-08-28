@@ -212,9 +212,15 @@ export const writeOffsActualRowMapper = (row: string[]): WriteOffsActual | null 
 
     const metricRaw = row[0]?.trim() || '';
     const period = row[1]?.trim() || '';
-    const storeNumber = row[2]?.trim() || '';
+
+    const storeNumberRaw = row[2]?.trim() || '';
+    const storeNumber = /^\d+$/.test(storeNumberRaw) ? String(parseInt(storeNumberRaw, 10)) : storeNumberRaw;
+
     const storeName = row[3]?.trim() || '';
-    const itemGroupNumber = row[4]?.trim() || '';
+
+    const itemGroupNumberRaw = row[4]?.trim() || '';
+    const itemGroupNumber = /^\d+$/.test(itemGroupNumberRaw) ? String(parseInt(itemGroupNumberRaw, 10)) : itemGroupNumberRaw;
+    
     const itemGroupName = row[5]?.trim() || '';
     const valueRaw = row[6]?.trim().replace(/,/g, '') || ''; // Remove thousand separators
     
