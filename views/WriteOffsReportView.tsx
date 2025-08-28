@@ -214,7 +214,7 @@ const RankingTable = ({ data, viewMode }: { data: RankingRow[], viewMode: 'weekl
                             <td class={styles['centered-cell']}>{formatValue(metrics.damagesValue)}</td>
                             <td class={styles['centered-cell']}>{formatPercent(metrics.damagesPercent)}</td>
                             <td class={styles['centered-cell']}>{formatValue(metrics.writeOffsTotalValue)}</td>
-                            <td class{styles['centered-cell']}>{formatPercent(metrics.writeOffsTotalPercent)}</td>
+                            <td class={styles['centered-cell']}>{formatPercent(metrics.writeOffsTotalPercent)}</td>
                             <td class={styles['centered-cell']}>{metrics.target !== null ? formatPercent(metrics.target) : '-'}</td>
                             <td class={`${deviationClass} ${styles['centered-cell']}`}>{formatDeviation(metrics.deviation)}</td>
                             {viewMode === 'weekly' && (
