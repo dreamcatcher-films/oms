@@ -177,6 +177,7 @@ const RankingTable = ({ data, viewMode }: { data: RankingRow[], viewMode: 'weekl
             <thead>
                 <tr>
                     <th rowSpan={2}>Rank</th>
+                    <th rowSpan={2} class={styles['left-aligned-cell']}>Store</th>
                     <th rowSpan={2}>AM</th>
                     <th rowSpan={2}>HoS</th>
                     <th rowSpan={2}>{t('columns.writeOffs.turnover')}</th>
@@ -190,12 +191,13 @@ const RankingTable = ({ data, viewMode }: { data: RankingRow[], viewMode: 'weekl
                     <th rowSpan={2}>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
                     <th rowSpan={2}>{t('columns.writeOffs.targetPercent')}</th>
                     <th rowSpan={2}>{t('columns.writeOffs.deviation')}</th>
-                    {viewMode === 'weekly' && <th colSpan={3} class={styles['ytd-separator']}>YTD</th>}
+                    {viewMode === 'weekly' && <th colSpan={4} class={styles['ytd-separator']}>YTD</th>}
                     <th rowSpan={2}>Store</th>
                 </tr>
                  {viewMode === 'weekly' && (
                     <tr>
-                        <th class={styles['ytd-separator']}>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
+                        <th class={styles['ytd-separator']}></th>
+                        <th>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
                         <th>{t('columns.writeOffs.targetPercent')}</th>
                         <th>{t('columns.writeOffs.deviation')}</th>
                     </tr>
@@ -212,6 +214,7 @@ const RankingTable = ({ data, viewMode }: { data: RankingRow[], viewMode: 'weekl
                     return (
                         <tr key={item.storeNumber}>
                             <td class={styles['centered-cell']}>{item.rank}</td>
+                            <td class={`${styles['left-aligned-cell']} ${styles['store-name-repeat']}`}>{item.storeNumber} - {item.storeName}</td>
                             <td class={styles['left-aligned-cell']}>{item.areaManager}</td>
                             <td class={styles['left-aligned-cell']}>{item.headOfSales}</td>
                             <td class={styles['centered-cell']}>{formatValue(metrics.turnover)}</td>
@@ -227,8 +230,7 @@ const RankingTable = ({ data, viewMode }: { data: RankingRow[], viewMode: 'weekl
                             <td class={`${deviationClass} ${styles['centered-cell']}`}>{formatDeviation(metrics.deviation)}</td>
                             {viewMode === 'weekly' && (
                                 <>
-                                    <td class={styles['ytd-separator']}></td>
-                                    <td class={styles['centered-cell']}>{ytdMetrics ? formatPercent(ytdMetrics.writeOffsTotalPercent) : '-'}</td>
+                                    <td class={`${styles['ytd-separator']} ${styles['centered-cell']}`}>{ytdMetrics ? formatPercent(ytdMetrics.writeOffsTotalPercent) : '-'}</td>
                                     <td class={styles['centered-cell']}>{ytdMetrics?.target !== null && ytdMetrics?.target !== undefined ? formatPercent(ytdMetrics.target) : '-'}</td>
                                     <td class={`${ytdDeviationClass} ${styles['centered-cell']}`}>{formatDeviation(ytdMetrics?.deviation ?? null)}</td>
                                 </>
@@ -509,9 +511,9 @@ export const WriteOffsReportView = () => {
 
     const mainTargetType: 'monthlyTarget' | 'yearlyTarget' = viewMode === 'weekly' ? 'monthlyTarget' : 'yearlyTarget';
     
-    const processDataSet = (dataset: { actuals: WriteOffsActual[]; targetType: 'monthlyTarget' | 'yearlyTarget' }) => {
+    const processDataSet = (dataset: { actuals: WriteOffsActual[]; targetType: 'monthlyTarget' | 'yearlyTarget' }, isYtdComparisonRun = false) => {
         let { actuals } = dataset;
-        if (viewMode === 'weekly' && selectedWeek) {
+        if (viewMode === 'weekly' && selectedWeek && !isYtdComparisonRun) {
             actuals = actuals.filter(a => a.period === selectedWeek);
         }
         const filteredActuals = actuals.filter(a => (selectedGroup === 'all' || `${a.itemGroupNumber} - ${a.itemGroupName}` === selectedGroup));
@@ -533,7 +535,7 @@ export const WriteOffsReportView = () => {
             const getMetric = (matcher: (name: string) => boolean): number => storeActuals.reduce((sum, a) => matcher(a.metricName) ? sum + a.value : sum, 0);
             
             metrics.turnover = getMetric(METRIC_NAME_MATCHERS.TURNOVER);
-            if (metrics.turnover === 0 && dataset.actuals === weeklyActuals) continue;
+            if (metrics.turnover === 0 && dataset.actuals === weeklyActuals && !isYtdComparisonRun) continue;
             
             metrics.writeOffsValue = getMetric(METRIC_NAME_MATCHERS.WRITE_OFFS_VALUE);
             metrics.writeOffsTotalValue = getMetric(METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_VALUE);
@@ -562,7 +564,7 @@ export const WriteOffsReportView = () => {
     };
     
     const mainMetricsByStore = processDataSet({ actuals: viewMode === 'weekly' ? weeklyActuals : ytdActuals, targetType: mainTargetType });
-    const ytdMetricsByStore = viewMode === 'weekly' ? processDataSet({ actuals: ytdActuals, targetType: 'yearlyTarget' }) : null;
+    const ytdMetricsByStore = viewMode === 'weekly' ? processDataSet({ actuals: ytdActuals, targetType: 'yearlyTarget' }, true) : null;
 
     const results: Omit<RankingRow, 'rank'>[] = [];
     const storesInRdc = orgStructure.filter(s => s.warehouseId === selectedRdc);
