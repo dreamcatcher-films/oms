@@ -5,6 +5,10 @@
   height: 100%;
 }
 
+.printable-area {
+  /* Class for print targeting */
+}
+
 .controls-container {
     display: flex;
     justify-content: space-between;
@@ -84,11 +88,11 @@
 .report-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.9rem;
+    font-size: 0.85rem; /* Compact font size */
 }
 
 .report-table th, .report-table td {
-    padding: 0.75rem;
+    padding: 0.5rem; /* Compact padding */
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -96,23 +100,40 @@
     background-color: #f8f9fa;
     position: sticky;
     top: 0;
-    z-index: 2; /* Header should be above data bars */
+    z-index: 2;
     text-align: center;
+    white-space: normal; /* Allow header wrapping */
+    vertical-align: middle;
 }
 
-.report-table th:first-child {
+.report-table th:first-child, .report-table td:first-child {
     text-align: left;
 }
-
-.report-table th.ranking-header {
+.report-table td {
     text-align: center;
 }
+
+.left-aligned-cell {
+    text-align: left !important;
+}
+
+.centered-cell {
+    text-align: center !important;
+}
+
+.store-name-cell {
+    min-width: 150px;
+}
+
+.ytd-separator {
+    border-left: 3px double #adb5bd;
+}
+
 .report-table th.ranking-header:nth-child(2),
 .report-table th.ranking-header:nth-child(3),
 .report-table th.ranking-header:nth-child(4) {
     text-align: left;
 }
-
 
 .report-table th.sortable {
     cursor: pointer;
@@ -151,7 +172,7 @@
     font-weight: bold;
 }
 
-.row-level-3 .storeCount { /* HoS Count Color */
+.row-level-3 .storeCount {
     color: white;
 }
 
@@ -186,7 +207,6 @@
 .data-bar-cell {
     position: relative;
     padding: 0 !important;
-    text-align: center;
 }
 
 .data-bar-container {
@@ -195,7 +215,7 @@
     justify-content: center;
     align-items: center;
     height: 100%;
-    padding: 0.75rem;
+    padding: 0.5rem;
     z-index: 1; 
 }
 
@@ -210,11 +230,11 @@
 }
 
 .value-bar {
-    background-color: #a0c8f0; /* Lighter Blue for values */
+    background-color: #a0c8f0;
 }
 
 .percent-bar {
-    background-color: #fde29f; /* Lighter Yellow for percentages */
+    background-color: #fde29f;
 }
 
 .storeCount {
@@ -224,25 +244,49 @@
     margin-left: 0.5rem;
 }
 
+.store-name-repeat {
+    font-size: 0.8em;
+    color: var(--text-light-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
 @media print {
-    body, .write-offs-report-view {
-        background-color: white;
+    body * {
+        visibility: hidden;
+    }
+    .printable-area, .printable-area * {
+        visibility: visible;
+    }
+    .printable-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        border: none !important;
     }
     .controls-container {
-        display: none;
+        display: none !important;
     }
     .report-table {
-        font-size: 8pt;
+        font-size: 7pt;
     }
     .report-table th, .report-table td {
-        padding: 4px;
-    }
-    .deviation-unfavorable {
-        background-color: #f8d7da !important;
+        padding: 3px 4px;
         -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
-    .deviation-favorable {
-        background-color: #d4edda !important;
+    .data-bar, .deviation-unfavorable, .deviation-favorable, .row-level-0 > td, .row-level-1 > td, .row-level-2 > td, .row-level-3 > td, .row-level-4 > td {
         -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .toggle-icon {
+        display: none;
+    }
+    @page {
+        size: landscape;
+        margin: 0.4in;
     }
 }
