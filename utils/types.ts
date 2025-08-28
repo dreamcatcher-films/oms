@@ -159,7 +159,7 @@ export type ReportRow = {
   metrics: WriteOffsMetrics;
   children: ReportRow[];
   storeCount: number;
-  summedMetrics: WriteOffsMetrics;
+  summedMetrics: WriteOffsMetrics & { ytd?: WriteOffsMetrics };
   maxValuesInScope?: {
       turnover: number;
       writeOffsValue: number;
@@ -170,6 +170,11 @@ export type ReportRow = {
       writeOffsTotalPercent: number;
       discountsPercent: number;
       damagesPercent: number;
+  };
+  ytdMetrics?: {
+    writeOffsTotalPercent: number;
+    target: number | null;
+    deviation: number | null;
   };
 };
 
