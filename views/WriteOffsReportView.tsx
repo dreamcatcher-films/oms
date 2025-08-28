@@ -281,9 +281,10 @@ export const WriteOffsReportView = () => {
   const reportData = useMemo<ReportRow | null>(() => {
     if (reportType !== 'hierarchy' || isLoading || orgStructure.length === 0) return null;
     
+    const mainTargetType: 'monthlyTarget' | 'yearlyTarget' = viewMode === 'weekly' ? 'monthlyTarget' : 'yearlyTarget';
     const dataToProcess = {
-        main: { actuals: viewMode === 'weekly' ? weeklyActuals : ytdActuals, targetType: viewMode === 'weekly' ? 'monthlyTarget' : 'yearlyTarget' },
-        ytd: viewMode === 'weekly' ? { actuals: ytdActuals, targetType: 'yearlyTarget' } : null,
+        main: { actuals: viewMode === 'weekly' ? weeklyActuals : ytdActuals, targetType: mainTargetType },
+        ytd: viewMode === 'weekly' ? { actuals: ytdActuals, targetType: 'yearlyTarget' as const } : null,
     };
 
     const processDataSet = (dataset: { actuals: WriteOffsActual[]; targetType: 'monthlyTarget' | 'yearlyTarget' }) => {
@@ -340,14 +341,16 @@ export const WriteOffsReportView = () => {
     const mainMetricsByStore = processDataSet(dataToProcess.main);
     const ytdMetricsByStore = dataToProcess.ytd ? processDataSet(dataToProcess.ytd) : null;
 
-    const aggregateHierarchyNode = (rows: ReportRow[], level: number): { metrics: WriteOffsMetrics, summedMetrics: WriteOffsMetrics, storeCount: number, ytdMetrics?: ReportRow['ytdMetrics'] } => {
+    const aggregateHierarchyNode = (rows: ReportRow[], level: number): { metrics: WriteOffsMetrics, summedMetrics: ReportRow['summedMetrics'], storeCount: number, ytdMetrics?: ReportRow['ytdMetrics'] } => {
         const summed = { main: createEmptyMetrics(), ytd: createEmptyMetrics() };
         let storeCount = 0;
 
         for (const row of rows) {
             storeCount += row.storeCount;
             for (const key in row.summedMetrics) {
-                (summed.main as any)[key] += (row.summedMetrics as any)[key];
+                if (key !== 'ytd') {
+                    (summed.main as any)[key] += (row.summedMetrics as any)[key];
+                }
             }
             if(viewMode === 'weekly' && row.summedMetrics.ytd) {
                  for (const key in row.summedMetrics.ytd) {
@@ -425,7 +428,7 @@ export const WriteOffsReportView = () => {
             let name = key;
             if(level === 2) name = `${rdcNameMap.get(key) || key} - ${key}`;
             
-            const row: ReportRow = { id, name, level, children: [], metrics: createEmptyMetrics(), storeCount: 0, summedMetrics: createEmptyMetrics() };
+            const row: ReportRow = { id, name, level: level as ReportRow['level'], children: [], metrics: createEmptyMetrics(), storeCount: 0, summedMetrics: createEmptyMetrics() };
 
             if (Array.isArray(value)) { // Store level
                 for (const store of value) {
