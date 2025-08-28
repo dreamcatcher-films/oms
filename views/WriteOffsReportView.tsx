@@ -29,6 +29,16 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 };
 
+type RankingRow = {
+    rank: number;
+    storeNumber: string;
+    storeName: string;
+    areaManager: string;
+    headOfSales: string;
+    metrics: WriteOffsMetrics;
+};
+
+
 const createEmptyMetrics = (): WriteOffsMetrics => ({
     turnover: 0,
     writeOffsValue: 0,
@@ -45,6 +55,7 @@ const createEmptyMetrics = (): WriteOffsMetrics => ({
 
 const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
 const formatValue = (value: number) => `£${Math.round(value).toLocaleString('en-GB')}`;
+const formatDeviation = (value: number | null) => value !== null ? `${(value * 100).toFixed(2)} p.p.` : '-';
 
 const DataBarCell = ({ value, maxValue, formatter, barClass }: { value: number; maxValue: number; formatter: (v: number) => string; barClass: string; }) => {
     const widthPercent = maxValue > 0 ? (Math.abs(value) / maxValue) * 100 : 0;
@@ -58,12 +69,13 @@ const DataBarCell = ({ value, maxValue, formatter, barClass }: { value: number; 
     );
 };
 
-const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, expandedRows: Set<string>, onToggle: (id: string) => void }) => {
+const HierarchyRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, expandedRows: Set<string>, onToggle: (id: string) => void }) => {
     const isExpanded = expandedRows.has(row.id);
     const hasChildren = row.children.length > 0;
     
+    // Positive deviation is favorable (green), negative is unfavorable (red)
     const deviationClass = row.metrics.deviation === null ? '' :
-        row.metrics.deviation > 0 ? styles['deviation-negative'] : styles['deviation-positive'];
+        row.metrics.deviation > 0 ? styles['deviation-favorable'] : styles['deviation-unfavorable'];
     
     const rowClass = styles[`row-level-${row.level}`];
 
@@ -131,13 +143,66 @@ const ReportRowComponent = ({ row, expandedRows, onToggle }: { row: ReportRow, e
                 />
                 <td style={{textAlign: 'center'}}>{row.metrics.target !== null ? formatPercent(row.metrics.target) : '-'}</td>
                 <td class={deviationClass} style={{textAlign: 'center'}}>
-                    {row.metrics.deviation !== null ? `${(row.metrics.deviation * 100).toFixed(2)} p.p.` : '-'}
+                    {formatDeviation(row.metrics.deviation)}
                 </td>
             </tr>
             {isExpanded && row.children.map(child => (
-                <ReportRowComponent key={child.id} row={child} expandedRows={expandedRows} onToggle={onToggle} />
+                <HierarchyRowComponent key={child.id} row={child} expandedRows={expandedRows} onToggle={onToggle} />
             ))}
         </>
+    );
+};
+
+const RankingTable = ({ data }: { data: RankingRow[] }) => {
+    const { t } = useTranslation();
+    return (
+        <table class={styles['report-table']}>
+            <thead>
+                <tr>
+                    <th class={styles['ranking-header']}>Rank</th>
+                    <th class={styles['ranking-header']}>Store</th>
+                    <th class={styles['ranking-header']}>AM</th>
+                    <th class={styles['ranking-header']}>HoS</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.turnover')}</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.writeOffsValue')}</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.writeOffsPercent')}</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.discountsValue')}</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.discountsPercent')}</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.damagesValue')}</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.damagesPercent')}</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.writeOffsTotalValue')}</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.targetPercent')}</th>
+                    <th class={styles['ranking-header']}>{t('columns.writeOffs.deviation')}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {data.map(item => {
+                    const { metrics } = item;
+                    const deviationClass = metrics.deviation === null ? '' :
+                        metrics.deviation > 0 ? styles['deviation-favorable'] : styles['deviation-unfavorable'];
+                    return (
+                        <tr key={item.storeNumber}>
+                            <td style={{textAlign: 'center'}}>{item.rank}</td>
+                            <td style={{textAlign: 'left'}}>{item.storeNumber} - {item.storeName}</td>
+                            <td style={{textAlign: 'left'}}>{item.areaManager}</td>
+                            <td style={{textAlign: 'left'}}>{item.headOfSales}</td>
+                            <td style={{textAlign: 'right'}}>{formatValue(metrics.turnover)}</td>
+                            <td style={{textAlign: 'right'}}>{formatValue(metrics.writeOffsValue)}</td>
+                            <td style={{textAlign: 'right'}}>{formatPercent(metrics.writeOffsPercent)}</td>
+                            <td style={{textAlign: 'right'}}>{formatValue(metrics.discountsValue)}</td>
+                            <td style={{textAlign: 'right'}}>{formatPercent(metrics.discountsPercent)}</td>
+                            <td style={{textAlign: 'right'}}>{formatValue(metrics.damagesValue)}</td>
+                            <td style={{textAlign: 'right'}}>{formatPercent(metrics.damagesPercent)}</td>
+                            <td style={{textAlign: 'right'}}>{formatValue(metrics.writeOffsTotalValue)}</td>
+                            <td style={{textAlign: 'right'}}>{formatPercent(metrics.writeOffsTotalPercent)}</td>
+                            <td style={{textAlign: 'center'}}>{metrics.target !== null ? formatPercent(metrics.target) : '-'}</td>
+                            <td class={deviationClass} style={{textAlign: 'center'}}>{formatDeviation(metrics.deviation)}</td>
+                        </tr>
+                    );
+                })}
+            </tbody>
+        </table>
     );
 };
 
@@ -152,12 +217,14 @@ export const WriteOffsReportView = () => {
   const [rdcList, setRdcList] = useState<RDC[]>([]);
   const [dooList, setDooList] = useState<DirectorOfOperations[]>([]);
 
+  const [reportType, setReportType] = useState<'hierarchy' | 'ranking'>('hierarchy');
   const [viewMode, setViewMode] = useState<'weekly' | 'ytd'>('weekly');
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [availableGroups, setAvailableGroups] = useState<string[]>([]);
   const [availableWeeks, setAvailableWeeks] = useState<string[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<string>('');
+  const [selectedRdc, setSelectedRdc] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   
   useEffect(() => {
@@ -177,6 +244,7 @@ export const WriteOffsReportView = () => {
             setTargets(targetsData);
             setOrgStructure(org);
             setRdcList(rdcs);
+            if (rdcs.length > 0) setSelectedRdc(rdcs[0].id);
             setDooList(doos || []);
             
             const allActuals = [...weekly, ...ytd];
@@ -199,7 +267,7 @@ export const WriteOffsReportView = () => {
   }, []);
   
   const reportData = useMemo<ReportRow | null>(() => {
-    if (isLoading || orgStructure.length === 0) return null;
+    if (reportType !== 'hierarchy' || isLoading || orgStructure.length === 0) return null;
 
     const rdcNameMap = new Map(rdcList.map(rdc => [rdc.id, rdc.name]));
     let actuals = viewMode === 'weekly' ? weeklyActuals : ytdActuals;
@@ -256,7 +324,6 @@ export const WriteOffsReportView = () => {
         
         const finalMetrics = { ...summedMetrics };
         
-        // Average value metrics for all manager levels
         if ((level >= 1 && level <= 4) && storeCount > 0) { 
             finalMetrics.turnover /= storeCount;
             finalMetrics.writeOffsValue /= storeCount;
@@ -273,7 +340,8 @@ export const WriteOffsReportView = () => {
         finalMetrics.target = totalTurnoverForTarget > 0 ? totalWeightedTarget / totalTurnoverForTarget : null;
 
         if (finalMetrics.target !== null) {
-            finalMetrics.deviation = finalMetrics.writeOffsTotalPercent - finalMetrics.target;
+            // Deviation = Target - Actual (so positive is good/under-target)
+            finalMetrics.deviation = finalMetrics.target - finalMetrics.writeOffsTotalPercent;
         }
 
         return { metrics: finalMetrics, summedMetrics, storeCount };
@@ -345,7 +413,7 @@ export const WriteOffsReportView = () => {
                                 const targetValue = viewMode === 'weekly' ? target.monthlyTarget : target.yearlyTarget;
                                 if (targetValue !== undefined) {
                                     storeMetrics.target = targetValue;
-                                    storeMetrics.deviation = storeMetrics.writeOffsTotalPercent - targetValue;
+                                    storeMetrics.deviation = targetValue - storeMetrics.writeOffsTotalPercent;
                                 }
                             }
                         }
@@ -390,7 +458,7 @@ export const WriteOffsReportView = () => {
         
         rows.forEach(row => {
             if (row.children.length > 0) {
-                if (row.level >= 2 && row.level <= 3) { // Sort AMs under HoS, and HoS under RDC
+                if (row.level >= 2 && row.level <= 3) { 
                     row.children.sort((a, b) => {
                         const valA = sortConfig.key === 'turnover' ? a.metrics.turnover : a.metrics.writeOffsTotalPercent;
                         const valB = sortConfig.key === 'turnover' ? b.metrics.turnover : b.metrics.writeOffsTotalPercent;
@@ -408,7 +476,68 @@ export const WriteOffsReportView = () => {
 
     return allRow;
 
-  }, [isLoading, orgStructure, viewMode, weeklyActuals, ytdActuals, targets, selectedGroup, selectedWeek, sortConfig, rdcList, dooList]);
+  }, [isLoading, orgStructure, viewMode, weeklyActuals, ytdActuals, targets, selectedGroup, selectedWeek, sortConfig, rdcList, dooList, reportType]);
+
+  const rankingReportData = useMemo<RankingRow[] | null>(() => {
+    if (reportType !== 'ranking' || isLoading || !selectedRdc) return null;
+
+    let actuals = viewMode === 'weekly' ? weeklyActuals : ytdActuals;
+    if (viewMode === 'weekly' && selectedWeek) {
+        actuals = actuals.filter(a => a.period === selectedWeek);
+    }
+    const filteredActuals = actuals.filter(a => (selectedGroup === 'all' || `${a.itemGroupNumber} - ${a.itemGroupName}` === selectedGroup));
+    
+    const getMetric = (storeActuals: WriteOffsActual[], matcher: (name: string) => boolean): number => {
+        return storeActuals.reduce((sum, a) => matcher(a.metricName) ? sum + a.value : sum, 0);
+    };
+
+    const storesInRdc = orgStructure.filter(s => s.warehouseId === selectedRdc);
+    const results: Omit<RankingRow, 'rank'>[] = [];
+
+    for (const store of storesInRdc) {
+        const storeActuals = filteredActuals.filter(a => a.storeNumber === store.storeNumber);
+        if (storeActuals.length === 0) continue;
+
+        const metrics = createEmptyMetrics();
+        metrics.turnover = getMetric(storeActuals, METRIC_NAME_MATCHERS.TURNOVER);
+        if (metrics.turnover === 0) continue;
+
+        metrics.writeOffsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_VALUE);
+        metrics.writeOffsTotalValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.WRITE_OFFS_TOTAL_VALUE);
+        metrics.discountsValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DISCOUNTS_VALUE);
+        metrics.damagesValue = getMetric(storeActuals, METRIC_NAME_MATCHERS.DAMAGES_VALUE);
+
+        metrics.writeOffsPercent = metrics.turnover ? metrics.writeOffsValue / metrics.turnover : 0;
+        metrics.writeOffsTotalPercent = metrics.turnover ? metrics.writeOffsTotalValue / metrics.turnover : 0;
+        metrics.discountsPercent = metrics.turnover ? metrics.discountsValue / metrics.turnover : 0;
+        metrics.damagesPercent = metrics.turnover ? metrics.damagesValue / metrics.turnover : 0;
+        
+        if (selectedGroup !== 'all') {
+            const [groupNumber] = selectedGroup.split(' - ');
+            const target = targets.find(t => t.storeNumber === store.storeNumber && t.itemGroupNumber === groupNumber);
+            if (target) {
+                const targetValue = viewMode === 'weekly' ? target.monthlyTarget : target.yearlyTarget;
+                if (targetValue !== undefined) {
+                    metrics.target = targetValue;
+                    metrics.deviation = targetValue - metrics.writeOffsTotalPercent;
+                }
+            }
+        }
+        
+        results.push({
+            storeNumber: store.storeNumber,
+            storeName: store.storeName,
+            areaManager: store.areaManager,
+            headOfSales: store.headOfSales,
+            metrics,
+        });
+    }
+
+    results.sort((a, b) => (a.metrics.deviation ?? Infinity) - (b.metrics.deviation ?? Infinity));
+    
+    return results.map((item, index) => ({ ...item, rank: index + 1 }));
+
+  }, [reportType, isLoading, selectedRdc, viewMode, weeklyActuals, ytdActuals, selectedWeek, selectedGroup, orgStructure, targets]);
 
   const handleToggleRow = useCallback((id: string) => {
       setExpandedRows(prev => {
@@ -472,19 +601,63 @@ export const WriteOffsReportView = () => {
   if (isLoading) {
       return <div class={sharedStyles['spinner-overlay']}><div class={sharedStyles.spinner}></div></div>;
   }
-  if (!reportData) {
-      return <div class={sharedStyles['placeholder-view']}><h3>{t('sidebar.writeOffsReport')}</h3><p>No data available to generate the report. Please import the required files.</p></div>;
-  }
   
   const getSortIcon = (key: 'turnover' | 'writeOffsTotalPercent') => {
       if (sortConfig?.key !== key) return '↕';
       return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
+  const renderContent = () => {
+      if (reportType === 'hierarchy') {
+          if (!reportData) {
+              return <div class={sharedStyles['placeholder-view']}><p>No data available for hierarchy report.</p></div>;
+          }
+          return (
+            <table class={styles['report-table']}>
+                <thead>
+                    <tr>
+                        <th>{t('columns.writeOffs.regionManagerStore')}</th>
+                        <th class={styles.sortable} onClick={() => handleSort('turnover')}>
+                            {t('columns.writeOffs.turnover')}
+                            <span class={styles['sort-icon']}>{getSortIcon('turnover')}</span>
+                        </th>
+                        <th>{t('columns.writeOffs.writeOffsValue')}</th>
+                        <th>{t('columns.writeOffs.writeOffsPercent')}</th>
+                        <th>{t('columns.writeOffs.discountsValue')}</th>
+                        <th>{t('columns.writeOffs.discountsPercent')}</th>
+                        <th>{t('columns.writeOffs.damagesValue')}</th>
+                        <th>{t('columns.writeOffs.damagesPercent')}</th>
+                        <th>{t('columns.writeOffs.writeOffsTotalValue')}</th>
+                        <th class={styles.sortable} onClick={() => handleSort('writeOffsTotalPercent')}>
+                          {t('columns.writeOffs.writeOffsTotalPercent')}
+                          <span class={styles['sort-icon']}>{getSortIcon('writeOffsTotalPercent')}</span>
+                        </th>
+                        <th>{t('columns.writeOffs.targetPercent')}</th>
+                        <th>{t('columns.writeOffs.deviation')}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <HierarchyRowComponent row={reportData} expandedRows={expandedRows} onToggle={handleToggleRow} />
+                </tbody>
+            </table>
+          );
+      } else { // ranking
+          if (!rankingReportData) {
+              return <div class={sharedStyles['placeholder-view']}><p>No data available for ranking report. Please select an RDC.</p></div>;
+          }
+          return <RankingTable data={rankingReportData} />;
+      }
+  };
+
+
   return (
       <div class={styles['write-offs-report-view']}>
           <div class={styles['controls-container']}>
               <div class={styles['control-group']}>
+                  <div class={styles['view-toggle']}>
+                      <button class={reportType === 'hierarchy' ? styles.active : ''} onClick={() => setReportType('hierarchy')}>Hierarchy</button>
+                      <button class={reportType === 'ranking' ? styles.active : ''} onClick={() => setReportType('ranking')}>Ranking</button>
+                  </div>
                   <div class={styles['view-toggle']}>
                       <button class={viewMode === 'weekly' ? styles.active : ''} onClick={() => setViewMode('weekly')}>Weekly</button>
                       <button class={viewMode === 'ytd' ? styles.active : ''} onClick={() => setViewMode('ytd')}>YTD</button>
@@ -497,48 +670,32 @@ export const WriteOffsReportView = () => {
                           </select>
                       </>
                   )}
+                  {reportType === 'ranking' && (
+                     <div class={styles['control-group']}>
+                        <label for="rdc-select">RDC:</label>
+                        <select id="rdc-select" value={selectedRdc} onChange={e => setSelectedRdc((e.target as HTMLSelectElement).value)}>
+                            {rdcList.map(rdc => <option key={rdc.id} value={rdc.id}>{rdc.id} - {rdc.name}</option>)}
+                        </select>
+                     </div>
+                  )}
                   <label for="group-select">Item Group:</label>
                   <select id="group-select" value={selectedGroup} onChange={e => setSelectedGroup((e.target as HTMLSelectElement).value)}>
                       <option value="all">All Groups</option>
                       {availableGroups.map(group => <option key={group} value={group}>{group}</option>)}
                   </select>
               </div>
-               <div class={styles['actions-bar']}>
-                  <button onClick={() => expandToLevel(1)}>{t('writeOffsReport.expandToDoO')}</button>
-                  <button onClick={() => expandToLevel(2)}>{t('writeOffsReport.expandToRdc')}</button>
-                  <button onClick={() => expandToLevel(3)}>{t('writeOffsReport.expandToHos')}</button>
-                  <button onClick={() => expandToLevel(4)}>{t('writeOffsReport.expandToAm')}</button>
-                  <button onClick={() => setExpandedRows(new Set())}>{t('writeOffsReport.collapseAll')}</button>
-              </div>
+               {reportType === 'hierarchy' && (
+                  <div class={styles['actions-bar']}>
+                      <button onClick={() => expandToLevel(1)}>{t('writeOffsReport.expandToDoO')}</button>
+                      <button onClick={() => expandToLevel(2)}>{t('writeOffsReport.expandToRdc')}</button>
+                      <button onClick={() => expandToLevel(3)}>{t('writeOffsReport.expandToHos')}</button>
+                      <button onClick={() => expandToLevel(4)}>{t('writeOffsReport.expandToAm')}</button>
+                      <button onClick={() => setExpandedRows(new Set())}>{t('writeOffsReport.collapseAll')}</button>
+                  </div>
+               )}
           </div>
           <div class={sharedStyles['table-container']}>
-              <table class={styles['report-table']}>
-                  <thead>
-                      <tr>
-                          <th>{t('columns.writeOffs.regionManagerStore')}</th>
-                          <th class={styles.sortable} onClick={() => handleSort('turnover')}>
-                              {t('columns.writeOffs.turnover')}
-                              <span class={styles['sort-icon']}>{getSortIcon('turnover')}</span>
-                          </th>
-                          <th>{t('columns.writeOffs.writeOffsValue')}</th>
-                          <th>{t('columns.writeOffs.writeOffsPercent')}</th>
-                          <th>{t('columns.writeOffs.discountsValue')}</th>
-                          <th>{t('columns.writeOffs.discountsPercent')}</th>
-                          <th>{t('columns.writeOffs.damagesValue')}</th>
-                          <th>{t('columns.writeOffs.damagesPercent')}</th>
-                          <th>{t('columns.writeOffs.writeOffsTotalValue')}</th>
-                          <th class={styles.sortable} onClick={() => handleSort('writeOffsTotalPercent')}>
-                            {t('columns.writeOffs.writeOffsTotalPercent')}
-                            <span class={styles['sort-icon']}>{getSortIcon('writeOffsTotalPercent')}</span>
-                          </th>
-                          <th>{t('columns.writeOffs.targetPercent')}</th>
-                          <th>{t('columns.writeOffs.deviation')}</th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      <ReportRowComponent row={reportData} expandedRows={expandedRows} onToggle={handleToggleRow} />
-                  </tbody>
-              </table>
+             {renderContent()}
           </div>
       </div>
   );
