@@ -59,7 +59,7 @@ const createEmptyMetrics = (): WriteOffsMetrics => ({
 });
 
 const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
-const formatValue = (value: number) => `£${Math.round(value).toLocaleString('en-GB')}`;
+const formatValue = (value: number) => `${Math.round(value).toLocaleString('en-GB')}`;
 const formatDeviation = (value: number | null) => value !== null ? `${(value * 100).toFixed(2)} p.p.` : '-';
 
 const DataBarCell = ({ value, maxValue, formatter, barClass }: { value: number; maxValue: number; formatter: (v: number) => string; barClass: string; }) => {
@@ -159,78 +159,84 @@ const HierarchyRowComponent = ({ row, expandedRows, onToggle, viewMode }: { row:
     );
 };
 
-const RankingTable = ({ data, viewMode }: { data: RankingRow[], viewMode: 'weekly' | 'ytd' }) => {
+const RankingTable = ({ data, viewMode, selectedRdc, rdcNameMap }: { data: RankingRow[], viewMode: 'weekly' | 'ytd', selectedRdc: string, rdcNameMap: Map<string, string> }) => {
     const { t } = useTranslation();
+    const rdcName = rdcNameMap.get(selectedRdc) || selectedRdc;
     return (
-        <table class={styles['report-table']}>
-            <thead>
-                <tr>
-                    <th rowSpan={2}>Rank</th>
-                    <th rowSpan={2} class={styles['left-aligned-cell']}>Store</th>
-                    <th rowSpan={2}>AM</th>
-                    <th rowSpan={2}>HoS</th>
-                    <th rowSpan={2}>{t('columns.writeOffs.turnover')}</th>
-                    <th rowSpan={2}>{t('columns.writeOffs.writeOffsValue')}</th>
-                    <th rowSpan={2}>{t('columns.writeOffs.writeOffsPercent')}</th>
-                    <th rowSpan={2}>{t('columns.writeOffs.discountsValue')}</th>
-                    <th rowSpan={2}>{t('columns.writeOffs.discountsPercent')}</th>
-                    <th rowSpan={2}>{t('columns.writeOffs.damagesValue')}</th>
-                    <th rowSpan={2}>{t('columns.writeOffs.damagesPercent')}</th>
-                    <th rowSpan={2}>{t('columns.writeOffs.writeOffsTotalValue')}</th>
-                    <th rowSpan={2}>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
-                    <th rowSpan={2}>{t('columns.writeOffs.targetPercent')}</th>
-                    <th rowSpan={2}>{t('columns.writeOffs.deviation')}</th>
-                    {viewMode === 'weekly' && <th colSpan={4} class={styles['ytd-separator']}>YTD</th>}
-                    <th rowSpan={2}>Store</th>
-                </tr>
-                 {viewMode === 'weekly' && (
+        <>
+            <div class={styles['print-header']}>
+                <h3>Write-Off Target Ranking for {selectedRdc} - {rdcName}</h3>
+            </div>
+            <table class={styles['report-table']}>
+                <thead>
                     <tr>
-                        <th class={styles['ytd-separator']}></th>
-                        <th>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
-                        <th>{t('columns.writeOffs.targetPercent')}</th>
-                        <th>{t('columns.writeOffs.deviation')}</th>
+                        <th rowSpan={2}>Rank</th>
+                        <th rowSpan={2} class={styles['left-aligned-cell']}>Store</th>
+                        <th rowSpan={2}>AM</th>
+                        <th rowSpan={2}>HoS</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.turnover')} (£)</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.writeOffsValue')} (£)</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.writeOffsPercent')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.discountsValue')} (£)</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.discountsPercent')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.damagesValue')} (£)</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.damagesPercent')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.writeOffsTotalValue')} (£)</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.targetPercent')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.deviation')}</th>
+                        {viewMode === 'weekly' && <th colSpan={4} class={styles['ytd-separator']}>YTD</th>}
+                        <th rowSpan={2}>Store</th>
                     </tr>
-                )}
-            </thead>
-            <tbody>
-                {data.map(item => {
-                    const { metrics, ytdMetrics } = item;
-                    const deviationClass = metrics.deviation === null ? '' :
-                        metrics.deviation > 0 ? styles['deviation-unfavorable'] : styles['deviation-favorable'];
-                    const ytdDeviationClass = ytdMetrics?.deviation === null || ytdMetrics?.deviation === undefined ? '' :
-                        ytdMetrics.deviation > 0 ? styles['deviation-unfavorable'] : styles['deviation-favorable'];
-                    
-                    return (
-                        <tr key={item.storeNumber}>
-                            <td class={styles['centered-cell']}>{item.rank}</td>
-                            <td class={`${styles['left-aligned-cell']} ${styles['store-name-repeat']}`}>{item.storeNumber} - {item.storeName}</td>
-                            <td class={styles['left-aligned-cell']}>{item.areaManager}</td>
-                            <td class={styles['left-aligned-cell']}>{item.headOfSales}</td>
-                            <td class={styles['centered-cell']}>{formatValue(metrics.turnover)}</td>
-                            <td class={styles['centered-cell']}>{formatValue(metrics.writeOffsValue)}</td>
-                            <td class={styles['centered-cell']}>{formatPercent(metrics.writeOffsPercent)}</td>
-                            <td class={styles['centered-cell']}>{formatValue(metrics.discountsValue)}</td>
-                            <td class={styles['centered-cell']}>{formatPercent(metrics.discountsPercent)}</td>
-                            <td class={styles['centered-cell']}>{formatValue(metrics.damagesValue)}</td>
-                            <td class={styles['centered-cell']}>{formatPercent(metrics.damagesPercent)}</td>
-                            <td class={styles['centered-cell']}>{formatValue(metrics.writeOffsTotalValue)}</td>
-                            <td class={styles['centered-cell']}>{formatPercent(metrics.writeOffsTotalPercent)}</td>
-                            <td class={styles['centered-cell']}>{metrics.target !== null ? formatPercent(metrics.target) : '-'}</td>
-                            <td class={`${deviationClass} ${styles['centered-cell']}`}>{formatDeviation(metrics.deviation)}</td>
-                            {viewMode === 'weekly' && (
-                                <>
-                                    <td class={styles['ytd-separator']}></td>
-                                    <td class={styles['centered-cell']}>{ytdMetrics ? formatPercent(ytdMetrics.writeOffsTotalPercent) : '-'}</td>
-                                    <td class={styles['centered-cell']}>{ytdMetrics?.target !== null && ytdMetrics?.target !== undefined ? formatPercent(ytdMetrics.target) : '-'}</td>
-                                    <td class={`${ytdDeviationClass} ${styles['centered-cell']}`}>{formatDeviation(ytdMetrics?.deviation ?? null)}</td>
-                                </>
-                            )}
-                            <td class={`${styles['left-aligned-cell']} ${styles['store-name-repeat']}`}>{item.storeNumber} - {item.storeName}</td>
+                    {viewMode === 'weekly' && (
+                        <tr>
+                            <th class={styles['ytd-separator']}></th>
+                            <th>{t('columns.writeOffs.writeOffsTotalPercent')}</th>
+                            <th>{t('columns.writeOffs.targetPercent')}</th>
+                            <th>{t('columns.writeOffs.deviation')}</th>
                         </tr>
-                    );
-                })}
-            </tbody>
-        </table>
+                    )}
+                </thead>
+                <tbody>
+                    {data.map(item => {
+                        const { metrics, ytdMetrics } = item;
+                        const deviationClass = metrics.deviation === null ? '' :
+                            metrics.deviation > 0 ? styles['deviation-unfavorable'] : styles['deviation-favorable'];
+                        const ytdDeviationClass = ytdMetrics?.deviation === null || ytdMetrics?.deviation === undefined ? '' :
+                            ytdMetrics.deviation > 0 ? styles['deviation-unfavorable'] : styles['deviation-favorable'];
+                        
+                        return (
+                            <tr key={item.storeNumber}>
+                                <td class={styles['centered-cell']}>{item.rank}</td>
+                                <td class={`${styles['left-aligned-cell']} ${styles['store-name-repeat']}`}>{item.storeNumber} - {item.storeName}</td>
+                                <td class={styles['left-aligned-cell']}>{item.areaManager}</td>
+                                <td class={styles['left-aligned-cell']}>{item.headOfSales}</td>
+                                <td class={styles['centered-cell']}>{formatValue(metrics.turnover)}</td>
+                                <td class={styles['centered-cell']}>{formatValue(metrics.writeOffsValue)}</td>
+                                <td class={styles['centered-cell']}>{formatPercent(metrics.writeOffsPercent)}</td>
+                                <td class={styles['centered-cell']}>{formatValue(metrics.discountsValue)}</td>
+                                <td class={styles['centered-cell']}>{formatPercent(metrics.discountsPercent)}</td>
+                                <td class={styles['centered-cell']}>{formatValue(metrics.damagesValue)}</td>
+                                <td class={styles['centered-cell']}>{formatPercent(metrics.damagesPercent)}</td>
+                                <td class={styles['centered-cell']}>{formatValue(metrics.writeOffsTotalValue)}</td>
+                                <td class={styles['centered-cell']}>{formatPercent(metrics.writeOffsTotalPercent)}</td>
+                                <td class={styles['centered-cell']}>{metrics.target !== null ? formatPercent(metrics.target) : '-'}</td>
+                                <td class={`${deviationClass} ${styles['centered-cell']}`}>{formatDeviation(metrics.deviation)}</td>
+                                {viewMode === 'weekly' && (
+                                    <>
+                                        <td class={styles['ytd-separator']}></td>
+                                        <td class={styles['centered-cell']}>{ytdMetrics ? formatPercent(ytdMetrics.writeOffsTotalPercent) : '-'}</td>
+                                        <td class={styles['centered-cell']}>{ytdMetrics?.target !== null && ytdMetrics?.target !== undefined ? formatPercent(ytdMetrics.target) : '-'}</td>
+                                        <td class={`${ytdDeviationClass} ${styles['centered-cell']}`}>{formatDeviation(ytdMetrics?.deviation ?? null)}</td>
+                                    </>
+                                )}
+                                <td class={`${styles['left-aligned-cell']} ${styles['store-name-repeat']}`}>{item.storeNumber} - {item.storeName}</td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </>
     );
 };
 
@@ -293,6 +299,8 @@ export const WriteOffsReportView = () => {
     };
     fetchData();
   }, []);
+
+  const rdcNameMap = useMemo(() => new Map(rdcList.map(rdc => [rdc.id, rdc.name])), [rdcList]);
   
   const reportData = useMemo<ReportRow | null>(() => {
     if (reportType !== 'hierarchy' || isLoading || orgStructure.length === 0) return null;
@@ -404,7 +412,6 @@ export const WriteOffsReportView = () => {
         return { metrics: finalMainMetrics, summedMetrics: { ...summed.main, ytd: viewMode === 'weekly' ? summed.ytd : undefined }, storeCount, ytdMetrics: finalYtdMetrics };
     };
     
-    const rdcNameMap = new Map(rdcList.map(rdc => [rdc.id, rdc.name]));
     const rdcToDooMap = new Map<string, string>();
     dooList.forEach(doo => { doo.rdcIds.forEach(rdcId => rdcToDooMap.set(rdcId, doo.directorName)); });
     
@@ -474,7 +481,7 @@ export const WriteOffsReportView = () => {
 
     return allRow;
 
-  }, [isLoading, orgStructure, viewMode, weeklyActuals, ytdActuals, targets, selectedGroup, selectedWeek, sortConfig, rdcList, dooList, reportType]);
+  }, [isLoading, orgStructure, viewMode, weeklyActuals, ytdActuals, targets, selectedGroup, selectedWeek, sortConfig, rdcList, dooList, reportType, rdcNameMap]);
 
   const rankingReportData = useMemo<RankingRow[] | null>(() => {
     if (reportType !== 'ranking' || isLoading || !selectedRdc) return null;
@@ -644,16 +651,16 @@ export const WriteOffsReportView = () => {
                     <tr>
                         <th rowSpan={2}>{t('columns.writeOffs.regionManagerStore')}</th>
                         <th rowSpan={2} class={styles.sortable} onClick={() => handleSort('turnover')}>
-                            {t('columns.writeOffs.turnover')}
+                            {t('columns.writeOffs.turnover')} (£)
                             <span class={styles['sort-icon']}>{getSortIcon('turnover')}</span>
                         </th>
-                        <th rowSpan={2}>{t('columns.writeOffs.writeOffsValue')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.writeOffsValue')} (£)</th>
                         <th rowSpan={2}>{t('columns.writeOffs.writeOffsPercent')}</th>
-                        <th rowSpan={2}>{t('columns.writeOffs.discountsValue')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.discountsValue')} (£)</th>
                         <th rowSpan={2}>{t('columns.writeOffs.discountsPercent')}</th>
-                        <th rowSpan={2}>{t('columns.writeOffs.damagesValue')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.damagesValue')} (£)</th>
                         <th rowSpan={2}>{t('columns.writeOffs.damagesPercent')}</th>
-                        <th rowSpan={2}>{t('columns.writeOffs.writeOffsTotalValue')}</th>
+                        <th rowSpan={2}>{t('columns.writeOffs.writeOffsTotalValue')} (£)</th>
                         <th rowSpan={2} class={styles.sortable} onClick={() => handleSort('writeOffsTotalPercent')}>
                           {t('columns.writeOffs.writeOffsTotalPercent')}
                           <span class={styles['sort-icon']}>{getSortIcon('writeOffsTotalPercent')}</span>
@@ -672,7 +679,7 @@ export const WriteOffsReportView = () => {
           if (!rankingReportData) {
               return <div class={sharedStyles['placeholder-view']}><p>No data available for ranking report. Please select an RDC.</p></div>;
           }
-          return <RankingTable data={rankingReportData} viewMode={viewMode} />;
+          return <RankingTable data={rankingReportData} viewMode={viewMode} selectedRdc={selectedRdc} rdcNameMap={rdcNameMap} />;
       }
   };
 
