@@ -521,3 +521,79 @@
     max-width: 450px;
     text-align: center;
 }
+
+/* New Splash Screen Styles */
+.splashContainer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #1f2428;
+    color: #f6f8fa;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.5s ease-out;
+}
+.splashFadeOut {
+    opacity: 0;
+    pointer-events: none;
+}
+.splashTechStack {
+    position: absolute;
+    top: 2rem;
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    color: #6a737d;
+    font-size: 0.9rem;
+}
+.splashLogo {
+    font-size: clamp(8rem, 30vmin, 18rem);
+    color: #f6f8fa;
+    opacity: 0.8;
+    margin: 0;
+    line-height: 1;
+}
+.splashProgressContainer {
+    width: 80%;
+    max-width: 400px;
+    height: 6px;
+    background-color: #444d56;
+    border-radius: 3px;
+    margin-top: 2rem;
+    overflow: hidden;
+}
+.splashProgressBar {
+    height: 100%;
+    background-color: var(--primary-color);
+    border-radius: 3px;
+    transition: width 0.3s ease-in-out;
+}
+.splashLogs {
+    width: 80%;
+    max-width: 600px;
+    height: 150px;
+    overflow-y: auto;
+    border: 1px solid #444d56;
+    border-radius: 8px;
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #24292e;
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 0.8rem;
+    text-align: left;
+}
+.splashLogs p {
+    margin: 0 0 0.5rem 0;
+    color: #d1d5da;
+    line-height: 1.4;
+}
+.splashLogs p:last-child {
+    margin-bottom: 0;
+}
+.splashComplete {
+    color: var(--success-color) !important;
+    font-weight: bold;
+}
