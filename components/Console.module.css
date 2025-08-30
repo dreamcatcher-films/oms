@@ -79,11 +79,10 @@
 
 .log-entry {
     display: grid;
-    grid-template-columns: 100px 60px 1fr;
+    grid-template-columns: 110px 60px 1fr;
     gap: 1rem;
     align-items: start;
     padding: 4px 0;
-    border-bottom: 1px solid #333;
 }
 .log-list > div:last-child {
     border-bottom: none;
@@ -95,6 +94,8 @@
 
 .log-level {
     font-weight: bold;
+    text-align: right;
+    padding-right: 0.5rem;
 }
 
 .log-message {
@@ -107,20 +108,18 @@
     color: #f6f8fa;
 }
 .log .log-level {
-    color: #90caf9; /* Light Blue */
+    color: #90caf9; /* Light Blue for INFO */
 }
 
 .warn {
-    color: #ffe57f; /* Amber */
-    background-color: rgba(255, 229, 127, 0.05);
+    color: #ffe57f; /* Amber for WARNING */
 }
 .warn .log-level {
     color: #ffe57f;
 }
 
 .error {
-    color: #ef9a9a; /* Light Red */
-    background-color: rgba(239, 154, 154, 0.05);
+    color: #ef9a9a; /* Light Red for ERROR */
 }
 .error .log-level {
     color: #ef9a9a;
