@@ -24,6 +24,13 @@ const parseSortableDate = (dateStr: string): Date => {
     return new Date(year, month, day);
 };
 
+const logToMain = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
+    self.postMessage({
+        type: 'log',
+        payload: { level, args }
+    } as WorkerMessage);
+};
+
 // --- Core Simulation Logic ---
 async function runSimulationForProduct(product: Product): Promise<ReportResultItem | null> {
     const {
@@ -209,7 +216,7 @@ onmessage = async (e: MessageEvent<WorkerRequest>) => {
                 results.push(result);
             }
         } catch (error) {
-            console.error(`Simulation failed for product ${product.fullProductId}`, error);
+            logToMain('error', `Simulation failed for product ${product.fullProductId}`, error);
         }
 
         if (i % 10 === 0 || i === total - 1) { // Send progress update every 10 products or at the end
