@@ -571,7 +571,8 @@ export default {
     "expandToAm": "Expand to AM",
     "collapseAll": "Collapse All",
     "sortByTurnover": "Sort by Turnover",
-    "sortByDeviation": "Sort by Deviation"
+    "sortByDeviation": "Sort by Deviation",
+    "printReport": "Print Ranking"
   },
   "columns": {
     "product": {
