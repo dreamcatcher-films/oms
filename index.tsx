@@ -80,10 +80,38 @@ const BATCH_SIZE = 5000;
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const REFRESH_COUNTDOWN_SECONDS = 10;
 const MAX_LOGS = 200;
+const INIT_STEPS = 5; // Number of key steps in initialization for the progress bar
+
+const SplashScreen = ({ logs, progress, isComplete }: { logs: string[], progress: number, isComplete: boolean }) => {
+    const logContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (logContainerRef.current) {
+            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+        }
+    }, [logs]);
+
+    return (
+        <div class={`${sharedStyles.splashContainer} ${isComplete ? sharedStyles.splashFadeOut : ''}`}>
+            <div class={sharedStyles.splashTechStack}>
+                Preact • Vite • TypeScript • IndexedDB
+            </div>
+            <h1 class={sharedStyles.splashLogo}>OMS</h1>
+            <div class={sharedStyles.splashProgressContainer}>
+                <div class={sharedStyles.splashProgressBar} style={{ width: `${progress}%` }}></div>
+            </div>
+            <div class={sharedStyles.splashLogs} ref={logContainerRef}>
+                {logs.map((log, i) => <p key={i}>{log}</p>)}
+                {isComplete && <p className={sharedStyles.splashComplete}>Initialization complete. Welcome.</p>}
+            </div>
+        </div>
+    );
+};
 
 const App = () => {
   const { t, language } = useTranslation();
   const [isInitializing, setIsInitializing] = useState(true);
+  const [hideSplash, setHideSplash] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<Status | null>({ text: 'Inicjalizacja aplikacji...', type: 'info' });
   
@@ -108,6 +136,7 @@ const App = () => {
   const [showCountdownModal, setShowCountdownModal] = useState(false);
   const [countdown, setCountdown] = useState(REFRESH_COUNTDOWN_SECONDS);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [splashLogs, setSplashLogs] = useState<string[]>([]);
   const [isConsoleVisible, setIsConsoleVisible] = useState(false);
 
   const importFileInputRef = useRef<HTMLInputElement>(null);
@@ -122,6 +151,9 @@ const App = () => {
   const refreshIntervalRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
   const shcParsingWorkerRef = useRef<Worker | null>(null);
+  const isInitializingRef = useRef(isInitializing);
+  useEffect(() => { isInitializingRef.current = isInitializing; }, [isInitializing]);
+
 
   // Refs to get latest state inside interval without resetting it
   const isLoadingRef = useRef(isLoading);
@@ -141,6 +173,9 @@ const App = () => {
         const now = new Date();
         const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
         setLogs(prevLogs => [...prevLogs, { timestamp, level, message: args }].slice(-MAX_LOGS));
+        if (isInitializingRef.current) {
+            setSplashLogs(prev => [...prev, args.join(' ')]);
+        }
     };
 
     console.log = createLogger('log');
@@ -214,21 +249,13 @@ const App = () => {
     };
   }, [initializeApp]);
 
-  useEffect(() => {
-    const splashScreen = document.getElementById('splash-screen');
-    const continueButton = document.getElementById('continue-button');
+    useEffect(() => {
+        if (!isInitializing) {
+            // Give fade-out animation time to complete before removing from DOM
+            setTimeout(() => setHideSplash(true), 1000);
+        }
+    }, [isInitializing]);
 
-    if (splashScreen && continueButton) {
-        const hideSplash = () => {
-            splashScreen.classList.add('splash-hidden');
-            splashScreen.addEventListener('animationend', () => {
-                splashScreen.remove();
-            }, { once: true });
-        };
-        
-        continueButton.addEventListener('click', hideSplash, { once: true });
-    }
-  }, []);
 
   const loadSettings = useCallback(async () => {
     if ('showOpenFilePicker' in window) {
@@ -1094,8 +1121,8 @@ const App = () => {
     { view: 'settings', labelKey: 'sidebar.settings' },
   ];
 
-  if (isInitializing) {
-    return null;
+  if (!hideSplash) {
+      return <SplashScreen logs={splashLogs} progress={(splashLogs.length / INIT_STEPS) * 100} isComplete={!isInitializing} />;
   }
   
   try {
