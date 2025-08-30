@@ -188,6 +188,11 @@ export type ImportMetadata = {
     [key in DataType | ShcDataType]: ImportMeta | null;
 };
 
+export type LogPayload = {
+    level: 'log' | 'warn' | 'error';
+    args: any[];
+};
+
 
 // --- Threat Report Worker Types ---
 export type WorkerRequest = {
@@ -217,7 +222,8 @@ export type ProgressPayload = {
 
 export type WorkerMessage = 
     | { type: 'progress', payload: ProgressPayload }
-    | { type: 'complete', payload: ReportResultItem[] };
+    | { type: 'complete', payload: ReportResultItem[] }
+    | { type: 'log', payload: LogPayload };
 
 // --- Status Report Worker Types ---
 export type StatusReportWorkerRequest = {
@@ -404,7 +410,8 @@ export type ShcParsingWorkerMessage =
     | { type: 'data', payload: ShcParsingWorkerDataPayload }
     | { type: 'complete', payload: ShcParsingWorkerCompletePayload }
     | { type: 'save_complete', payload: null }
-    | { type: 'error', payload: string };
+    | { type: 'error', payload: string }
+    | { type: 'log', payload: LogPayload };
 
 // --- SHC Compliance Report Types ---
 export type ShcSnapshot = {
@@ -467,3 +474,43 @@ export type ShcComplianceReportData = {
     rdcSummary: ShcComplianceReportSummary;
     bestRdcChange?: number;
 };
+
+// --- Simulation Worker Types ---
+export type SimulationLogEntry = {
+  date: string;
+  stockStart: number;
+  sales: number;
+  receipts: number;
+  writeOffs: number;
+  stockEnd: number;
+  notes: string;
+  aldAffectedStock: number;
+};
+
+export type InitialStockBatch = {
+    deliveryDate: string;
+    bestBeforeDate: string;
+    quantity: number;
+    isUnknown: boolean;
+    isNonCompliant: boolean;
+    daysToSell: number;
+    isAffectedByWriteOff: boolean;
+    isManual?: boolean;
+    isAldAffected: boolean;
+};
+
+export type SimulationResult = {
+  totalWriteOffValue: number;
+  daysOfStock: number;
+  avgDailySales: number;
+  nonCompliantReceiptsCount: number;
+  firstWriteOffDate: string | null;
+  log: SimulationLogEntry[];
+  initialStockComposition: InitialStockBatch[];
+  isStockDataComplete: boolean;
+  initialAldAffectedValue: number;
+};
+
+export type SimulationWorkerMessage = 
+    | { type: 'result', payload: SimulationResult }
+    | { type: 'log', payload: LogPayload };
