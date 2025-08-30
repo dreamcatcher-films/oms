@@ -58,9 +58,10 @@ type ThreatReportViewProps = {
     userSession: UserSession | null;
     onNavigateToSimulation: (warehouseId: string, fullProductId: string) => void;
     onStartWatchlist: (items: ReportResultItem[]) => void;
+    onAddLogEntry: (level: 'log' | 'warn' | 'error', ...args: any[]) => void;
 };
 
-export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartWatchlist }: ThreatReportViewProps) => {
+export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartWatchlist, onAddLogEntry }: ThreatReportViewProps) => {
     const { t, language } = useTranslation();
     const workerRef = useRef<Worker | null>(null);
 
@@ -91,11 +92,13 @@ export const ThreatReportView = ({ userSession, onNavigateToSimulation, onStartW
                 setReportResults(payload);
                 setIsLoading(false);
                 setProgress(null);
+            } else if (type === 'log') {
+                onAddLogEntry(payload.level, ...payload.args);
             }
         };
 
         return () => workerRef.current?.terminate();
-    }, []);
+    }, [onAddLogEntry]);
 
     useEffect(() => {
         (async () => {
