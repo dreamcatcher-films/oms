@@ -206,6 +206,26 @@
     color: white;
 }
 
+.console-toggle {
+    background: none;
+    border: 1px solid var(--border-color);
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light-color);
+}
+.console-toggle:hover {
+    background-color: #f0f4f8;
+    color: var(--primary-color);
+}
+.console-toggle svg {
+    width: 20px;
+    height: 20px;
+}
+
 /* Status & Progress */
 .status-container {
   display: flex;
