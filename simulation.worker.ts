@@ -6,45 +6,8 @@ import {
   getAllOpenOrdersForProduct,
   getAllSalesForProduct,
   Product,
-  GoodsReceipt,
-  OpenOrder,
-  Sale,
 } from './db';
-
-export type SimulationLogEntry = {
-  date: string;
-  stockStart: number;
-  sales: number;
-  receipts: number;
-  writeOffs: number;
-  stockEnd: number;
-  notes: string;
-  aldAffectedStock: number;
-};
-
-export type InitialStockBatch = {
-    deliveryDate: string;
-    bestBeforeDate: string;
-    quantity: number;
-    isUnknown: boolean;
-    isNonCompliant: boolean;
-    daysToSell: number;
-    isAffectedByWriteOff: boolean;
-    isManual?: boolean;
-    isAldAffected: boolean;
-};
-
-export type SimulationResult = {
-  totalWriteOffValue: number;
-  daysOfStock: number;
-  avgDailySales: number;
-  nonCompliantReceiptsCount: number;
-  firstWriteOffDate: string | null;
-  log: SimulationLogEntry[];
-  initialStockComposition: InitialStockBatch[];
-  isStockDataComplete: boolean;
-  initialAldAffectedValue: number;
-};
+import { SimulationResult, SimulationLogEntry, InitialStockBatch, SimulationWorkerMessage } from './utils/types';
 
 type StockBatch = {
     quantity: number;
@@ -81,6 +44,14 @@ const parseSortableDate = (dateStr: string): Date => {
     const day = parseInt(dateStr.substring(6, 8), 10);
     return new Date(year, month, day);
 };
+
+const logToMain = (level: 'log' | 'warn' | 'error', ...args: any[]) => {
+    self.postMessage({
+        type: 'log',
+        payload: { level, args }
+    } as SimulationWorkerMessage);
+};
+
 
 onmessage = async (event: MessageEvent<SimulationParams>) => {
   const { warehouseId, fullProductId, overrides, manualDeliveries } = event.data;
@@ -375,9 +346,9 @@ onmessage = async (event: MessageEvent<SimulationParams>) => {
       initialAldAffectedValue: peakAldAffectedStock * productDetails.price,
     };
 
-    postMessage(result);
+    self.postMessage({ type: 'result', payload: result } as SimulationWorkerMessage);
 
   } catch (error) {
-    console.error("Simulation failed:", error);
+    logToMain('error', "Simulation failed:", error);
   }
 };
