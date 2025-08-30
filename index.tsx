@@ -70,6 +70,8 @@ import { WriteOffsReportView } from './views/WriteOffsReportView';
 import { AutoRefreshControl } from './components/AutoRefreshControl';
 import { RefreshCountdownModal } from './components/RefreshCountdownModal';
 import { IdleSplashScreen } from './components/IdleSplashScreen';
+import { Console, LogEntry } from './components/Console';
+
 
 import './styles/global.css';
 import sharedStyles from './styles/shared.module.css';
@@ -77,6 +79,7 @@ import sharedStyles from './styles/shared.module.css';
 const BATCH_SIZE = 5000;
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const REFRESH_COUNTDOWN_SECONDS = 10;
+const MAX_LOGS = 200;
 
 const App = () => {
   const { t, language } = useTranslation();
@@ -104,6 +107,8 @@ const App = () => {
   const [timeToNextRefresh, setTimeToNextRefresh] = useState(0);
   const [showCountdownModal, setShowCountdownModal] = useState(false);
   const [countdown, setCountdown] = useState(REFRESH_COUNTDOWN_SECONDS);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isConsoleVisible, setIsConsoleVisible] = useState(false);
 
   const importFileInputRef = useRef<HTMLInputElement>(null);
   const exclusionFileInputRef = useRef<HTMLInputElement>(null);
@@ -124,6 +129,31 @@ const App = () => {
   const showCountdownModalRef = useRef(showCountdownModal);
   useEffect(() => { showCountdownModalRef.current = showCountdownModal; }, [showCountdownModal]);
   
+  useEffect(() => {
+    const originalConsole = {
+        log: console.log,
+        warn: console.warn,
+        error: console.error,
+    };
+
+    const createLogger = (level: LogEntry['level']) => (...args: any[]) => {
+        originalConsole[level](...args);
+        const now = new Date();
+        const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
+        setLogs(prevLogs => [...prevLogs, { timestamp, level, message: args }].slice(-MAX_LOGS));
+    };
+
+    console.log = createLogger('log');
+    console.warn = createLogger('warn');
+    console.error = createLogger('error');
+
+    return () => {
+        console.log = originalConsole.log;
+        console.warn = originalConsole.warn;
+        console.error = originalConsole.error;
+    };
+  }, []);
+
   const initializeApp = useCallback(async () => {
     console.log('[App] Starting initialization...');
     
@@ -1099,6 +1129,9 @@ const App = () => {
                       <div class={sharedStyles['header-right']}>
                           <AutoRefreshControl config={autoRefreshConfig} onConfigChange={handleAutoRefreshConfigChange} timeToNextRefresh={timeToNextRefresh} />
                           <LanguageSelector />
+                          <button class={sharedStyles['console-toggle']} onClick={() => setIsConsoleVisible(v => !v)} title="Toggle Console">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                          </button>
                           <button class={sharedStyles['button-secondary']} onClick={handleLogout}>{t('header.session.logout')}</button>
                       </div>
                   </header>
@@ -1136,6 +1169,12 @@ const App = () => {
                       )}
                       {renderView()}
                   </main>
+                  <Console 
+                    logs={logs} 
+                    isVisible={isConsoleVisible} 
+                    onClear={() => setLogs([])}
+                    onClose={() => setIsConsoleVisible(false)}
+                  />
               </div>
           )}
       </>
