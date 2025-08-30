@@ -1,6 +1,7 @@
 import { useMemo, useState } from "preact/hooks";
 import { useTranslation } from '../i18n';
-import type { SimulationLogEntry } from '../simulation.worker';
+// Fix: Corrected import path for worker-related types. They are defined in utils/types.ts, not the worker file.
+import type { SimulationLogEntry } from '../utils/types';
 import styles from './StockChart.module.css';
 
 type StockChartProps = {
