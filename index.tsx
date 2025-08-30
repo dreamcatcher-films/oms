@@ -154,6 +154,14 @@ const App = () => {
   const isInitializingRef = useRef(isInitializing);
   useEffect(() => { isInitializingRef.current = isInitializing; }, [isInitializing]);
 
+  const addLogEntry = useCallback((level: LogEntry['level'], ...args: any[]) => {
+      const now = new Date();
+      const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
+      setLogs(prevLogs => [...prevLogs, { timestamp, level, message: args }].slice(-MAX_LOGS));
+      if (isInitializingRef.current) {
+          setSplashLogs(prev => [...prev, args.join(' ')]);
+      }
+  }, []);
 
   // Refs to get latest state inside interval without resetting it
   const isLoadingRef = useRef(isLoading);
@@ -170,12 +178,7 @@ const App = () => {
 
     const createLogger = (level: LogEntry['level']) => (...args: any[]) => {
         originalConsole[level](...args);
-        const now = new Date();
-        const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
-        setLogs(prevLogs => [...prevLogs, { timestamp, level, message: args }].slice(-MAX_LOGS));
-        if (isInitializingRef.current) {
-            setSplashLogs(prev => [...prev, args.join(' ')]);
-        }
+        addLogEntry(level, ...args);
     };
 
     console.log = createLogger('log');
@@ -187,7 +190,7 @@ const App = () => {
         console.warn = originalConsole.warn;
         console.error = originalConsole.error;
     };
-  }, []);
+  }, [addLogEntry]);
 
   const initializeApp = useCallback(async () => {
     console.log('[App] Starting initialization...');
@@ -615,6 +618,9 @@ const App = () => {
           setIsLoading(false);
           worker.removeEventListener('message', onWorkerMessage);
           break;
+        case 'log':
+          addLogEntry(payload.level, ...payload.args);
+          break;
         case 'error':
           setStatusMessage({ text: payload, type: 'error' });
           setIsLoading(false);
@@ -628,7 +634,7 @@ const App = () => {
     
     const input = document.getElementById(`${dataType}-file-input`) as HTMLInputElement;
     if (input) input.value = '';
-  }, [t, language, performInitialCheck]);
+  }, [t, language, performInitialCheck, addLogEntry]);
 
   const handleReloadFile = useCallback(async (dataType: DataType, isAutoRefresh = false) => {
     const handle = linkedFiles.get(dataType);
@@ -1092,7 +1098,7 @@ const App = () => {
             return <DataPreview userSession={userSession} />;
         case 'threat-report':
              if (userSession?.mode !== 'hq') return <div class={sharedStyles['placeholder-view']}><h3>{t('placeholders.report.title')}</h3><p>{t('placeholders.report.accessDenied')}</p></div>;
-            return <ThreatReportView userSession={userSession} onNavigateToSimulation={handleNavigateToSimulation} onStartWatchlist={handleStartWatchlist} />;
+            return <ThreatReportView userSession={userSession} onNavigateToSimulation={handleNavigateToSimulation} onStartWatchlist={handleStartWatchlist} onAddLogEntry={addLogEntry} />;
         case 'status-report':
              return <StatusReportView rdcList={rdcList} exclusionList={exclusionList} onUpdateExclusionList={() => { if(exclusionFileInputRef.current) exclusionFileInputRef.current.click() }}/>;
         case 'shc-report':
@@ -1101,7 +1107,7 @@ const App = () => {
             if (userSession?.mode !== 'hq') return <div class={sharedStyles['placeholder-view']}><h3>{t('placeholders.report.title')}</h3><p>{t('placeholders.report.accessDenied')}</p></div>;
             return <WriteOffsReportView />;
         case 'simulations':
-            return <SimulationView userSession={userSession} initialParams={simulationContext} onSimulationStart={() => setSimulationContext(null)} watchlist={watchlist} watchlistIndex={watchlistIndex} onNavigateWatchlist={handleNavigateWatchlist} onClearWatchlist={() => { setWatchlist([]); setWatchlistIndex(null); }} />;
+            return <SimulationView userSession={userSession} initialParams={simulationContext} onSimulationStart={() => setSimulationContext(null)} watchlist={watchlist} watchlistIndex={watchlistIndex} onNavigateWatchlist={handleNavigateWatchlist} onClearWatchlist={() => { setWatchlist([]); setWatchlistIndex(null); }} onAddLogEntry={addLogEntry} />;
         case 'settings':
             return <SettingsView linkedFiles={linkedFiles} onLinkFile={handleLinkFile} onReloadFile={handleReloadFile} onClearLink={handleClearLink} isLoading={isLoading} userSession={userSession} rdcList={rdcList} onAddRdc={handleAddRdc} onDeleteRdc={handleDeleteRdc} onExportConfig={handleExportConfig} onImportClick={() => configImportInputRef.current?.click()} exclusionList={exclusionList} onImportExclusionListClick={() => exclusionFileInputRef.current?.click()} onClearExclusionList={handleClearExclusionList} shcExclusionList={shcExclusionList} onImportShcExclusionList={() => shcExclusionFileInputRef.current?.click()} onExportShcExclusionList={handleExportShcExclusionList} onClearShcExclusionList={handleClearShcExclusionList} onImportShcBaselineData={() => shcBaselineInputRef.current?.click()} onImportShcPreviousWeekData={() => shcPreviousWeekInputRef.current?.click()} onImportDooClick={() => dooFileInputRef.current?.click()} onClearDoo={handleClearDoo} />;
         case 'dashboard':
