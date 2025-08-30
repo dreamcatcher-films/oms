@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { useTranslation } from '../i18n';
 import { getUniqueWarehouseIds, findProductsByPartialId, Product, getProductDetails } from '../db';
-import { SimulationResult, InitialStockBatch } from "../simulation.worker";
+// Fix: Corrected import path for worker-related types. They are defined in utils/types.ts, not the worker file.
+import { SimulationResult, InitialStockBatch, SimulationWorkerMessage } from "../utils/types";
 import { ManualDelivery, UserSession, ReportResultItem } from '../utils/types';
 import { StockChart } from '../components/StockChart';
 import styles from './SimulationView.module.css';
@@ -15,6 +16,8 @@ type SimulationViewProps = {
     watchlistIndex: number | null;
     onNavigateWatchlist: (direction: 1 | -1) => void;
     onClearWatchlist: () => void;
+    // Fix: Added missing onAddLogEntry prop to handle logs from the simulation worker.
+    onAddLogEntry: (level: 'log' | 'warn' | 'error', ...args: any[]) => void;
 };
 
 const SESSION_STORAGE_KEY = 'simulationState';
@@ -44,7 +47,7 @@ const WatchlistNavigator = ({
     );
 };
 
-const SimulationView = ({ userSession, initialParams, onSimulationStart, watchlist, watchlistIndex, onNavigateWatchlist, onClearWatchlist }: SimulationViewProps) => {
+const SimulationView = ({ userSession, initialParams, onSimulationStart, watchlist, watchlistIndex, onNavigateWatchlist, onClearWatchlist, onAddLogEntry }: SimulationViewProps) => {
     const { t, language } = useTranslation();
     const [warehouseId, setWarehouseId] = useState('');
     const [productId, setProductId] = useState('');
@@ -109,28 +112,34 @@ const SimulationView = ({ userSession, initialParams, onSimulationStart, watchli
     useEffect(() => {
         workerRef.current = new Worker(new URL('../simulation.worker.ts', import.meta.url), { type: 'module' });
 
-        workerRef.current.onmessage = (event: MessageEvent<SimulationResult>) => {
-            const result = event.data;
-            setSimulationResult(result);
-            setIsSimulating(false);
+        // Fix: Updated onmessage handler to correctly process SimulationWorkerMessage and handle logs.
+        workerRef.current.onmessage = (event: MessageEvent<SimulationWorkerMessage>) => {
+            const { type, payload } = event.data;
+            if (type === 'result') {
+                const result = payload;
+                setSimulationResult(result);
+                setIsSimulating(false);
 
-            if (!originalSimParams && selectedProduct) {
-                 setOriginalSimParams({
-                    wDate: selectedProduct.shelfLifeAtReceiving,
-                    sDate: selectedProduct.shelfLifeAtStore,
-                    cDate: selectedProduct.customerShelfLife,
-                    avgDailySales: result.avgDailySales,
-                });
+                if (!originalSimParams && selectedProduct) {
+                     setOriginalSimParams({
+                        wDate: selectedProduct.shelfLifeAtReceiving,
+                        sDate: selectedProduct.shelfLifeAtStore,
+                        cDate: selectedProduct.customerShelfLife,
+                        avgDailySales: result.avgDailySales,
+                    });
+                }
+                
+                setOverrideAvgSales(result.avgDailySales.toFixed(2));
+                setIsDirty(false);
+            } else if (type === 'log') {
+                onAddLogEntry(payload.level, ...payload.args);
             }
-            
-            setOverrideAvgSales(result.avgDailySales.toFixed(2));
-            setIsDirty(false);
         };
 
         return () => {
             workerRef.current?.terminate();
         };
-    }, [originalSimParams, selectedProduct]);
+    }, [originalSimParams, selectedProduct, onAddLogEntry]);
     
     // Load state from session storage on initial mount
     useEffect(() => {
